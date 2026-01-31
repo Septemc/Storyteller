@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>互动小说系统 · 角色管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="characters">
+  <header class="top-nav">
+    <div class="nav-left">
+      <span class="app-title">互动小说系统</span>
+      <span class="app-subtitle">人物角色管理</span>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-link">剧情</a>
+      <a href="characters.html" class="nav-link active">角色</a>
+      <a href="worldbook.html" class="nav-link">世界书</a>
+      <a href="dungeon.html" class="nav-link">副本</a>
+      <a href="settings.html" class="nav-link">设置</a>
+    </nav>
+  </header>
+
+  <main class="two-column-layout">
+    <section class="left-panel">
+      <div class="panel-header">
+        <div class="panel-title">角色列表</div>
+      </div>
+
+      <div class="settings-section">
+        <div style="display: flex; gap: 8px;">
+          <input type="file" id="character-import-file" accept=".json" style="display: none;">
+
+          <button id="character-import-btn" class="btn-secondary" onclick="document.getElementById('character-import-file').click()">
+            导入
+          </button>
+          <button id="character-new-btn" class="btn-primary" style="flex: 1;">新建角色</button>
+        </div>
+        <div id="import-status" class="small-text" style="margin-top: 5px; height: 1.2em;"></div>
+        </div>
+
+      <div class="settings-section">
+        <label class="form-label">搜索</label>
+        <input id="character-search" class="form-input" placeholder="按名称或编号搜索">
+      </div>
+
+      <div class="character-list">
+        <ul id="character-list" class="list">
+          <!-- 角色列表由 JS 填充 -->
+        </ul>
+      </div>
+    </section>
+
+    <section class="right-panel">
+      <div class="panel-header">
+        <div class="panel-title">角色详情</div>
+        <div class="panel-header-right">
+          <div class="toggle-group" style="display: inline-flex; margin-right: 15px; border: 1px solid var(--border-color); border-radius: 4px;">
+            <button id="view-mode-btn" class="btn-small active" style="border: none; border-right: 1px solid var(--border-color);">预览</button>
+            <button id="edit-mode-btn" class="btn-small" style="border: none;">编辑</button>
+          </div>
+          <button id="character-save-btn" class="btn-primary">保存角色</button>
+          <span id="character-status" class="small-text"></span>
+        </div>
+      </div>
+
+      <div id="character-renderer" class="detail-panel rendered-view">
+        <div class="placeholder-text" style="color: var(--text-muted); padding: 20px;">请从左侧列表选择一个角色查看详情...</div>
+      </div>
+      <div id="character-editor" class="detail-panel" style="display: none;">
+        <div class="settings-section half-grid">
+          <div>
+            <label class="form-label">角色编号</label>
+            <input id="character-id" class="form-input" placeholder="如：A1 / C1 / N1">
+          </div>
+          <div>
+            <label class="form-label">角色类型</label>
+            <select id="character-type" class="form-select">
+              <option value="protagonist">主角</option>
+              <option value="major">主要角色</option>
+              <option value="npc">路人 / 次要角色</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="character-tabs">
+          <button class="tab-button active" data-tab="tab-basic">基本信息</button>
+          <button class="tab-button" data-tab="tab-knowledge">见闻</button>
+          <button class="tab-button" data-tab="tab-secrets">秘闻</button>
+          <button class="tab-button" data-tab="tab-attributes">属性</button>
+          <button class="tab-button" data-tab="tab-relations">关系</button>
+          <button class="tab-button" data-tab="tab-equipment">装备与物品</button>
+          <button class="tab-button" data-tab="tab-skills">技能与气运</button>
+        </div>
+
+        <div class="tab-content" id="tab-basic">
+          <div class="settings-section">
+            <label class="form-label">基本信息（JSON）</label>
+            <textarea id="character-basic-json" class="form-textarea" rows="6"
+              placeholder='例如：{"name":"苏离","gender":"女","age":23,"ability_tier":"金丹前期","identity":"酒馆侍女","favor_to_protagonist":35,"current_position":{"map_id":"MAP_MAIN_CITY","x":124,"y":88}}'></textarea>
+          </div>
+        </div>
+
+        <div class="tab-content hidden" id="tab-knowledge">
+          <div class="settings-section">
+            <label class="form-label">见闻（JSON）</label>
+            <textarea id="character-knowledge-json" class="form-textarea" rows="8"
+              placeholder='例如：{"personality":"表面温和，实际心细多疑","body_shape":"身形纤细","appearance":"一双时刻观察的眼睛","clothing":"略旧但干净的制服","current_representative_action":"一边擦桌一边偷听","inner_thoughts":"对最近的陌生修士感到不安","background":"从小在酒馆长大","goals":{"current_motivation":"搞清主角身份","short_term":"汇报酒馆异常","long_term":"离开黑鸦城"},"life_experience":"曾卷入屠城事件"}'></textarea>
+          </div>
+        </div>
+
+        <div class="tab-content hidden" id="tab-secrets">
+          <div class="settings-section">
+            <label class="form-label">秘闻（JSON）</label>
+            <textarea id="character-secrets-json" class="form-textarea" rows="6"></textarea>
+          </div>
+        </div>
+
+        <div class="tab-content hidden" id="tab-attributes">
+          <div class="settings-section">
+            <label class="form-label">属性（JSON）</label>
+            <textarea id="character-attributes-json" class="form-textarea" rows="6"></textarea>
+          </div>
+        </div>
+
+        <div class="tab-content hidden" id="tab-relations">
+          <div class="settings-section">
+            <label class="form-label">关系（JSON）</label>
+            <textarea id="character-relations-json" class="form-textarea" rows="6"
+              placeholder='例如：{"A1":{"relation_type":"暧昧+利用","like":45,"trust":30}}'></textarea>
+          </div>
+        </div>
+
+        <div class="tab-content hidden" id="tab-equipment">
+          <div class="settings-section">
+            <label class="form-label">装备（JSON）</label>
+            <textarea id="character-equipment-json" class="form-textarea" rows="4"></textarea>
+          </div>
+          <div class="settings-section">
+            <label class="form-label">物品（JSON）</label>
+            <textarea id="character-items-json" class="form-textarea" rows="4"></textarea>
+          </div>
+        </div>
+
+        <div class="tab-content hidden" id="tab-skills">
+          <div class="settings-section">
+            <label class="form-label">技能（JSON）</label>
+            <textarea id="character-skills-json" class="form-textarea" rows="4"></textarea>
+          </div>
+          <div class="settings-section">
+            <label class="form-label">气运（JSON）</label>
+            <textarea id="character-fortune-json" class="form-textarea" rows="4"></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/js/characters.js"></script>
+</body>
+</html>

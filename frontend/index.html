@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>互动小说系统 · 主界面</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="index">
+  <header class="top-nav">
+    <div class="nav-left">
+      <span class="app-title">互动小说系统</span>
+      <span class="app-subtitle">主线与副本 · 叙事控制台</span>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-link active">剧情</a>
+      <a href="characters.html" class="nav-link">角色</a>
+      <a href="worldbook.html" class="nav-link">世界书</a>
+      <a href="dungeon.html" class="nav-link">副本</a>
+      <a href="settings.html" class="nav-link">设置</a>
+    </nav>
+  </header>
+
+  <main class="main-layout">
+    <section class="story-panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">故事进程</div>
+          <div class="panel-subtitle" id="session-label">会话初始化中...</div>
+        </div>
+        <div class="panel-header-right">
+          <button id="new-session-btn" class="btn-secondary">新建会话</button>
+        </div>
+      </div>
+      <div id="story-log" class="story-log">
+        <!-- 剧情内容将插入到这里 -->
+      </div>
+    </section>
+
+    <aside class="side-panel">
+      <section class="sidebar-section">
+        <div class="sidebar-header">
+          <div class="sidebar-title">副本信息</div>
+        </div>
+        <div id="dungeon-info" class="sidebar-body small-text">
+          <div>当前副本：<span id="dungeon-name">暂无</span></div>
+          <div>当前节点：<span id="dungeon-node-name">暂无</span></div>
+          <div>节点进度：<span id="dungeon-progress">未知</span></div>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <div class="sidebar-header">
+          <div class="sidebar-title">主角与关键角色</div>
+        </div>
+        <div id="character-summary" class="sidebar-body small-text">
+          <div>加载中...</div>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <div class="sidebar-header">
+          <div class="sidebar-title">关键数值与变量</div>
+        </div>
+        <div id="variable-summary" class="sidebar-body small-text">
+          <div>经济：<span id="var-economy">未知</span></div>
+          <div>能力：<span id="var-ability">未知</span></div>
+          <div>势力：<span id="var-faction">未知</span></div>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <div class="sidebar-header">
+          <div class="sidebar-title">本段统计</div>
+        </div>
+        <div class="sidebar-body small-text">
+          <div>本段字数：<span id="stat-words">0</span></div>
+          <div>后端耗时：<span id="stat-duration">0 ms</span></div>
+          <div>前端耗时：<span id="stat-duration-front">0 ms</span></div>
+          <div>会话累计字数：<span id="stat-total-words">0</span></div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="input-bar">
+    <div class="input-container">
+      <label for="user-input" class="input-label">玩家输入 / 操作指令</label>
+      <textarea id="user-input" class="input-textarea" rows="3"
+        placeholder="例如：我走向吧台，与黑袍男子搭话，试探性地打听失踪案。"></textarea>
+      <div class="input-actions">
+        <div class="input-hint small-text" id="input-hint">
+          提示：输入你的操作或想法，然后点击“生成下一段”。
+        </div>
+        <div class="input-buttons">
+          <button id="generate-btn" class="btn-primary">生成下一段</button>
+        </div>
+      </div>
+      <div class="small-text input-status" id="input-status"></div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

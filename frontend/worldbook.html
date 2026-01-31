@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>互动小说系统 · 世界书管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="worldbook">
+  <header class="top-nav">
+    <div class="nav-left">
+      <span class="app-title">互动小说系统</span>
+      <span class="app-subtitle">世界书管理</span>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-link">剧情</a>
+      <a href="characters.html" class="nav-link">角色</a>
+      <a href="worldbook.html" class="nav-link active">世界书</a>
+      <a href="dungeon.html" class="nav-link">副本</a>
+      <a href="settings.html" class="nav-link">设置</a>
+    </nav>
+  </header>
+
+  <main class="two-column-layout">
+    <section class="left-panel">
+      <div class="panel-header">
+        <div class="panel-title">世界书导入与列表</div>
+      </div>
+
+      <div class="worldbook-import">
+        <div class="settings-section">
+          <label class="form-label">导入世界书 JSON 文件</label>
+          <input type="file" id="worldbook-file-input" accept=".json" class="form-input">
+        </div>
+        <div class="settings-section">
+          <button id="worldbook-import-btn" class="btn-primary">导入世界书</button>
+          <span id="worldbook-import-status" class="small-text"></span>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">搜索</label>
+        <div class="worldbook-search">
+          <input id="worldbook-search-keyword" class="form-input" placeholder="按标题、标签搜索">
+          <select id="worldbook-search-category" class="form-select">
+            <option value="">全部类别</option>
+            <option value="ability_system">能力体系</option>
+            <option value="finance_system">金融体系</option>
+            <option value="faction">势力</option>
+            <option value="geography">地理</option>
+            <option value="customs">风俗人情</option>
+            <option value="secret_realm">秘境</option>
+            <option value="item_rules">道具规则</option>
+          </select>
+          <button id="worldbook-search-btn" class="btn-secondary">搜索</button>
+        </div>
+      </div>
+
+      <div class="worldbook-list">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>类别</th>
+              <th>标题</th>
+              <th>重要度</th>
+            </tr>
+          </thead>
+          <tbody id="worldbook-table-body">
+            <!-- 列表行由 JS 填充 -->
+          </tbody>
+        </table>
+        <div class="table-footer small-text">
+          <span id="worldbook-page-info">第 1 页</span>
+          <div class="table-pagination">
+            <button id="worldbook-prev-page" class="btn-small">上一页</button>
+            <button id="worldbook-next-page" class="btn-small">下一页</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="right-panel">
+      <div class="panel-header">
+        <div class="panel-title">条目详情</div>
+      </div>
+      <div id="worldbook-detail" class="detail-panel">
+        <div class="small-text muted">点击左侧列表中的条目查看详情。</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/js/worldbook.js"></script>
+</body>
+</html>

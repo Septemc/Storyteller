@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>互动小说系统 · 副本管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="dungeon">
+  <header class="top-nav">
+    <div class="nav-left">
+      <span class="app-title">互动小说系统</span>
+      <span class="app-subtitle">副本与节点管理</span>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-link">剧情</a>
+      <a href="characters.html" class="nav-link">角色</a>
+      <a href="worldbook.html" class="nav-link">世界书</a>
+      <a href="dungeon.html" class="nav-link active">副本</a>
+      <a href="settings.html" class="nav-link">设置</a>
+    </nav>
+  </header>
+
+  <main class="two-column-layout">
+    <section class="left-panel">
+      <div class="panel-header">
+        <div class="panel-title">副本列表</div>
+      </div>
+
+      <div class="settings-section">
+        <button id="dungeon-new-btn" class="btn-primary">新建副本</button>
+      </div>
+
+      <div class="dungeon-list">
+        <ul id="dungeon-list" class="list">
+          <!-- 副本列表由 JS 填充 -->
+        </ul>
+      </div>
+    </section>
+
+    <section class="right-panel">
+      <div class="panel-header">
+        <div class="panel-title">副本详情与节点</div>
+        <div class="panel-header-right">
+          <button id="dungeon-save-btn" class="btn-primary">保存副本</button>
+          <span id="dungeon-status" class="small-text"></span>
+        </div>
+      </div>
+
+      <div id="dungeon-editor" class="detail-panel">
+        <div class="settings-section">
+          <label class="form-label">副本 ID</label>
+          <input id="dungeon-id" class="form-input" placeholder="如：DUN_001">
+        </div>
+
+        <div class="settings-section">
+          <label class="form-label">副本名称</label>
+          <input id="dungeon-name-input" class="form-input" placeholder="如：黑鸦酒馆迷案">
+        </div>
+
+        <div class="settings-section">
+          <label class="form-label">副本描述</label>
+          <textarea id="dungeon-description" class="form-textarea" rows="3"></textarea>
+        </div>
+
+        <div class="settings-section half-grid">
+          <div>
+            <label class="form-label">推荐等级下限</label>
+            <input id="dungeon-level-min" class="form-input" type="number" min="1" value="1">
+          </div>
+          <div>
+            <label class="form-label">推荐等级上限</label>
+            <input id="dungeon-level-max" class="form-input" type="number" min="1" value="5">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <label class="form-label">全局规则（JSON）</label>
+          <textarea id="dungeon-global-rules" class="form-textarea" rows="3"
+            placeholder='例如：{"allow_death": false, "time_limit_in_story": "3天"}'></textarea>
+        </div>
+
+        <div class="settings-section">
+          <div class="section-inline-header">
+            <span class="form-label">节点列表</span>
+            <button id="dungeon-add-node-btn" class="btn-secondary btn-small-inline">添加节点</button>
+          </div>
+          <div id="dungeon-nodes-container" class="nodes-container">
+            <!-- 节点编辑块由 JS 动态创建 -->
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/js/dungeon.js"></script>
+</body>
+</html>

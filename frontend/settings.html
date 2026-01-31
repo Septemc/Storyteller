@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>互动小说系统 · 设置</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="settings">
+  <header class="top-nav">
+    <div class="nav-left">
+      <span class="app-title">互动小说系统</span>
+      <span class="app-subtitle">系统设置</span>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-link">剧情</a>
+      <a href="characters.html" class="nav-link">角色</a>
+      <a href="worldbook.html" class="nav-link">世界书</a>
+      <a href="dungeon.html" class="nav-link">副本</a>
+      <a href="settings.html" class="nav-link active">设置</a>
+    </nav>
+  </header>
+
+  <main class="settings-layout">
+    <section class="settings-panel">
+      <div class="panel-header">
+        <div class="panel-title">界面与显示</div>
+      </div>
+      <div class="settings-section">
+        <label class="form-label">主题模式</label>
+        <select id="theme-select" class="form-select">
+          <option value="dark">深色</option>
+          <option value="light">浅色</option>
+        </select>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">背景风格</label>
+        <select id="background-select" class="form-select">
+          <option value="grid">网格背景</option>
+          <option value="noise">轻微噪点</option>
+          <option value="plain">纯色</option>
+        </select>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">正文后处理正则规则（JSON）</label>
+        <textarea id="postprocessing-rules" class="form-textarea" rows="5"
+          placeholder='例如：[{"id": "fix_punctuation", "pattern": "\\s+([，。！？])", "replacement": "$1", "scope": "both"}]'></textarea>
+      </div>
+    </section>
+
+    <section class="settings-panel">
+      <div class="panel-header">
+        <div class="panel-title">摘要与记忆</div>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-check">
+          <input type="checkbox" id="summary-enabled">
+          <span>启用自动摘要与分段记忆</span>
+        </label>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">摘要 Profile ID</label>
+        <input id="summary-profile-id" class="form-input" placeholder="如：summary_v1">
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">场景级摘要频率（每几段剧情）</label>
+        <input id="summary-frequency" class="form-input" type="number" min="1" value="1">
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">历史 RAG 策略（JSON）</label>
+        <textarea id="summary-rag-config" class="form-textarea" rows="4"
+          placeholder='例如：{"scene_top_k": 3, "chapter_top_k": 1, "use_raw_segments": true}'></textarea>
+      </div>
+    </section>
+
+    <section class="settings-panel">
+      <div class="panel-header">
+        <div class="panel-title">变量思考与数据对齐</div>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-check">
+          <input type="checkbox" id="variables-enabled">
+          <span>启用数据变量思考</span>
+        </label>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">变量思考 Profile ID</label>
+        <input id="variables-profile-id" class="form-input" placeholder="如：variable_thinking_v1">
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">变量思考 API 配置 ID</label>
+        <input id="variables-api-config-id" class="form-input" placeholder="如：default_variable_model">
+      </div>
+
+      <div class="settings-section">
+        <label class="form-check">
+          <input type="checkbox" id="alignment-strict">
+          <span>启用严格数据对齐检查</span>
+        </label>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">对齐规则 ID</label>
+        <input id="alignment-rule-id" class="form-input" placeholder="如：default_alignment">
+      </div>
+    </section>
+
+    <section class="settings-panel">
+      <div class="panel-header">
+        <div class="panel-title">正文优化与世界演化</div>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-check">
+          <input type="checkbox" id="textopt-enabled">
+          <span>启用正文语言优化</span>
+        </label>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">正文优化 Profile ID</label>
+        <input id="textopt-profile-id" class="form-input" placeholder="如：text_opt_v1">
+      </div>
+
+      <div class="settings-section">
+        <label class="form-check">
+          <input type="checkbox" id="world-evolution-enabled">
+          <span>启用世界演化</span>
+        </label>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">世界演化 Profile ID</label>
+        <input id="world-evolution-profile-id" class="form-input" placeholder="如：world_evolution_v1">
+      </div>
+    </section>
+
+    <section class="settings-panel">
+      <div class="panel-header">
+        <div class="panel-title">全局模型与 Profile 绑定</div>
+      </div>
+
+      <div class="settings-section">
+        <label class="form-label">默认 Profile 映射（JSON）</label>
+        <textarea id="default-profiles" class="form-textarea" rows="6"
+          placeholder='例如：{"story_generation": "story_generation_v1","summary":"summary_v1","variable_thinking":"variable_thinking_v1"}'></textarea>
+      </div>
+
+      <div class="settings-section">
+        <button id="settings-load-btn" class="btn-secondary">从后端加载设置</button>
+        <button id="settings-save-btn" class="btn-primary">保存设置</button>
+        <span id="settings-status" class="small-text"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/js/settings.js"></script>
+</body>
+</html>
