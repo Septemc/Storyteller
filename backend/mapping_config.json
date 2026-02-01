@@ -1,0 +1,29 @@
+{
+  "basic": [
+    "basic", "basic_info", "info", "profile", "identity", "data.basic", "character_info"
+  ],
+  "knowledge": [
+    "knowledge", "background", "biography", "lore", "experience", "data.knowledge", "history", "stories"
+  ],
+  "secrets": [
+    "secrets", "private", "hidden_info", "confidential", "trauma", "taboos", "data.secrets", "inner_secrets"
+  ],
+  "attributes": [
+    "attributes", "stats", "status", "core_stats", "ability_scores", "properties", "data.attributes", "values"
+  ],
+  "relations": [
+    "relations", "social_network", "contacts", "friendships", "affiliations", "data.relations", "network"
+  ],
+  "equipment": [
+    "equipment", "gear", "weapons", "armors", "loadout", "data.equipment", "items.weapons"
+  ],
+  "items": [
+    "items", "inventory", "possessions", "bag", "tools", "data.items", "objects"
+  ],
+  "skills": [
+    "skills", "abilities", "talents", "spells", "techniques", "mastery", "data.skills", "magic"
+  ],
+  "fortune": [
+    "fortune", "fate", "destiny", "meta", "omens", "luck", "data.fortune", "destiny_lines"
+  ]
+}

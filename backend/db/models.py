@@ -71,13 +71,38 @@ class DungeonNode(Base):
     dungeon = relationship("Dungeon", back_populates="nodes")
 
 
+class CharacterTemplate(Base):
+    """
+    [新增] 角色模板表
+    存储自定义的 Tabs 和 Fields 结构
+    """
+    __tablename__ = "character_templates"
+
+    id = Column(String, primary_key=True, index=True)  # 例如: "cultivation_v1"
+    name = Column(String, nullable=False)  # 例如: "修仙人物模板"
+    description = Column(String, nullable=True)
+    # 核心配置：{ "tabs": [...], "fields": [...] }
+    config_json = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Character(Base):
     __tablename__ = "characters"
 
     id = Column(Integer, primary_key=True, index=True)
     character_id = Column(String, unique=True, index=True, nullable=False)
-    type = Column(String, nullable=False, default="npc")  # protagonist / major / npc
 
+    # [新增] 绑定模板 ID，默认为 'system_default'
+    template_id = Column(String, default="system_default", nullable=True)
+
+    type = Column(String, nullable=False, default="npc")
+
+    # [新增] 动态数据存储：所有自定义字段的内容都存这里
+    # 未来可逐步废弃 basic_json, knowledge_json 等
+    data_json = Column(Text, nullable=True)
+
+    # ... (为了兼容现有数据，保留旧字段，暂不删除) ...
     basic_json = Column(Text, nullable=True)
     knowledge_json = Column(Text, nullable=True)
     secrets_json = Column(Text, nullable=True)
@@ -90,11 +115,7 @@ class Character(Base):
 
     meta_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-    )
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class GlobalSetting(Base):

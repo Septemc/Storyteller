@@ -12,6 +12,7 @@ from .api import (
     routes_characters,
     routes_dungeon,
     routes_settings,
+    routes_templates,
 )
 
 app = FastAPI(title="互动小说系统", version="0.1.0")
@@ -40,7 +41,7 @@ app.include_router(routes_worldbook.router, prefix="/api", tags=["worldbook"])
 app.include_router(routes_characters.router, prefix="/api", tags=["characters"])
 app.include_router(routes_dungeon.router, prefix="/api", tags=["dungeon"])
 app.include_router(routes_settings.router, prefix="/api", tags=["settings"])
-
+app.include_router(routes_templates.router)
 
 # 前端静态资源与页面
 BASE_DIR = Path(__file__).resolve().parents[1]
