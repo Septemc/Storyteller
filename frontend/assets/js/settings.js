@@ -65,7 +65,7 @@
   }
 
 
-// --- 2. 交互逻辑：Tab 切换 ---
+  // --- 2. 交互逻辑：Tab 切换 ---
   function switchTab(targetId) {
     // 按钮状态
     tabButtons.forEach(btn => {
@@ -87,7 +87,8 @@
     // 统一通过 applyVisuals 应用主题和背景（内部会同步到 localStorage）
     applyVisuals(ui.theme || 'dark', ui.background || 'grid');
 
-    // 填充文本域
+    
+// 填充文本域
     postprocessingRulesEl.value = JSON.stringify(
       settings.text && settings.text.post_processing_rules ? settings.text.post_processing_rules : [],
       null, 2
@@ -217,6 +218,7 @@
       statusEl.textContent = "保存失败";
     }
   }
+
 
 
   // --- 6. 事件绑定 ---

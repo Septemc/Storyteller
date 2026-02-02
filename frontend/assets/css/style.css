@@ -114,8 +114,11 @@
    2. 背景风格 (Background Styles)
    ========================================= */
 body {
-  background-color: var(--bg-main);
+  /* 强制背景色跟随主题变量，防止白色出现 */
+  background-color: var(--bg-main) !important;
+  color: var(--text-primary);
   transition: background 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
 }
 
 /* 网格 (Grid) */
@@ -242,16 +245,32 @@ body {
   padding: 14px 16px 82px;
 }
 
+/* 统一所有页面的大面板背景 */
 .story-panel,
 .side-panel,
 .settings-panel,
 .left-panel,
-.right-panel {
-  /* 使用主题变量的浮层背景与边框，适配不同主题 */
-  background: var(--bg-elevated);
-  border-radius: var(--radius-lg);
+.right-panel,
+body[data-page] .story-panel, /* 增加属性选择器提高权重 */
+body[data-page] .side-panel,
+body[data-page] .left-panel,
+body[data-page] .right-panel {
+  background: var(--bg-elevated) !important; /* 强制使用主题变量 */
   border: 1px solid var(--border-soft);
+  color: var(--text-primary);
   box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-lg);
+}
+
+/* 统一所有详情区域/次级面板背景 */
+.story-log,
+.detail-panel,
+.sidebar-section,
+body[data-page] .detail-panel,
+body[data-page] .story-log {
+  background: var(--bg-elevated-alt) !important;
+  border: 1px solid var(--border-soft);
+  color: var(--text-secondary);
 }
 
 .story-panel,
@@ -298,13 +317,11 @@ body {
 .story-block {
   padding: 10px 12px;
   border-radius: var(--radius-md);
-  /* 使用主题浮层背景和边框 */
   background: var(--bg-elevated);
   border: 1px solid var(--border-soft);
   margin-bottom: 8px;
 }
 
-/* 用户发言可略微使用次级浮层背景以区分 */
 .story-block-user {
   background: var(--bg-elevated-alt);
 }
@@ -362,9 +379,11 @@ body {
   left: 0;
   right: 0;
   padding: 8px 16px 10px;
-  background: linear-gradient(to top, rgba(4, 6, 12, 0.98), rgba(4, 6, 12, 0.85));
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  /* 使用变量替代硬编码的颜色 */
+  background: var(--bg-main);
+  border-top: 1px solid var(--border-soft);
   backdrop-filter: blur(12px);
+  z-index: 100;
 }
 
 .input-container {
@@ -385,10 +404,10 @@ body {
   min-height: 64px;
   max-height: 160px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-soft);
   padding: 8px 10px;
   font-size: 14px;
-  background: rgba(2, 4, 8, 0.96);
+  background: var(--bg-elevated-alt); /* 确保输入框也不是白的 */
   color: var(--text-primary);
   outline: none;
 }
@@ -455,11 +474,11 @@ body {
 .btn-secondary {
   background: rgba(7, 11, 20, 0.96);
   color: var(--text-secondary);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-soft);
 }
 
 .btn-secondary:hover {
-  background: rgba(16, 22, 36, 0.96);
+  background: var(--bg-elevated-alt);
   border-color: rgba(255, 255, 255, 0.16);
   color: var(--text-primary);
 }
@@ -588,13 +607,13 @@ body {
 
 .table th,
 .table td {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-soft);
   padding: 6px 6px;
   text-align: left;
 }
 
 .table tbody tr:hover {
-  background: rgba(16, 21, 34, 0.96);
+  background: var(--bg-elevated-alt);
   cursor: pointer;
 }
 
@@ -659,7 +678,6 @@ body {
   display: flex;
   flex-direction: column;
 }
-
 
 
 /* 设置页顶部操作条 */
@@ -765,6 +783,7 @@ body {
   margin: 12px 0 6px;
 }
 
+
 /* 副本页面 */
 
 .list {
@@ -786,12 +805,12 @@ body {
 }
 
 .list-item:hover {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(16, 22, 36, 0.96);
+  border-color: var(--border-soft);
+  background: var(--bg-elevated-alt);
 }
 
 .list-item.active {
-  border-color: rgba(78, 140, 255, 0.8);
+  border-color: var(--accent);
   background: var(--accent-soft);
 }
 
@@ -803,9 +822,9 @@ body {
 
 .node-block {
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-soft);
   padding: 8px 8px 6px;
-  background: rgba(6, 9, 18, 0.96);
+  background: var(--bg-elevated-alt);
 }
 
 .node-header {
@@ -842,17 +861,17 @@ body {
 
 .tab-button {
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-soft);
   padding: 4px 10px;
   font-size: 12px;
-  background: rgba(6, 9, 16, 0.96);
+  background: var(--bg-elevated-alt);
   color: var(--text-secondary);
   cursor: pointer;
 }
 
 .tab-button.active {
   background: var(--accent-soft);
-  border-color: rgba(78, 140, 255, 0.8);
+  border-color: var(--accent);
   color: var(--text-primary);
 }
 
