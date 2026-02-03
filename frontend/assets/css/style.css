@@ -10,7 +10,33 @@
   --radius-xs: 6px;     /* 新增：超小圆角 */
   --radius-xxs: 2px;    /* 可选：极小圆角 */
   --radius-none: 0;     /* 可选：无圆角 */
-  --font-main: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* 系统界面字体（导航、按钮、表单、设置页等） */
+  --font-ui-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-ui-size: 14px;
+
+  /* 剧情正文字体（主故事文本与输入区） */
+  --font-story-family: var(--font-ui-family);
+  --font-story-size: var(--font-ui-size);
+
+  /* 叙事控制台 / 统计面板字体 */
+  --font-console-family: var(--font-ui-family);
+  --font-console-size: var(--font-ui-size);
+
+  /* 角色详情内容字体 */
+  --font-char-family: var(--font-ui-family);
+  --font-char-size: var(--font-ui-size);
+
+  /* 世界书内容预览字体 */
+  --font-world-family: var(--font-ui-family);
+  --font-world-size: var(--font-ui-size);
+
+  /* 副本预览字体 */
+  --font-dungeon-family: var(--font-ui-family);
+  --font-dungeon-size: var(--font-ui-size);
+
+  /* 兼容旧变量：所有用到 --font-main 的地方，等价于系统界面字体 */
+  --font-main: var(--font-ui-family);
 
   /* --- 动画与过渡 --- */
   --transition-fast: 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -139,7 +165,8 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: var(--font-main);
+  font-family: var(--font-ui-family);
+  font-size: var(--font-ui-size);
 }
 
 body {
@@ -977,6 +1004,46 @@ body[data-page="index"].input-half-screen .input-textarea {
   gap: 12px;
 }
 
+/* 设置页：字体与字号区域布局 */
+.typography-section {
+  margin-bottom: 20px;
+}
+
+.typography-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.typography-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1.1fr) minmax(0, 3fr) minmax(0, 1.6fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.typography-row--header {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.typography-col-label {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* 小屏幕下自动纵向堆叠，避免挤爆 */
+@media (max-width: 900px) {
+  .typography-row {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+}
+
+
 /* --- C. 角色页面 (Characters Page) --- */
 .rendered-view {
   padding: 16px;
@@ -1482,4 +1549,78 @@ body[data-page="index"].input-half-screen .input-textarea {
   color: var(--text-secondary);
   border: 1px solid var(--border-soft);
 }
+
+/* =========================================
+   Typography Zones (字体分区)
+   ========================================= */
+
+/* 1) 系统界面字体：导航、按钮、表单、设置界面等 */
+body,
+.top-nav,
+.nav-links,
+.nav-link,
+.btn-primary,
+.btn-secondary,
+.btn-small,
+.btn-small-inline,
+.form-label,
+.form-input,
+.form-select,
+.form-textarea,
+.settings-sidebar,
+.settings-content-area,
+.panel-header,
+.panel-title,
+.panel-subtitle {
+  font-family: var(--font-ui-family);
+  font-size: var(--font-ui-size);
+}
+
+/* 2) 剧情正文（index 页面：故事区域 + 输入框） */
+body[data-page="index"] .story-panel,
+body[data-page="index"] .story-log,
+body[data-page="index"] .story-log .story-block,
+body[data-page="index"] .story-log .story-block-user,
+body[data-page="index"] .story-log .story-block-assistant,
+body[data-page="index"] .input-textarea,
+body[data-page="index"] .input-container {
+  font-family: var(--font-story-family);
+  font-size: var(--font-story-size);
+}
+
+/* 3) 叙事控制台 / 统计面板（index 页面左右侧栏） */
+body[data-page="index"] .side-panel-left,
+body[data-page="index"] .side-panel-right,
+body[data-page="index"] .sidebar-section,
+body[data-page="index"] .sidebar-section .section-title,
+body[data-page="index"] .sidebar-section .section-body {
+  font-family: var(--font-console-family);
+  font-size: var(--font-console-size);
+}
+
+/* 4) 角色详情内容（characters 页面右侧内容预览） */
+body[data-page="characters"] .rendered-view,
+body[data-page="characters"] .rendered-view .char-section,
+body[data-page="characters"] .char-card,
+body[data-page="characters"] .char-card .kv-row,
+body[data-page="characters"] .char-card .tag-cloud {
+  font-family: var(--font-char-family);
+  font-size: var(--font-char-size);
+}
+
+/* 5) 世界书内容预览（worldbook 页面右侧预览区） */
+body[data-page="worldbook"] .render-box,
+body[data-page="worldbook"] .detail-panel,
+body[data-page="worldbook"] .detail-panel .form-textarea {
+  font-family: var(--font-world-family);
+  font-size: var(--font-world-size);
+}
+
+/* 6) 副本预览（dungeon 页面右侧预览区） */
+body[data-page="dungeon"] .render-box,
+body[data-page="dungeon"] .detail-panel {
+  font-family: var(--font-dungeon-family);
+  font-size: var(--font-dungeon-size);
+}
+
 

@@ -5,22 +5,7 @@
   <title>Storyteller | 剧情</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="assets/css/style.css">
-  <script>
-    (function() {
-      // 1. 读取本地存储的主题 (如果没有则默认 dark)
-      const savedTheme = localStorage.getItem('app_theme') || 'dark';
-      const savedBg = localStorage.getItem('app_bg') || 'grid';
-
-      // 2. 立即应用到 html 标签 (控制颜色变量)
-      document.documentElement.setAttribute('data-theme', savedTheme);
-
-      // 3. 应用背景纹理 (控制 body class)
-      window.addEventListener('DOMContentLoaded', () => {
-        document.body.className = document.body.className.replace(/\bbg-\S+/g, '').trim();
-        document.body.classList.add('bg-' + savedBg);
-      });
-    })();
-  </script>
+  <script src="assets/js/theme-init.js"></script>
 </head>
 <body data-page="index">
   <header class="top-nav">

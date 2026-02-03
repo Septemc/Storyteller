@@ -5,27 +5,7 @@
   <title>Storyteller | 设置</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="assets/css/style.css">
-<script>
-    (function() {
-      // 1. 读取本地存储的主题 (如果没有则默认 dark)
-      const savedTheme = localStorage.getItem('app_theme') || 'dark';
-      const savedBg = localStorage.getItem('app_bg') || 'grid';
-
-      // 2. 立即应用到 html 标签 (控制颜色变量)
-      document.documentElement.setAttribute('data-theme', savedTheme);
-
-      // 3. 应用背景纹理 (控制 body class)
-      // 注意：这里需要等待 DOM 解析，或者直接操作 document.write (不推荐)
-      // 最稳妥的方式是监听 DOMContentLoaded，或者放在 body 开始标签后。
-      // 但为了防止闪烁，我们尝试直接在 head 里预设一个 style
-      window.addEventListener('DOMContentLoaded', () => {
-         // 清除所有旧的 bg- 开头的类
-         document.body.className = document.body.className.replace(/\bbg-\S+/g, '').trim();
-         // 添加新的背景类
-         document.body.classList.add('bg-' + savedBg);
-      });
-    })();
-  </script>
+  <script src="assets/js/theme-init.js"></script>
   <style>
     /* 内联补充样式，用于主题颜色预览块 */
     .preview-dark { background: #05060a; }
@@ -141,6 +121,176 @@
             <div class="option-label">集成电路</div>
           </div>
         </div>
+
+        <h2 class="section-title">字体与字号 (Typography)</h2>
+
+        <div class="settings-section typography-section">
+          <div class="typography-grid">
+            <!-- 表头 -->
+            <div class="typography-row typography-row--header">
+              <div class="typography-col typography-col-label">区域</div>
+              <div class="typography-col">字体样式</div>
+              <div class="typography-col">字体大小</div>
+            </div>
+
+            <!-- 系统界面 -->
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">系统界面</div>
+              <div class="typography-col">
+                <select id="font-ui-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线（默认）</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-ui-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px（默认）</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                  <option value="20px">20px</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 剧情正文 -->
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">剧情正文</div>
+              <div class="typography-col">
+                <select id="font-story-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-story-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                  <option value="20px">20px</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 叙事控制台 / 统计面板 -->
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">叙事控制台</div>
+              <div class="typography-col">
+                <select id="font-console-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-console-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                  <option value="20px">20px</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 角色详情 -->
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">角色详情</div>
+              <div class="typography-col">
+                <select id="font-char-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-char-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                  <option value="20px">20px</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 世界书预览 -->
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">世界书预览</div>
+              <div class="typography-col">
+                <select id="font-world-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-world-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                  <option value="20px">20px</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 副本预览 -->
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">副本预览</div>
+              <div class="typography-col">
+                <select id="font-dungeon-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-dungeon-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                  <option value="20px">20px</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="small-text muted" style="margin-top:6px;">
+            提示：上方设置仅影响字体样式和基础字号，不改变颜色与行距。
+          </div>
+        </div>
+
+
+
 
         <div class="settings-section">
             <label class="form-label">后处理正则规则 (JSON)</label>

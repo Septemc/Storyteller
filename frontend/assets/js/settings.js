@@ -25,6 +25,75 @@
   const worldEvolutionProfileIdEl = document.getElementById("world-evolution-profile-id");
   const defaultProfilesEl = document.getElementById("default-profiles");
 
+    // Typography Fields
+  const fontUiFamilyEl      = document.getElementById("font-ui-family");
+  const fontUiSizeEl        = document.getElementById("font-ui-size");
+  const fontStoryFamilyEl   = document.getElementById("font-story-family");
+  const fontStorySizeEl     = document.getElementById("font-story-size");
+  const fontConsoleFamilyEl = document.getElementById("font-console-family");
+  const fontConsoleSizeEl   = document.getElementById("font-console-size");
+  const fontCharFamilyEl    = document.getElementById("font-char-family");
+  const fontCharSizeEl      = document.getElementById("font-char-size");
+  const fontWorldFamilyEl   = document.getElementById("font-world-family");
+  const fontWorldSizeEl     = document.getElementById("font-world-size");
+  const fontDungeonFamilyEl = document.getElementById("font-dungeon-family");
+  const fontDungeonSizeEl   = document.getElementById("font-dungeon-size");
+
+  const DEFAULT_FONT_SIZE = "14px";
+
+  // 字体分区配置：对应 CSS 变量 & localStorage key
+  const FONT_ZONES = {
+    ui: {
+      familyVar: "--font-ui-family",
+      sizeVar: "--font-ui-size",
+      familyEl: fontUiFamilyEl,
+      sizeEl: fontUiSizeEl,
+      storageFamilyKey: "app_font_ui_family",
+      storageSizeKey: "app_font_ui_size"
+    },
+    story: {
+      familyVar: "--font-story-family",
+      sizeVar: "--font-story-size",
+      familyEl: fontStoryFamilyEl,
+      sizeEl: fontStorySizeEl,
+      storageFamilyKey: "app_font_story_family",
+      storageSizeKey: "app_font_story_size"
+    },
+    console: {
+      familyVar: "--font-console-family",
+      sizeVar: "--font-console-size",
+      familyEl: fontConsoleFamilyEl,
+      sizeEl: fontConsoleSizeEl,
+      storageFamilyKey: "app_font_console_family",
+      storageSizeKey: "app_font_console_size"
+    },
+    character: {
+      familyVar: "--font-char-family",
+      sizeVar: "--font-char-size",
+      familyEl: fontCharFamilyEl,
+      sizeEl: fontCharSizeEl,
+      storageFamilyKey: "app_font_char_family",
+      storageSizeKey: "app_font_char_size"
+    },
+    world: {
+      familyVar: "--font-world-family",
+      sizeVar: "--font-world-size",
+      familyEl: fontWorldFamilyEl,
+      sizeEl: fontWorldSizeEl,
+      storageFamilyKey: "app_font_world_family",
+      storageSizeKey: "app_font_world_size"
+    },
+    dungeon: {
+      familyVar: "--font-dungeon-family",
+      sizeVar: "--font-dungeon-size",
+      familyEl: fontDungeonFamilyEl,
+      sizeEl: fontDungeonSizeEl,
+      storageFamilyKey: "app_font_dungeon_family",
+      storageSizeKey: "app_font_dungeon_size"
+    }
+  };
+
+
   // Actions
   const loadBtn = document.getElementById("settings-load-btn");
   const saveBtn = document.getElementById("settings-save-btn");
@@ -64,6 +133,48 @@
     }
   }
 
+  // 单个分区：应用字体到 CSS 变量 + localStorage + 下拉框
+  function applyZoneFont(zoneName, family, size) {
+    const zone = FONT_ZONES[zoneName];
+    if (!zone) return;
+
+    if (family) {
+      document.documentElement.style.setProperty(zone.familyVar, family);
+      localStorage.setItem(zone.storageFamilyKey, family);
+      if (zone.familyEl) zone.familyEl.value = family;
+    }
+    if (size) {
+      document.documentElement.style.setProperty(zone.sizeVar, size);
+      localStorage.setItem(zone.storageSizeKey, size);
+      if (zone.sizeEl) zone.sizeEl.value = size;
+    }
+  }
+
+  // 从设置 / localStorage / 默认值中综合应用 6 组字体
+  function applyTypography(typographyConfig) {
+    const cfg = typographyConfig || {};
+
+    Object.keys(FONT_ZONES).forEach(zoneName => {
+      const zone = FONT_ZONES[zoneName];
+      if (!zone) return;
+
+      const savedFamily =
+        (cfg[zoneName] && cfg[zoneName].family) ||
+        localStorage.getItem(zone.storageFamilyKey) ||
+        (zone.familyEl && zone.familyEl.options.length
+          ? zone.familyEl.options[0].value
+          : "system-ui, -apple-system, 'Segoe UI', sans-serif");
+
+      const savedSize =
+        (cfg[zoneName] && cfg[zoneName].size) ||
+        localStorage.getItem(zone.storageSizeKey) ||
+        DEFAULT_FONT_SIZE;
+
+      applyZoneFont(zoneName, savedFamily, savedSize);
+    });
+  }
+
+
 
   // --- 2. 交互逻辑：Tab 切换 ---
   function switchTab(targetId) {
@@ -86,6 +197,9 @@
 
     // 统一通过 applyVisuals 应用主题和背景（内部会同步到 localStorage）
     applyVisuals(ui.theme || 'dark', ui.background || 'grid');
+
+    // 应用字体分区设置
+    applyTypography(ui.typography || {});
 
     
 // 填充文本域
@@ -147,10 +261,22 @@
       return null; // 停止保存
     }
 
+    // 收集字体分区配置
+    const typography = {};
+    Object.keys(FONT_ZONES).forEach(zoneName => {
+      const zone = FONT_ZONES[zoneName];
+      if (!zone || !zone.familyEl || !zone.sizeEl) return;
+      typography[zoneName] = {
+        family: zone.familyEl.value,
+        size: zone.sizeEl.value
+      };
+    });
+
     return {
       ui: {
         theme: themeVal,
-        background: bgVal
+        background: bgVal,
+        typography
       },
       text: {
         post_processing_rules: postRules
@@ -200,8 +326,10 @@
     const settings = collectForm();
     if (!settings) return; // JSON 错误已弹窗
 
-    // 在前端立即应用主题与背景（会同时写入 localStorage）
+    // 在前端立即应用主题 / 背景 / 字体（会同时写入 localStorage）
     applyVisuals(settings.ui.theme, settings.ui.background);
+    applyTypography(settings.ui.typography || {});
+
 
     statusEl.textContent = "保存中...";
     try {
@@ -242,9 +370,82 @@
       });
     });
 
+    // 字体：系统界面
+    if (fontUiFamilyEl) {
+      fontUiFamilyEl.addEventListener('change', () => {
+        applyZoneFont('ui', fontUiFamilyEl.value, null);
+      });
+    }
+    if (fontUiSizeEl) {
+      fontUiSizeEl.addEventListener('change', () => {
+        applyZoneFont('ui', null, fontUiSizeEl.value);
+      });
+    }
+
+    // 字体：剧情正文
+    if (fontStoryFamilyEl) {
+      fontStoryFamilyEl.addEventListener('change', () => {
+        applyZoneFont('story', fontStoryFamilyEl.value, null);
+      });
+    }
+    if (fontStorySizeEl) {
+      fontStorySizeEl.addEventListener('change', () => {
+        applyZoneFont('story', null, fontStorySizeEl.value);
+      });
+    }
+
+    // 字体：叙事控制台
+    if (fontConsoleFamilyEl) {
+      fontConsoleFamilyEl.addEventListener('change', () => {
+        applyZoneFont('console', fontConsoleFamilyEl.value, null);
+      });
+    }
+    if (fontConsoleSizeEl) {
+      fontConsoleSizeEl.addEventListener('change', () => {
+        applyZoneFont('console', null, fontConsoleSizeEl.value);
+      });
+    }
+
+    // 字体：角色详情
+    if (fontCharFamilyEl) {
+      fontCharFamilyEl.addEventListener('change', () => {
+        applyZoneFont('character', fontCharFamilyEl.value, null);
+      });
+    }
+    if (fontCharSizeEl) {
+      fontCharSizeEl.addEventListener('change', () => {
+        applyZoneFont('character', null, fontCharSizeEl.value);
+      });
+    }
+
+    // 字体：世界书内容预览
+    if (fontWorldFamilyEl) {
+      fontWorldFamilyEl.addEventListener('change', () => {
+        applyZoneFont('world', fontWorldFamilyEl.value, null);
+      });
+    }
+    if (fontWorldSizeEl) {
+      fontWorldSizeEl.addEventListener('change', () => {
+        applyZoneFont('world', null, fontWorldSizeEl.value);
+      });
+    }
+
+    // 字体：副本预览
+    if (fontDungeonFamilyEl) {
+      fontDungeonFamilyEl.addEventListener('change', () => {
+        applyZoneFont('dungeon', fontDungeonFamilyEl.value, null);
+      });
+    }
+    if (fontDungeonSizeEl) {
+      fontDungeonSizeEl.addEventListener('change', () => {
+        applyZoneFont('dungeon', null, fontDungeonSizeEl.value);
+      });
+    }
+
     // Buttons
     loadBtn.addEventListener("click", loadSettings);
     saveBtn.addEventListener("click", saveSettings);
+
   }
 
   // --- 初始化 ---
