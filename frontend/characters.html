@@ -26,38 +26,48 @@
   <main class="two-column-layout">
     <section class="left-panel">
       <div class="panel-header">
-        <div class="panel-title">角色列表</div>
+        <div class="panel-title">角色管理</div>
       </div>
 
-      <div class="settings-section">
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <input type="file" id="character-import-file" accept=".json" style="display: none;">
-          <button id="character-import-btn" class="btn-secondary">导入角色 JSON</button>
-          <button id="character-export-all-btn" class="btn-secondary">批量导出角色</button>
-          <button id="character-new-btn" class="btn-primary" style="flex: 1; min-width: 120px;">新建角色</button>
-        </div>
-      </div>
-
-      <div class="settings-section" style="border-top: 1px solid var(--border-soft); padding-top: 10px;">
+      <div class="settings-section" style="padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); margin-bottom: 10px;">
         <label class="form-label">管理角色模板</label>
         <div style="display: flex; gap: 5px; margin-bottom: 8px;">
             <select id="template-select" class="form-select" style="flex: 1;"></select>
             <button id="tpl-apply-btn" class="btn-small btn-primary" title="将此模板应用到当前角色">应用</button>
+            <button id="template-import-btn" class="btn-small btn-secondary" title="从文件导入json格式的模板">导入</button>
             <button id="tpl-export-btn" class="btn-small btn-secondary">导出</button>
             <button id="tpl-delete-btn" class="btn-small btn-secondary" style="color:var(--danger)" title="删除此模板">删除</button>
+
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-            <button id="tpl-edit-btn" class="btn-small btn-secondary">设计选中模板</button>
-            <button id="tpl-new-btn" class="btn-small btn-secondary">手动新建模板</button>
+            <button id="tpl-edit-btn" class="btn-small btn-secondary">编辑选中模板</button>
+            <button id="tpl-new-btn" class="btn-small btn-secondary">新建角色模板</button>
             <input type="file" id="template-import-file" accept=".json" style="display: none;">
-            <button id="template-import-btn" class="btn-small btn-secondary" style="grid-column: span 2;">从文件导入模板 (.json)</button>
+<!--            <button id="template-import-btn" class="btn-small btn-secondary" style="grid-column: span 2;">从文件导入模板 (.json)</button>-->
         </div>
       </div>
 
-      <div class="settings-section">
-        <input id="character-search" class="form-input" placeholder="搜索 ID 或名称...">
-        <ul id="character-list" class="list" style="margin-top:10px;"></ul>
+      <div class="settings-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+        <div class="search-wrapper" style="position: relative; margin-bottom: 10px;">
+          <input id="character-search" class="form-input" placeholder="搜索 ID 或名称..." style="padding-right: 32px;">
+          <button id="btn-character-search" class="icon-button" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%);">
+            🔍
+          </button>
+        </div>
+
+        <div style="display: flex; gap: 4px; align-items: center; margin-bottom: 10px;">
+          <input type="file" id="character-import-file" accept=".json" style="display: none;">
+          <button id="character-import-btn" class="btn-secondary btn-small" style="flex: 1;" title="导入角色 JSON">导入</button>
+          <button id="character-export-all-btn" class="btn-secondary btn-small" style="flex: 1;" title="批量导出角色">导出</button>
+          <button id="character-new-btn" class="btn-primary btn-small" style="flex: 1;" title="创建新角色">新建</button>
+          <button id="character-delete-all-btn" class="btn-secondary btn-small" style="color: var(--danger); flex: 1;" title="删除全部角色">清空</button>
+        </div>
+
+        <div class="character-list-scroll-area" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); background: rgba(0,0,0,0.1);">
+          <ul id="character-list" class="list" style="margin-top: 0;"></ul>
+        </div>
       </div>
+
     </section>
 
     <section class="right-panel">

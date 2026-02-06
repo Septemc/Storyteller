@@ -72,63 +72,43 @@ class CharacterListResponse(BaseModel):
 
 # --- API Routes ---
 
+# 修改 routes_characters.py 中的 import_characters 函数
 @router.post("/characters/import")
 def import_characters(
         payload: Any = Body(...),
         db: Session = Depends(get_db)
 ):
     """
-    基于外部配置文件的动态批量导入。
-    尽可能匹配所有路径，确保数据在不同模板下都能正确显示。
+    [重构] 透明模式导入：不再拆分字段，原样保存
     """
     items = payload if isinstance(payload, list) else [payload]
-    mapping_cfg = load_mapping_config()
     imported_count = 0
 
     for item in items:
+        # 获取 ID，如果没有则生成
         char_id = item.get("character_id") or f"NPC_{int(time.time() * 1000)}"
 
-        # 基础元数据
+        # 提取用于列表快速预览的基础信息 (取 tab_basic 或 basic)
+        basic_info = item.get("tab_basic", item.get("basic", {}))
+
         character_data = {
             "character_id": char_id,
             "type": item.get("type", "npc"),
             "template_id": item.get("template_id", "system_default"),
-            "data_json": json.dumps(item, ensure_ascii=False)  # 原始全量快照
+            "data_json": json.dumps(item, ensure_ascii=False),  # 保存全量原始数据
+            "basic_json": json.dumps(basic_info, ensure_ascii=False)  # 仅用于列表搜索和快速显示
         }
 
-        # 根据配置文件执行多路径动态匹配
-        for db_field, potential_paths in mapping_cfg.items():
-            db_col = f"{db_field}_json"
-            matched_val = None
-
-            # 尝试所有可能的路径，找到第一个匹配项
-            for path in potential_paths:
-                val = get_value_by_path(item, path)
-                if val is not None:
-                    matched_val = val
-                    break
-
-            # 如果匹配到数据，则序列化存储；否则存入对应的默认空结构
-            if matched_val is not None:
-                character_data[db_col] = json.dumps(matched_val, ensure_ascii=False)
-            else:
-                default_val = [] if db_field in ["equipment", "items", "skills"] else {}
-                character_data[db_col] = json.dumps(default_val, ensure_ascii=False)
-
-        # 执行 Upsert 逻辑
+        # 执行保存
         existing = db.query(models.Character).filter_by(character_id=char_id).first()
         if existing:
-            for key, value in character_data.items():
-                setattr(existing, key, value)
+            for k, v in character_data.items(): setattr(existing, k, v)
         else:
-            new_char = models.Character(**character_data)
-            db.add(new_char)
-
+            db.add(models.Character(**character_data))
         imported_count += 1
 
     db.commit()
-    return {"message": f"成功导入 {imported_count} 个角色，已应用动态路径匹配。"}
-
+    return {"message": f"成功按照原始结构导入 {imported_count} 个角色。"}
 
 @router.get("/characters/export/all")
 def export_all_characters(db: Session = Depends(get_db)):
@@ -147,37 +127,28 @@ def export_all_characters(db: Session = Depends(get_db)):
     return results
 
 
-@router.get("/characters/{character_id}", response_model=CharacterBase)
+@router.get("/characters/{character_id}")
 def get_character(character_id: str, db: Session = Depends(get_db)):
+    """
+    [重构] 获取角色：返回扁平化的原始数据对象
+    """
     ch = db.query(models.Character).filter_by(character_id=character_id).first()
     if not ch:
         raise HTTPException(status_code=404, detail="角色不存在")
 
-    def safe_json(val, default):
-        try:
-            return json.loads(val) if val else default
-        except:
-            return default
+    # 1. 解析原始全量数据
+    try:
+        full_data = json.loads(ch.data_json) if ch.data_json else {}
+    except:
+        full_data = {}
 
-    # 获取全量快照作为数据池
-    full_pool = safe_json(ch.data_json, {})
+    # 2. 确保元数据在根级别，供前端 UI 使用
+    full_data["character_id"] = ch.character_id
+    full_data["type"] = ch.type
+    full_data["template_id"] = ch.template_id or "system_default"
 
-    # 返回组装好的对象，前端 template 会根据 path 从这里提取数据
-    return CharacterBase(
-        character_id=ch.character_id,
-        type=ch.type,
-        template_id=ch.template_id or "system_default",
-        data=full_pool,
-        basic=safe_json(ch.basic_json, {}),
-        knowledge=safe_json(ch.knowledge_json, {}),
-        secrets=safe_json(ch.secrets_json, {}),
-        attributes=safe_json(ch.attributes_json, {}),
-        relations=safe_json(ch.relations_json, {}),
-        equipment=safe_json(ch.equipment_json, []),
-        items=safe_json(ch.items_json, []),
-        skills=safe_json(ch.skills_json, []),
-        fortune=safe_json(ch.fortune_json, {})
-    )
+    # 直接返回 Dict，跳过 CharacterBase 的结构限制，实现路径完全对齐
+    return full_data
 
 
 @router.get("/characters", response_model=CharacterListResponse)
@@ -194,6 +165,21 @@ def list_characters(q: Optional[str] = Query(None), db: Session = Depends(get_db
             basic=json.loads(r.basic_json) if r.basic_json else {}
         ) for r in rows
     ])
+
+
+@router.delete("/characters/clear_all")
+def clear_all_characters(db: Session = Depends(get_db)):
+    """
+    [新增] 清空角色库中的所有数据
+    """
+    try:
+        # 使用 SQLAlchemy 的 delete 方法快速清空表
+        num_deleted = db.query(models.Character).delete(synchronize_session=False)
+        db.commit()
+        return {"message": f"成功清空角色库，共删除 {num_deleted} 个角色。", "count": num_deleted}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"清空失败: {str(e)}")
 
 
 @router.put("/characters/{character_id}")

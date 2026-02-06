@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>Storyteller | 副本</title>
+  <title>Storyteller | 剧本编排</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="assets/css/style.css">
   <script src="assets/js/theme-init.js"></script>
@@ -11,7 +11,7 @@
   <header class="top-nav">
     <div class="nav-left">
       <span class="app-title">Storyteller</span>
-      <span class="app-subtitle">说书人·副本控制与节点管理</span>
+      <span class="app-subtitle">说书人·剧本与长剧情编排</span>
     </div>
     <nav class="nav-links">
       <a href="index.html" class="nav-link">剧情</a>
@@ -25,71 +25,59 @@
   <main class="two-column-layout">
     <section class="left-panel">
       <div class="panel-header">
-        <div class="panel-title">副本列表</div>
+        <div class="panel-title">剧本大纲</div>
+      </div>
+
+      <div class="settings-section" style="padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); margin-bottom: 10px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 6px; align-items: center;">
+          <select id="dungeon-selector" class="form-select" style="flex: 1;" placeholder="选择剧本"></select>
+          <button id="btn-apply-script" class="btn-primary btn-small">应用</button>
+          <button id="btn-new-dungeon" class="btn-secondary btn-small">新建</button>
+          <button id="btn-import-script" class="btn-secondary btn-small">导入</button>
+          <button id="btn-export-script" class="btn-secondary btn-small">导出</button>
+          <button id="btn-delete-dungeon" class="btn-secondary btn-small" style="color:var(--danger)">删除</button>
+        </div>
+        <div id="applied-dungeon-info" class="small-text muted" style="margin-top: 6px; color: var(--accent);">
+          当前剧本：未加载
+        </div>
       </div>
 
       <div class="settings-section">
-        <button id="dungeon-new-btn" class="btn-primary">新建副本</button>
+        <div class="search-wrapper" style="position: relative;">
+          <input id="search-keyword" class="form-input" placeholder="搜索节点..." style="padding-right: 32px;">
+          <button id="btn-search" class="icon-button" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%);">
+            🔍
+          </button>
+        </div>
+        <div class="toolbar-actions" style="display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap;">
+          <button id="btn-create-dungeon" class="btn-secondary btn-small" style="flex:1;">新建副本</button>
+          <button id="btn-create-node" class="btn-secondary btn-small" style="flex:1;">新建节点</button>
+          <button id="btn-import-dungeon" class="btn-secondary btn-small" style="flex:1;">导入副本</button>
+          <button id="btn-import-node" class="btn-secondary btn-small" style="flex:1;">导入节点</button>
+          <button id="btn-delete-node" class="btn-secondary btn-small" style="color:var(--danger)">删除</button>
+        </div>
+        <input type="file" id="file-input-hidden" accept=".json" style="display: none;">
       </div>
 
-      <div class="dungeon-list">
-        <ul id="dungeon-list" class="list">
-          <!-- 副本列表由 JS 填充 -->
-        </ul>
-      </div>
+      <div id="tree-root" class="worldbook-tree-container" style="flex: 1; min-height: 200px;">
+        </div>
     </section>
 
     <section class="right-panel">
       <div class="panel-header">
-        <div class="panel-title">副本详情与节点</div>
+        <div class="panel-title" id="detail-title">内容预览</div>
         <div class="panel-header-right">
-          <button id="dungeon-save-btn" class="btn-primary">保存副本</button>
-          <span id="dungeon-status" class="small-text"></span>
+          <div class="toggle-group" style="display: inline-flex; border: 1px solid var(--border-soft); border-radius: 4px; margin-right: 10px; overflow: hidden;">
+            <button id="mode-preview" class="btn-small active" style="border:none; border-radius:0;">预览</button>
+            <button id="mode-edit" class="btn-small" style="border:none; border-radius:0;">编辑</button>
+          </div>
+          <button id="btn-save-detail" class="btn-primary" disabled>保存修改</button>
+          <button id="btn-export-current" class="btn-secondary btn-small" style="margin-left: 8px;">导出</button>
         </div>
       </div>
 
-      <div id="dungeon-editor" class="detail-panel">
-        <div class="settings-section">
-          <label class="form-label">副本 ID</label>
-          <input id="dungeon-id" class="form-input" placeholder="如：DUN_001">
-        </div>
-
-        <div class="settings-section">
-          <label class="form-label">副本名称</label>
-          <input id="dungeon-name-input" class="form-input" placeholder="如：黑鸦酒馆迷案">
-        </div>
-
-        <div class="settings-section">
-          <label class="form-label">副本描述</label>
-          <textarea id="dungeon-description" class="form-textarea" rows="3"></textarea>
-        </div>
-
-        <div class="settings-section half-grid">
-          <div>
-            <label class="form-label">推荐等级下限</label>
-            <input id="dungeon-level-min" class="form-input" type="number" min="1" value="1">
-          </div>
-          <div>
-            <label class="form-label">推荐等级上限</label>
-            <input id="dungeon-level-max" class="form-input" type="number" min="1" value="5">
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <label class="form-label">全局规则（JSON）</label>
-          <textarea id="dungeon-global-rules" class="form-textarea" rows="3"
-            placeholder='例如：{"allow_death": false, "time_limit_in_story": "3天"}'></textarea>
-        </div>
-
-        <div class="settings-section">
-          <div class="section-inline-header">
-            <span class="form-label">节点列表</span>
-            <button id="dungeon-add-node-btn" class="btn-secondary btn-small-inline">添加节点</button>
-          </div>
-          <div id="dungeon-nodes-container" class="nodes-container">
-            <!-- 节点编辑块由 JS 动态创建 -->
-          </div>
-        </div>
+      <div id="detail-panel" class="detail-panel" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="placeholder-text" style="color: var(--text-secondary); padding: 20px;">请从左侧选择剧本或节点...</div>
       </div>
     </section>
   </main>

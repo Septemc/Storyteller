@@ -354,6 +354,7 @@ body.bg-circuit {
   list-style: none;
   margin: 0;
   padding: 0;
+  overflow-y: auto;
 }
 
 .list-item {
@@ -570,6 +571,16 @@ body.bg-circuit {
   flex: 1;
   overflow-y: auto;
   min-height: 0; /* 关键！否则 flex 子项无法滚动 */
+}
+
+/* 角色列表滚动区的平滑样式 */
+.character-list-scroll-area::-webkit-scrollbar {
+  width: 4px; /* 更细的滚动条 */
+}
+
+.character-list-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--accent-soft);
+  border-radius: 10px;
 }
 
 /* =========================================

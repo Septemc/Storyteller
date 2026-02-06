@@ -7,7 +7,9 @@
         "stats_panel": { label: "属性面板", renderInput: "json" },
         "object_list": { label: "对象列表", renderInput: "json" },
         "relation_graph": { label: "关系图谱", renderInput: "json" },
-        "image": { label: "图像 (URL/上传)", renderInput: "image" }
+        "image": { label: "图像 (URL/上传)", renderInput: "image" },
+        "json": { label: "纯 JSON 编辑器", renderInput: "json" },
+        "tags": { label: "标签组 (逗号分隔或数组)", renderInput: "tags" }
     };
 
     // === 2. 状态变量 ===
@@ -15,6 +17,7 @@
     let currentCharacterData = {};
     let designerState = { id: "", name: "", tabs: [], fields: [] };
     let isEditingNewCharacter = false; // 标记当前是否在创建新角色
+    let globalDefaultTemplateId = "system_default"; // 记录当前“应用”的全局默认模板
 
     async function init() {
         console.log("Characters Module Initializing...");
@@ -53,7 +56,10 @@
             (data.items || []).forEach(ch => {
                 const li = document.createElement("li");
                 li.className = "list-item";
-                const name = getValueByPath(ch, "basic.name") || ch.character_id;
+
+                // 列表接口返回的 ch.basic 对应后端存入的 basic_json (即原始的 tab_basic)
+                const name = ch.basic?.f_name || ch.basic?.name || ch.character_id;
+
                 li.textContent = `${name} (${ch.character_id})`;
                 li.onclick = () => selectCharacter(ch.character_id);
                 listEl.appendChild(li);
@@ -65,12 +71,17 @@
         try {
             const res = await fetch(`/api/characters/${id}`);
             if (!res.ok) return;
+
+            // 现在后端返回的是扁平的原始对象 (包含 tab_basic, tab_stats 等)
             currentCharacterData = await res.json();
 
+            // 更新 UI 基础字段
             document.getElementById("f-char-id").value = currentCharacterData.character_id;
             document.getElementById("f-char-type").value = currentCharacterData.type;
+            document.getElementById("template-select").value = currentCharacterData.template_id;
             document.getElementById("f-char-id").disabled = true;
 
+            // 渲染预览和编辑器
             renderCharacterView();
             renderDynamicEditor();
 
@@ -79,21 +90,22 @@
         } catch (e) { console.error("Select character failed:", e); }
     }
 
-    // 修复“新建角色”点击无反应 (需求 2)
+    // === 修改 handleNewCharacter 函数 ===
     function handleNewCharacter() {
         isEditingNewCharacter = true;
-        const defaultTplId = document.getElementById("template-select").value || "system_default";
+        // 修改：优先使用 globalDefaultTemplateId 而非仅仅是当前下拉框的值
+        const activeTplId = globalDefaultTemplateId;
 
-        // 初始化空白数据结构
         currentCharacterData = {
             character_id: "",
             type: "npc",
-            template_id: defaultTplId,
+            template_id: activeTplId,
             basic: { name: "新角色" },
             data: {}
         };
 
-        // UI 状态切换
+        // UI 更新
+        document.getElementById("template-select").value = activeTplId; // 让下拉框对齐
         document.getElementById("f-char-id").value = "";
         document.getElementById("f-char-id").disabled = false;
         document.getElementById("f-char-type").value = "npc";
@@ -247,20 +259,22 @@
             const charId = document.getElementById("f-char-id").value.trim();
             if (!charId) return alert("角色 ID 不能为空");
 
+            // 更新基础属性到对象中
             currentCharacterData.character_id = charId;
             currentCharacterData.type = document.getElementById("f-char-type").value;
+            currentCharacterData.template_id = document.getElementById("template-select").value;
 
-            // 根据是否是新角色选择 POST 或 PUT
+            // 因为我们是直接在 currentCharacterData 对象上进行 setValueByPath，
+            // 所以现在的 currentCharacterData 已经是符合模板结构的完整对象。
+
             const method = isEditingNewCharacter ? 'POST' : 'PUT';
             const url = isEditingNewCharacter ? '/api/characters/import' : `/api/characters/${charId}`;
-
-            // 如果是新建，后端 import 接口期望数组或单个对象
-            const body = isEditingNewCharacter ? [currentCharacterData] : currentCharacterData;
+            const payload = isEditingNewCharacter ? [currentCharacterData] : currentCharacterData;
 
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
@@ -318,13 +332,23 @@
         };
 
         // 模板管理相关 (需求 4 & 5)
+        // === 修改 setupEventListeners 中的 tpl-apply-btn 逻辑 ===
         document.getElementById("tpl-apply-btn").onclick = async () => {
             const tplId = document.getElementById("template-select").value;
-            if (!currentCharacterData.character_id) return alert("请先选择一个角色以应用模板");
+
+            // 逻辑调整：无论是否有角色，都更新全局默认模板
+            globalDefaultTemplateId = tplId;
+
+            if (!currentCharacterData.character_id) {
+                // 如果当前没选中角色，仅作为全局配置
+                alert(`已将 [${tplId}] 设为新建角色的默认模板`);
+                return;
+            }
+
             if (!confirm(`确认将当前角色模板切换为 [${tplId}] 吗？`)) return;
 
             currentCharacterData.template_id = tplId;
-            // 立即保存并重绘
+            // 立即保存到后端（原有逻辑）
             const res = await fetch(`/api/characters/${currentCharacterData.character_id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -346,6 +370,23 @@
             if (res.ok) {
                 alert("模板已删除");
                 loadTemplates();
+            }
+        };
+
+        // === 新增：删除全部角色的监听器 ===
+        document.getElementById("character-delete-all-btn").onclick = async () => {
+            if (!confirm("极度危险：确认要删除库中的【全部】角色吗？此操作不可撤销！")) return;
+
+            try {
+                const res = await fetch('/api/characters/clear_all', { method: 'DELETE' }); // 假设后端有此接口
+                if (res.ok) {
+                    alert("所有角色已清除");
+                    currentCharacterData = {};
+                    loadCharacterList();
+                    document.getElementById("character-renderer").innerHTML = '<div class="placeholder-text">角色列表已清空</div>';
+                }
+            } catch (e) {
+                alert("删除失败，请检查后端接口");
             }
         };
 
@@ -467,8 +508,11 @@
         if (!panel) return;
         const tplId = currentCharacterData.template_id || "system_default";
         const tpl = templatesList.find(t => t.id === tplId) || templatesList[0];
+        const charName = getValueByPath(currentCharacterData, "tab_basic.f_name") ||
+                     getValueByPath(currentCharacterData, "basic.name") ||
+                     "未命名";
 
-        let html = `<div class="char-card"><h2>${getValueByPath(currentCharacterData, "basic.name") || "未命名"}</h2><p class="small-text muted">模板: ${tpl.name}</p></div>`;
+        let html = `<div class="char-card"><h2>${charName}</h2><p class="small-text muted">模板: ${tpl.name}</p></div>`;
 
         tpl.tabs.forEach(tab => {
             html += `<div class="char-card"><h3>${tab.label}</h3>`;
