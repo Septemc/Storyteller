@@ -1,13 +1,15 @@
-from datetime import datetime
-from time import perf_counter
-from typing import List, Optional, Dict
+from __future__ import annotations
+
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..db.base import get_db
 from ..db import models
+from ..core import orchestrator
 
 router = APIRouter()
 
@@ -59,77 +61,74 @@ class SessionSummaryResponse(BaseModel):
 
 
 @router.post("/story/generate", response_model=StoryGenerateResponse)
-def generate_story(
-    req: StoryGenerateRequest,
-    db: Session = Depends(get_db),
-) -> StoryGenerateResponse:
-    """
-    最小可运行版本：
-    - 初始化或更新 SessionState
-    - 写入一条 StorySegment
-    - 返回占位剧情文本和简单 meta
-
-    你后续可以在这里接入真正的 orchestrator / LLM。
-    """
-    t0 = perf_counter()
-
-    session_state = (
-        db.query(models.SessionState)
-        .filter(models.SessionState.session_id == req.session_id)
-        .first()
-    )
-    if session_state is None:
-        session_state = models.SessionState(
-            session_id=req.session_id,
-            current_dungeon_id=None,
-            current_node_id=None,
-            total_word_count=0,
-        )
-        db.add(session_state)
-        db.commit()
-        db.refresh(session_state)
-
-    story_text = (
-        f"【占位剧情】你刚刚执行了操作：“{req.user_input}”。\n\n"
-        f"这里是最小可运行后端的占位输出。\n"
-        f"你可以在 backend/api/routes_story.py 中替换 generate_story 函数，"
-        f"调用 orchestrator 与真实模型来生成真正的剧情内容。"
-    )
-
-    word_count = len(story_text)
-    existing_count = (
-        db.query(models.StorySegment)
-        .filter(models.StorySegment.session_id == req.session_id)
-        .count()
-    )
-    order_index = existing_count + 1
-
-    seg = models.StorySegment(
-        segment_id=f"{req.session_id}_{order_index}",
+def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db)) -> StoryGenerateResponse:
+    """非流式生成（兼容原前端）。"""
+    story_text, meta_obj, gen = orchestrator.generate_story_text(
+        db=db,
         session_id=req.session_id,
-        order_index=order_index,
-        text=story_text,
-        created_at=datetime.utcnow(),
+        user_input=req.user_input,
+        force_stream=False,
     )
-    db.add(seg)
 
-    session_state.total_word_count = (session_state.total_word_count or 0) + word_count
-    db.commit()
+    # force_stream=False 时 gen 必为空
+    if gen is not None:
+        story_text = "".join(list(gen))
 
-    t1 = perf_counter()
-    duration_ms = int((t1 - t0) * 1000)
+    orchestrator.persist_story_segment(db, req.session_id, story_text)
 
-    meta = StoryMeta(
-        scene_title=f"占位场景 #{order_index}",
-        tags=["stub", "demo"],
-        tone="中性",
-        pacing="平缓推进",
-        dungeon_progress_hint="尚未接入副本进度逻辑",
-        word_count=word_count,
-        duration_ms=duration_ms,
-    )
+    meta = StoryMeta(**(meta_obj.__dict__ if hasattr(meta_obj, "__dict__") else dict(meta_obj)))
+    meta.word_count = len(story_text)
 
     return StoryGenerateResponse(story=story_text, meta=meta)
+
+
+@router.post("/story/generate_stream")
+def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_db)):
+    """流式生成：SSE(text/event-stream)。
+
+    事件：
+    - event: meta  data: {json}
+    - event: delta data: {"text": "..."}
+    - event: done  data: {}
+    - event: error data: {"message": "..."}
+    """
+
+    def _sse(event: str, data_obj: Dict) -> str:
+        import json
+
+        return f"event: {event}\ndata: {json.dumps(data_obj, ensure_ascii=False)}\n\n"
+
+    def _gen():
+        story_buf: List[str] = []
+        try:
+            full_text, meta_obj, stream_gen = orchestrator.generate_story_text(
+                db=db,
+                session_id=req.session_id,
+                user_input=req.user_input,
+                force_stream=True,
+            )
+
+            meta_dict = meta_obj.__dict__ if hasattr(meta_obj, "__dict__") else dict(meta_obj)
+            yield _sse("meta", meta_dict)
+
+            if stream_gen is None:
+                # 后端可能没有可流式的模型配置；直接一次性返回
+                story_buf.append(full_text)
+                if full_text:
+                    yield _sse("delta", {"text": full_text})
+            else:
+                for delta in stream_gen:
+                    story_buf.append(delta)
+                    yield _sse("delta", {"text": delta})
+
+            final_text = "".join(story_buf)
+            orchestrator.persist_story_segment(db, req.session_id, final_text)
+
+            yield _sse("done", {})
+        except Exception as e:
+            yield _sse("error", {"message": str(e)})
+
+    return StreamingResponse(_gen(), media_type="text/event-stream")
 
 
 @router.get("/session/summary", response_model=SessionSummaryResponse)
@@ -137,25 +136,13 @@ def get_session_summary(
     session_id: str = Query(..., description="会话 ID"),
     db: Session = Depends(get_db),
 ) -> SessionSummaryResponse:
-    """
-    会话摘要的最小骨架实现：
-    - 返回当前副本名（如果有）
-    - 返回几条角色概要（如果有）
-    - 变量信息目前为空，占位等待你后续接入变量思考模块。
-    """
-    session_state = (
-        db.query(models.SessionState)
-        .filter(models.SessionState.session_id == session_id)
-        .first()
-    )
+    """会话摘要：供主剧情侧边栏刷新使用（最小可用）。"""
+
+    session_state = db.query(models.SessionState).filter(models.SessionState.session_id == session_id).first()
 
     dungeon_block: Optional[SessionSummaryDungeon] = None
     if session_state and session_state.current_dungeon_id:
-        dungeon = (
-            db.query(models.Dungeon)
-            .filter(models.Dungeon.dungeon_id == session_state.current_dungeon_id)
-            .first()
-        )
+        dungeon = db.query(models.Dungeon).filter(models.Dungeon.dungeon_id == session_state.current_dungeon_id).first()
         node_name = None
         if session_state.current_node_id:
             node = (
@@ -175,6 +162,7 @@ def get_session_summary(
             progress_hint="最小骨架：未实现真实进度计算",
         )
 
+    # 角色概览
     characters_rows = db.query(models.Character).limit(5).all()
     characters: List[SessionSummaryCharacter] = []
 
@@ -186,8 +174,8 @@ def get_session_summary(
         if ch.basic_json:
             try:
                 basic = json.loads(ch.basic_json)
-                name = basic.get("name")
-                ability_tier = basic.get("ability_tier")
+                name = basic.get("name") or basic.get("姓名")
+                ability_tier = basic.get("ability_tier") or basic.get("能力评级")
             except Exception:
                 pass
 

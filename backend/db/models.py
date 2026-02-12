@@ -154,3 +154,41 @@ class SessionState(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+
+class DBPreset(Base):
+    """
+    [新增] 预设表
+    存储完整的提示词树结构 (JSON)
+    """
+    __tablename__ = "presets"
+
+    id = Column(String, primary_key=True, index=True)  # 使用 UUID 字符串
+    name = Column(String, index=True, nullable=False)
+    version = Column(Integer, default=1)
+    is_active = Column(Boolean, default=False)  # 标记是否为当前激活预设
+
+    # 存储整个 root 节点树结构
+    config_json = Column(Text, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DBLLMConfig(Base):
+    """
+    [新增] LLM API 配置表
+    """
+    __tablename__ = "llm_configs"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    base_url = Column(String, nullable=False)
+    api_key = Column(String, nullable=False)
+    stream = Column(Boolean, default=True)
+    default_model = Column(String, nullable=True)
+
+    is_active = Column(Boolean, default=False)  # 标记是否为当前激活配置
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

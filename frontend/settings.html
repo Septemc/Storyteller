@@ -23,7 +23,9 @@
     .preview-bg-circuit { background-image: radial-gradient(#444 20%, transparent 20%); background-size: 5px 5px; }
   </style>
 </head>
-<body data-page="settings"> <header class="top-nav">
+<body data-page="settings">
+
+  <header class="top-nav">
     <div class="nav-left">
       <span class="app-title">Storyteller</span>
       <span class="app-subtitle">说书人·设置</span>
@@ -46,14 +48,17 @@
       <button class="settings-tab-btn" data-target="tab-memory">
         <span class="icon">🧠</span> 摘要与记忆
       </button>
-      <button class="settings-tab-btn" data-target="tab-alignment">
-        <span class="icon">⚖️</span> 变量与对齐
+      <button class="settings-tab-btn" data-target="tab-variables">
+        <span class="icon">💡</span> 变量思考
       </button>
       <button class="settings-tab-btn" data-target="tab-evolution">
         <span class="icon">🌍</span> 正文与演化
       </button>
-      <button class="settings-tab-btn" data-target="tab-models">
-        <span class="icon">🔗</span> 全局模型绑定
+      <button class="settings-tab-btn" data-target="tab-presets">
+        <span class="icon">🧩</span> 预设管理
+      </button>
+      <button class="settings-tab-btn" data-target="tab-api">
+        <span class="icon">🔌</span> API配置
       </button>
     </aside>
 
@@ -123,17 +128,14 @@
         </div>
 
         <h2 class="section-title">字体与字号 (Typography)</h2>
-
         <div class="settings-section typography-section">
           <div class="typography-grid">
-            <!-- 表头 -->
             <div class="typography-row typography-row--header">
               <div class="typography-col typography-col-label">区域</div>
               <div class="typography-col">字体样式</div>
               <div class="typography-col">字体大小</div>
             </div>
 
-            <!-- 系统界面 -->
             <div class="typography-row">
               <div class="typography-col typography-col-label">系统界面</div>
               <div class="typography-col">
@@ -158,7 +160,6 @@
               </div>
             </div>
 
-            <!-- 剧情正文 -->
             <div class="typography-row">
               <div class="typography-col typography-col-label">剧情正文</div>
               <div class="typography-col">
@@ -183,114 +184,11 @@
               </div>
             </div>
 
-            <!-- 叙事控制台 / 统计面板 -->
-            <div class="typography-row">
-              <div class="typography-col typography-col-label">叙事控制台</div>
-              <div class="typography-col">
-                <select id="font-console-family" class="form-select">
-                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
-                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
-                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
-                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
-                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
-                </select>
-              </div>
-              <div class="typography-col">
-                <select id="font-console-size" class="form-select">
-                  <option value="12px">12px</option>
-                  <option value="13px">13px</option>
-                  <option value="14px">14px</option>
-                  <option value="15px">15px</option>
-                  <option value="16px">16px</option>
-                  <option value="18px">18px</option>
-                  <option value="20px">20px</option>
-                </select>
-              </div>
             </div>
-
-            <!-- 角色详情 -->
-            <div class="typography-row">
-              <div class="typography-col typography-col-label">角色详情</div>
-              <div class="typography-col">
-                <select id="font-char-family" class="form-select">
-                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
-                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
-                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
-                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
-                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
-                </select>
-              </div>
-              <div class="typography-col">
-                <select id="font-char-size" class="form-select">
-                  <option value="12px">12px</option>
-                  <option value="13px">13px</option>
-                  <option value="14px">14px</option>
-                  <option value="15px">15px</option>
-                  <option value="16px">16px</option>
-                  <option value="18px">18px</option>
-                  <option value="20px">20px</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- 世界书预览 -->
-            <div class="typography-row">
-              <div class="typography-col typography-col-label">世界书预览</div>
-              <div class="typography-col">
-                <select id="font-world-family" class="form-select">
-                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
-                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
-                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
-                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
-                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
-                </select>
-              </div>
-              <div class="typography-col">
-                <select id="font-world-size" class="form-select">
-                  <option value="12px">12px</option>
-                  <option value="13px">13px</option>
-                  <option value="14px">14px</option>
-                  <option value="15px">15px</option>
-                  <option value="16px">16px</option>
-                  <option value="18px">18px</option>
-                  <option value="20px">20px</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- 副本预览 -->
-            <div class="typography-row">
-              <div class="typography-col typography-col-label">副本预览</div>
-              <div class="typography-col">
-                <select id="font-dungeon-family" class="form-select">
-                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
-                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
-                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
-                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
-                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
-                </select>
-              </div>
-              <div class="typography-col">
-                <select id="font-dungeon-size" class="form-select">
-                  <option value="12px">12px</option>
-                  <option value="13px">13px</option>
-                  <option value="14px">14px</option>
-                  <option value="15px">15px</option>
-                  <option value="16px">16px</option>
-                  <option value="18px">18px</option>
-                  <option value="20px">20px</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
           <div class="small-text muted" style="margin-top:6px;">
             提示：上方设置仅影响字体样式和基础字号，不改变颜色与行距。
           </div>
         </div>
-
-
-
 
         <div class="settings-section">
             <label class="form-label">后处理正则规则 (JSON)</label>
@@ -332,7 +230,7 @@
         </div>
       </div>
 
-      <div id="tab-alignment" class="tab-pane">
+      <div id="tab-variables" class="tab-pane">
         <h2 class="section-title">数值思考与数据一致性</h2>
         <div class="settings-section">
             <label class="form-check">
@@ -390,14 +288,7 @@
                 <input id="world-evolution-profile-id" class="form-input" placeholder="如：world_evolution_v1">
             </div>
         </div>
-      </div>
-
-      <div id="tab-models" class="tab-pane">
-        <h2 class="section-title">默认 Profile 映射</h2>
-        <div class="settings-section">
-            <div class="small-text muted" style="margin-bottom: 8px;">
-                此处定义系统各模块默认调用的 Prompt/Model 配置。
-            </div>
+        <div>
             <label class="form-label">Global Default Profiles (JSON)</label>
             <textarea id="default-profiles" class="form-textarea" rows="12" placeholder='{
                 "story_generation": "story_gen_v2",
@@ -406,6 +297,262 @@
                 "summary": "summary_fast",
                 "variable_thinking": "math_solver"
               }'></textarea>
+        </div>
+      </div>
+
+      <div id="tab-presets" class="tab-pane tab-pane-presets">
+        <div style="height: calc(100vh - 100px); display: flex; flex-direction: column; overflow: hidden;">
+
+            <div style="flex: 0 0 auto; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:flex-end;">
+              <div>
+                <h2 class="section-title" style="margin-bottom:4px;">预设管理</h2>
+<!--                <div class="small-text muted">模块化提示词树。左侧管理文件，中间调整结构，右侧编辑内容。</div>-->
+              </div>
+            </div>
+
+            <div style="flex: 1; display:grid; grid-template-columns: 240px 300px 1fr; gap:12px; min-height: 0;">
+
+              <div class="panel" style="display:flex; flex-direction:column; gap: 14px; padding: 16px; overflow-y: auto;">
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span class="panel-title" style="font-size:14px;">预设文件</span>
+                        <button id="preset-create-btn" class="icon-button" title="新建空白预设" style="width:24px; height:24px; font-weight:bold;">＋</button>
+                    </div>
+
+                    <select id="preset-select" class="form-select" style="width:100%; cursor:pointer; padding: 6px 10px;"></select>
+
+                    <div style="margin-top:8px; background:rgba(0,0,0,0.1); border-radius:4px; padding:6px 8px; border:1px solid var(--border-soft);">
+                        <div class="small-text muted" style="font-size:11px;">当前应用 ID:</div>
+                        <div id="preset-active-hint" class="small-text" style="color:var(--accent); font-family:monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</div>
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <button id="preset-set-active-btn" class="btn-primary btn-small" style="width:100%; justify-content:center;">★ 应用为当前预设</button>
+                    <div style="display:flex; gap:8px;">
+                        <button id="preset-save-btn" class="btn-secondary btn-small" style="flex:1;">保存</button>
+                        <button id="preset-delete-btn" class="btn-danger btn-small" style="flex:1;">删除</button>
+                    </div>
+                </div>
+
+                <div style="height:1px; background:var(--border-soft); margin: 0 4px;"></div>
+
+                <div>
+                    <div class="panel-title" style="font-size:13px; margin-bottom:8px; opacity:0.8;">导入 / 导出</div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <input id="preset-import-name" class="form-input" placeholder="重命名 (可选)" style="font-size:12px; padding:4px 8px;" />
+
+                        <div style="display:flex; gap:6px;">
+                             <label class="btn-secondary btn-small" style="flex:1; text-align:center; cursor:pointer; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:flex; align-items:center; justify-content:center;">
+                                📂 选文件
+                                <input id="preset-import-file" type="file" accept=".json" style="display:none;" onchange="this.parentElement.style.borderColor = 'var(--accent)';" />
+                             </label>
+                             <button id="preset-import-btn" class="btn-secondary btn-small" style="flex:0 0 auto;">导入</button>
+                        </div>
+
+                        <button id="preset-export-btn" class="btn-secondary btn-small" style="width:100%;">📤 导出当前 JSON</button>
+                    </div>
+                </div>
+
+              </div>
+
+              <div class="panel" style="display:flex; flex-direction:column; overflow:hidden; padding: 12px;">
+                <div class="panel-header" style="margin-bottom: 8px; flex: 0 0 auto;">
+                  <div class="panel-title" style="font-size:14px;">结构树</div>
+                  <div style="display:flex; gap:4px;">
+                       <button id="preset-add-group-btn" class="icon-button" title="添加组">📁+</button>
+                       <button id="preset-add-prompt-btn" class="icon-button" title="添加提示词">📝+</button>
+                       <button id="preset-delete-node-btn" class="icon-button" style="color:var(--danger); border-color:var(--danger);" title="删除节点">×</button>
+                  </div>
+                </div>
+
+                <div id="preset-tree" style="flex: 1; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-soft); border-radius: 4px; padding: 4px; background: rgba(0,0,0,0.1);">
+                   <div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:12px;">加载中...</div>
+                </div>
+
+                <div class="small-text muted" style="margin-top:6px; font-size:11px; flex: 0 0 auto; text-align:center;">
+                   提示：拖拽功能开发中
+                </div>
+              </div>
+
+              <div class="panel" style="display:flex; flex-direction:column; overflow:hidden; padding: 0;">
+
+                <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-soft); background: var(--bg-elevated-alt); display:flex; justify-content:space-between; align-items:center; flex: 0 0 auto;">
+                  <div class="panel-title" style="font-size:14px;">节点属性</div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                      <span class="small-text muted">启用</span>
+                      <label class="toggle-switch" title="启用/禁用此节点" style="transform:scale(0.8);">
+                          <input type="checkbox" id="preset-node-enabled">
+                          <span class="slider"></span>
+                      </label>
+                  </div>
+                </div>
+
+                <div id="preset-node-editor-container" style="display:none; flex: 1; flex-direction: column; overflow: hidden;">
+
+                    <div style="padding: 12px 16px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; border-bottom:1px solid var(--border-soft); flex: 0 0 auto;">
+                       <div>
+                          <label class="form-label small-text muted">显示名称 (Name)</label>
+                          <input id="preset-node-title" class="form-input" style="padding:4px 8px;" placeholder="节点名称" />
+                       </div>
+                       <div>
+                          <label class="form-label small-text muted">唯一标识 (Identifier)</label>
+                          <input id="preset-node-identifier" class="form-input" style="padding:4px 8px; font-family:monospace; color:var(--accent);" placeholder="Unique ID" />
+                       </div>
+                    </div>
+
+                    <div id="preset-node-prompt-fields" style="display:none; flex: 1; flex-direction: column; min-height: 0;">
+
+                       <div style="flex: 1; display:flex; flex-direction:column; padding: 12px 16px; min-height: 0;">
+                           <div style="display:flex; justify-content:space-between; margin-bottom:6px; flex: 0 0 auto;">
+                              <label class="form-label small-text" style="font-weight:600;">提示词内容 (Content)</label>
+                              <span class="small-text muted" style="opacity:0.6; font-size:11px;">支持 Handlebars 语法</span>
+                           </div>
+
+                           <textarea id="preset-node-content" class="form-textarea"
+                              style="flex:1; resize:none; font-family:'JetBrains Mono', monospace; font-size:13px; line-height:1.6; border-color:var(--border-soft); overflow-y: auto; padding:10px;"
+                              placeholder="在这里输入提示词内容..."></textarea>
+                       </div>
+
+                       <div style="flex: 0 0 auto; padding: 12px 16px; background: rgba(0,0,0,0.02); border-top: 1px solid var(--border-soft);">
+
+                          <div style="display:grid; grid-template-columns: 1.2fr 1.2fr 0.8fr 0.8fr; gap:10px; align-items:center; margin-bottom:12px;">
+                              <div>
+                                  <label class="form-label small-text muted" style="margin-bottom:2px;">角色 (Role)</label>
+                                  <select id="preset-node-role" class="form-select" style="padding:4px; height:30px;">
+                                    <option value="system">system</option>
+                                    <option value="user">user</option>
+                                    <option value="assistant">assistant</option>
+                                  </select>
+                              </div>
+                              <div>
+                                  <label class="form-label small-text muted" style="margin-bottom:2px;">位置 (Pos)</label>
+                                  <select id="preset-node-position" class="form-select" style="padding:4px; height:30px;">
+                                      <option value="0">Top (Head)</option>
+                                      <option value="1">User (After)</option>
+                                      <option value="-1">Bottom (Tail)</option>
+                                  </select>
+                              </div>
+                              <div>
+                                  <label class="form-label small-text muted" style="margin-bottom:2px;" title="注入顺序">Order</label>
+                                  <input type="number" id="preset-node-order" class="form-input" style="padding:4px; height:30px; text-align:center;" />
+                              </div>
+                              <div>
+                                  <label class="form-label small-text muted" style="margin-bottom:2px;" title="递归深度">Depth</label>
+                                  <input type="number" id="preset-node-depth" class="form-input" style="padding:4px; height:30px; text-align:center;" />
+                              </div>
+                          </div>
+
+                          <div style="display:flex; justify-content:space-between; align-items:center;">
+                              <div style="display:flex; gap:16px;">
+                                   <label class="small-text" style="display:flex; align-items:center; gap:6px; cursor:pointer;" title="作为 System Prompt 发送">
+                                      <input type="checkbox" id="preset-node-system-prompt"> System
+                                   </label>
+                                   <label class="small-text" style="display:flex; align-items:center; gap:6px; cursor:pointer;" title="标记节点，不直接参与生成">
+                                      <input type="checkbox" id="preset-node-marker"> Marker
+                                   </label>
+                                   <label class="small-text" style="display:flex; align-items:center; gap:6px; cursor:pointer;" title="禁止被子节点覆盖">
+                                      <input type="checkbox" id="preset-node-overrides"> Lock
+                                   </label>
+                              </div>
+                              <div style="flex:1; margin-left:20px;">
+                                  <input id="preset-node-triggers" class="form-input" style="padding:4px 8px; height:28px; font-size:11px;" placeholder="触发关键词 (可选, 逗号分隔)" />
+                              </div>
+                          </div>
+
+                       </div>
+                    </div>
+
+                    <div id="prompt-bool-fields" style="display:none; flex:1; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:var(--text-secondary);">
+                       <div style="font-size:48px; opacity:0.1; margin-bottom:15px;">📁</div>
+                       <div style="font-size:14px; font-weight:600;">分组节点</div>
+                       <div class="small-text muted" style="margin-top:6px;">包含子节点，自身不存储提示词内容。</div>
+                    </div>
+
+                </div>
+
+                <div id="preset-node-hint" style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:var(--text-secondary); opacity:0.6;">
+                    <div style="font-size:56px; margin-bottom:15px; opacity:0.5;">👈</div>
+                    <div style="font-size:15px;">请在中间栏选择一个节点</div>
+                    <div class="small-text muted">以查看或编辑详细属性</div>
+                </div>
+
+              </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="tab-api" class="tab-pane">
+        <h2 class="section-title">API配置（大模型）</h2>
+        <div class="small-text muted" style="margin-bottom: 12px;">
+          支持多个 OpenAI 兼容接口：填写 base_url 与 api_key 后，可检索可用模型；并支持流式输出开关。
+        </div>
+
+        <div class="settings-section" style="display:grid;grid-template-columns: 280px 1fr;gap:14px;align-items:start;">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">配置列表</div>
+                <div class="panel-subtitle" id="llm-active-hint">当前：-</div>
+              </div>
+              <div class="panel-header-right">
+                <button id="llm-new-btn" class="btn-secondary btn-small">新建</button>
+              </div>
+            </div>
+            <div id="llm-config-list" class="list"></div>
+            <div class="settings-section small-text muted" id="llm-status">就绪</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">配置编辑</div>
+                <div class="panel-subtitle">保存后可检索模型。</div>
+              </div>
+              <div class="panel-header-right">
+                <button id="llm-set-active-btn" class="btn-primary btn-small">设为当前</button>
+                <button id="llm-save-btn" class="btn-secondary btn-small">保存</button>
+                <button id="llm-delete-btn" class="btn-danger btn-small">删除</button>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <label class="form-label">名称</label>
+              <input id="llm-name" class="form-input" placeholder="例如：OpenAI / 本地 vLLM / Kimi ..." />
+
+              <label class="form-label" style="margin-top:10px;">Base URL</label>
+              <input id="llm-base-url" class="form-input" placeholder="https://api.openai.com 或 http://localhost:8000" />
+
+              <label class="form-label" style="margin-top:10px;">API Key</label>
+              <input id="llm-api-key" class="form-input" placeholder="sk-..." />
+
+              <div class="settings-section" style="margin-top:10px;">
+                <label class="form-check">
+                  <input type="checkbox" id="llm-stream" checked>
+                  <span>启用流式输出（Streaming）</span>
+                </label>
+              </div>
+
+              <div class="settings-section" style="display:grid;grid-template-columns: 1fr auto;gap:10px;align-items:end;">
+                <div>
+                  <label class="form-label">可用模型</label>
+                  <select id="llm-model-select" class="form-select"></select>
+                </div>
+                <button id="llm-refresh-models-btn" class="btn-secondary btn-small">检索模型</button>
+              </div>
+
+              <div class="settings-section" style="margin-top:10px;">
+                <label class="form-label">默认模型（可选）</label>
+                <input id="llm-default-model" class="form-input" placeholder="为空则使用上方选择" />
+              </div>
+
+              <div class="small-text muted" style="margin-top:10px;">
+                说明：如果 base_url 已包含 /v1 也可直接填写；系统会自动补齐。
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
