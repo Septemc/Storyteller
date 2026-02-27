@@ -57,6 +57,9 @@
       <button class="settings-tab-btn" data-target="tab-presets">
         <span class="icon">🧩</span> 预设管理
       </button>
+      <button class="settings-tab-btn" data-target="tab-regex">
+        <span class="icon">🔧</span> 正则化
+      </button>
       <button class="settings-tab-btn" data-target="tab-api">
         <span class="icon">🔌</span> API配置
       </button>
@@ -306,48 +309,47 @@
             <div style="flex: 0 0 auto; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:flex-end;">
               <div>
                 <h2 class="section-title" style="margin-bottom:4px;">预设管理</h2>
-<!--                <div class="small-text muted">模块化提示词树。左侧管理文件，中间调整结构，右侧编辑内容。</div>-->
               </div>
             </div>
 
             <div style="flex: 1; display:grid; grid-template-columns: 240px 300px 1fr; gap:12px; min-height: 0;">
 
-              <div class="panel" style="display:flex; flex-direction:column; gap: 14px; padding: 16px; overflow-y: auto;">
+              <div class="config-panel" style="overflow-y: auto;">
 
                 <div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <span class="panel-title" style="font-size:14px;">预设文件</span>
+                        <span class="panel-title">预设文件</span>
                         <button id="preset-create-btn" class="icon-button" title="新建空白预设" style="width:24px; height:24px; font-weight:bold;">＋</button>
                     </div>
 
-                    <select id="preset-select" class="form-select" style="width:100%; cursor:pointer; padding: 6px 10px;"></select>
+                    <select id="preset-select" class="config-select"></select>
 
-                    <div style="margin-top:8px; background:rgba(0,0,0,0.1); border-radius:4px; padding:6px 8px; border:1px solid var(--border-soft);">
-                        <div class="small-text muted" style="font-size:11px;">当前应用 ID:</div>
-                        <div id="preset-active-hint" class="small-text" style="color:var(--accent); font-family:monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</div>
+                    <div class="active-hint-box">
+                        <div class="active-hint-label">当前应用</div>
+                        <div id="preset-active-hint" class="active-hint-value">-</div>
                     </div>
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="action-buttons">
                     <button id="preset-set-active-btn" class="btn-primary btn-small" style="width:100%; justify-content:center;">★ 应用为当前预设</button>
-                    <div style="display:flex; gap:8px;">
+                    <div class="action-buttons-row">
                         <button id="preset-save-btn" class="btn-secondary btn-small" style="flex:1;">保存</button>
                         <button id="preset-delete-btn" class="btn-danger btn-small" style="flex:1;">删除</button>
                     </div>
                 </div>
 
-                <div style="height:1px; background:var(--border-soft); margin: 0 4px;"></div>
+                <div class="divider"></div>
 
                 <div>
                     <div class="panel-title" style="font-size:13px; margin-bottom:8px; opacity:0.8;">导入 / 导出</div>
 
                     <div style="display:flex; flex-direction:column; gap:8px;">
-                        <input id="preset-import-name" class="form-input" placeholder="重命名 (可选)" style="font-size:12px; padding:4px 8px;" />
+                        <input id="preset-import-name" class="form-field-input" placeholder="重命名 (可选)" style="font-size:12px; padding:6px 10px;" />
 
                         <div style="display:flex; gap:6px;">
                              <label class="btn-secondary btn-small" style="flex:1; text-align:center; cursor:pointer; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:flex; align-items:center; justify-content:center;">
                                 📂 选文件
-                                <input id="preset-import-file" type="file" accept=".json" style="display:none;" onchange="this.parentElement.style.borderColor = 'var(--accent)';" />
+                                <input id="preset-import-file" type="file" accept=".json" style="display:none;" />
                              </label>
                              <button id="preset-import-btn" class="btn-secondary btn-small" style="flex:0 0 auto;">导入</button>
                         </div>
@@ -358,29 +360,29 @@
 
               </div>
 
-              <div class="panel" style="display:flex; flex-direction:column; overflow:hidden; padding: 12px;">
+              <div class="config-panel" style="display:flex; flex-direction:column; overflow:hidden; padding: 12px;">
                 <div class="panel-header" style="margin-bottom: 8px; flex: 0 0 auto;">
-                  <div class="panel-title" style="font-size:14px;">结构树</div>
+                  <div class="panel-title">结构树</div>
                   <div style="display:flex; gap:4px;">
                        <button id="preset-add-group-btn" class="icon-button" title="添加组">📁+</button>
                        <button id="preset-add-prompt-btn" class="icon-button" title="添加提示词">📝+</button>
-                       <button id="preset-delete-node-btn" class="icon-button" style="color:var(--danger); border-color:var(--danger);" title="删除节点">×</button>
+                       <button id="preset-delete-node-btn" class="icon-button danger" title="删除节点">×</button>
                   </div>
                 </div>
 
-                <div id="preset-tree" style="flex: 1; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-soft); border-radius: 4px; padding: 4px; background: rgba(0,0,0,0.1);">
-                   <div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:12px;">加载中...</div>
+                <div id="preset-tree" class="tree-container">
+                   <div class="empty-hint"><div class="empty-hint-icon">⏳</div><div class="empty-hint-subtitle">加载中...</div></div>
                 </div>
 
                 <div class="small-text muted" style="margin-top:6px; font-size:11px; flex: 0 0 auto; text-align:center;">
-                   提示：拖拽功能开发中
+                   提示：点击节点编辑属性
                 </div>
               </div>
 
-              <div class="panel" style="display:flex; flex-direction:column; overflow:hidden; padding: 0;">
+              <div class="node-editor-panel">
 
-                <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-soft); background: var(--bg-elevated-alt); display:flex; justify-content:space-between; align-items:center; flex: 0 0 auto;">
-                  <div class="panel-title" style="font-size:14px;">节点属性</div>
+                <div class="node-editor-header">
+                  <div class="node-editor-title">节点属性</div>
                   <div style="display:flex; align-items:center; gap:8px;">
                       <span class="small-text muted">启用</span>
                       <label class="toggle-switch" title="启用/禁用此节点" style="transform:scale(0.8);">
@@ -394,12 +396,12 @@
 
                     <div style="padding: 12px 16px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; border-bottom:1px solid var(--border-soft); flex: 0 0 auto;">
                        <div>
-                          <label class="form-label small-text muted">显示名称 (Name)</label>
-                          <input id="preset-node-title" class="form-input" style="padding:4px 8px;" placeholder="节点名称" />
+                          <label class="form-field-label">显示名称 (Name)</label>
+                          <input id="preset-node-title" class="form-field-input" placeholder="节点名称" />
                        </div>
                        <div>
-                          <label class="form-label small-text muted">唯一标识 (Identifier)</label>
-                          <input id="preset-node-identifier" class="form-input" style="padding:4px 8px; font-family:monospace; color:var(--accent);" placeholder="Unique ID" />
+                          <label class="form-field-label">唯一标识 (Identifier)</label>
+                          <input id="preset-node-identifier" class="form-field-input mono" placeholder="Unique ID" />
                        </div>
                     </div>
 
@@ -407,12 +409,12 @@
 
                        <div style="flex: 1; display:flex; flex-direction:column; padding: 12px 16px; min-height: 0;">
                            <div style="display:flex; justify-content:space-between; margin-bottom:6px; flex: 0 0 auto;">
-                              <label class="form-label small-text" style="font-weight:600;">提示词内容 (Content)</label>
+                              <label class="form-field-label" style="font-weight:600;">提示词内容 (Content)</label>
                               <span class="small-text muted" style="opacity:0.6; font-size:11px;">支持 Handlebars 语法</span>
                            </div>
 
-                           <textarea id="preset-node-content" class="form-textarea"
-                              style="flex:1; resize:none; font-family:'JetBrains Mono', monospace; font-size:13px; line-height:1.6; border-color:var(--border-soft); overflow-y: auto; padding:10px;"
+                           <textarea id="preset-node-content" class="form-field-input mono"
+                              style="flex:1; resize:none; font-size:13px; line-height:1.6; overflow-y: auto; padding:10px; min-height: 120px;"
                               placeholder="在这里输入提示词内容..."></textarea>
                        </div>
 
@@ -420,28 +422,28 @@
 
                           <div style="display:grid; grid-template-columns: 1.2fr 1.2fr 0.8fr 0.8fr; gap:10px; align-items:center; margin-bottom:12px;">
                               <div>
-                                  <label class="form-label small-text muted" style="margin-bottom:2px;">角色 (Role)</label>
-                                  <select id="preset-node-role" class="form-select" style="padding:4px; height:30px;">
+                                  <label class="form-field-label">角色 (Role)</label>
+                                  <select id="preset-node-role" class="form-field-input" style="padding:4px; height:30px;">
                                     <option value="system">system</option>
                                     <option value="user">user</option>
                                     <option value="assistant">assistant</option>
                                   </select>
                               </div>
                               <div>
-                                  <label class="form-label small-text muted" style="margin-bottom:2px;">位置 (Pos)</label>
-                                  <select id="preset-node-position" class="form-select" style="padding:4px; height:30px;">
+                                  <label class="form-field-label">位置 (Pos)</label>
+                                  <select id="preset-node-position" class="form-field-input" style="padding:4px; height:30px;">
                                       <option value="0">Top (Head)</option>
                                       <option value="1">User (After)</option>
                                       <option value="-1">Bottom (Tail)</option>
                                   </select>
                               </div>
                               <div>
-                                  <label class="form-label small-text muted" style="margin-bottom:2px;" title="注入顺序">Order</label>
-                                  <input type="number" id="preset-node-order" class="form-input" style="padding:4px; height:30px; text-align:center;" />
+                                  <label class="form-field-label" title="注入顺序">Order</label>
+                                  <input type="number" id="preset-node-order" class="form-field-input" style="padding:4px; height:30px; text-align:center;" />
                               </div>
                               <div>
-                                  <label class="form-label small-text muted" style="margin-bottom:2px;" title="递归深度">Depth</label>
-                                  <input type="number" id="preset-node-depth" class="form-input" style="padding:4px; height:30px; text-align:center;" />
+                                  <label class="form-field-label" title="递归深度">Depth</label>
+                                  <input type="number" id="preset-node-depth" class="form-field-input" style="padding:4px; height:30px; text-align:center;" />
                               </div>
                           </div>
 
@@ -465,10 +467,10 @@
                        </div>
                     </div>
 
-                    <div id="prompt-bool-fields" style="display:none; flex:1; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:var(--text-secondary);">
-                       <div style="font-size:48px; opacity:0.1; margin-bottom:15px;">📁</div>
-                       <div style="font-size:14px; font-weight:600;">分组节点</div>
-                       <div class="small-text muted" style="margin-top:6px;">包含子节点，自身不存储提示词内容。</div>
+                    <div id="prompt-bool-fields" class="group-node-hint">
+                       <div class="group-node-hint-icon">📁</div>
+                       <div class="group-node-hint-title">分组节点</div>
+                       <div class="group-node-hint-desc">包含子节点，自身不存储提示词内容。</div>
                     </div>
 
                 </div>
@@ -477,6 +479,165 @@
                     <div style="font-size:56px; margin-bottom:15px; opacity:0.5;">👈</div>
                     <div style="font-size:15px;">请在中间栏选择一个节点</div>
                     <div class="small-text muted">以查看或编辑详细属性</div>
+                </div>
+
+              </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="tab-regex" class="tab-pane tab-pane-presets">
+        <div style="height: calc(100vh - 100px); display: flex; flex-direction: column; overflow: hidden;">
+
+            <div style="flex: 0 0 auto; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:flex-end;">
+              <div>
+                <h2 class="section-title" style="margin-bottom:4px;">正则化管理</h2>
+              </div>
+            </div>
+
+            <div style="flex: 1; display:grid; grid-template-columns: 240px 300px 1fr; gap:12px; min-height: 0;">
+
+              <div class="config-panel" style="overflow-y: auto;">
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span class="panel-title">正则化配置</span>
+                        <button id="regex-create-btn" class="icon-button" title="新建正则化配置" style="width:24px; height:24px; font-weight:bold;">＋</button>
+                    </div>
+
+                    <select id="regex-select" class="config-select"></select>
+
+                    <div class="active-hint-box">
+                        <div class="active-hint-label">当前应用</div>
+                        <div id="regex-active-hint" class="active-hint-value">-</div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="regex-set-active-btn" class="btn-primary btn-small" style="width:100%; justify-content:center;">★ 应用为当前配置</button>
+                    <div class="action-buttons-row">
+                        <button id="regex-save-btn" class="btn-secondary btn-small" style="flex:1;">保存</button>
+                        <button id="regex-delete-btn" class="btn-danger btn-small" style="flex:1;">删除</button>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div>
+                    <div class="panel-title" style="font-size:13px; margin-bottom:8px; opacity:0.8;">导入 / 导出</div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <input id="regex-import-name" class="form-field-input" placeholder="重命名 (可选)" style="font-size:12px; padding:6px 10px;" />
+
+                        <div style="display:flex; gap:6px;">
+                             <label class="btn-secondary btn-small" style="flex:1; text-align:center; cursor:pointer; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:flex; align-items:center; justify-content:center;">
+                                📂 选文件
+                                <input id="regex-import-file" type="file" accept=".json" style="display:none;" />
+                             </label>
+                             <button id="regex-import-btn" class="btn-secondary btn-small" style="flex:0 0 auto;">导入</button>
+                        </div>
+
+                        <button id="regex-export-btn" class="btn-secondary btn-small" style="width:100%;">📤 导出当前 JSON</button>
+                    </div>
+                </div>
+
+              </div>
+
+              <div class="config-panel" style="display:flex; flex-direction:column; overflow:hidden; padding: 12px;">
+                <div class="panel-header" style="margin-bottom: 8px; flex: 0 0 auto;">
+                  <div class="panel-title">规则结构树</div>
+                  <div style="display:flex; gap:4px;">
+                       <button id="regex-add-group-btn" class="icon-button" title="添加规则组">📁+</button>
+                       <button id="regex-add-rule-btn" class="icon-button" title="添加正则规则">🔧+</button>
+                       <button id="regex-delete-node-btn" class="icon-button danger" title="删除节点">×</button>
+                  </div>
+                </div>
+
+                <div id="regex-tree" class="tree-container">
+                   <div class="empty-hint"><div class="empty-hint-icon">⏳</div><div class="empty-hint-subtitle">加载中...</div></div>
+                </div>
+
+                <div class="small-text muted" style="margin-top:6px; font-size:11px; flex: 0 0 auto; text-align:center;">
+                   提示：点击节点编辑规则属性
+                </div>
+              </div>
+
+              <div class="node-editor-panel">
+
+                <div class="node-editor-header">
+                  <div class="node-editor-title">规则属性</div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                      <span class="small-text muted">启用</span>
+                      <label class="toggle-switch" title="启用/禁用此规则" style="transform:scale(0.8);">
+                          <input type="checkbox" id="regex-node-enabled">
+                          <span class="slider"></span>
+                      </label>
+                  </div>
+                </div>
+
+                <div id="regex-node-editor-container" style="display:none; flex: 1; flex-direction: column; overflow: hidden;">
+
+                    <div style="padding: 12px 16px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; border-bottom:1px solid var(--border-soft); flex: 0 0 auto;">
+                       <div>
+                          <label class="form-field-label">标题</label>
+                          <input id="regex-node-title" class="form-field-input" />
+                       </div>
+                       <div>
+                          <label class="form-field-label">标识符</label>
+                          <input id="regex-node-identifier" class="form-field-input mono" />
+                       </div>
+                    </div>
+
+                    <div id="regex-node-rule-fields" style="display:none; flex: 1; flex-direction: column; min-height: 0;">
+
+                       <div class="node-editor-content">
+                           <div class="form-field-group">
+                              <label class="form-field-label">正则表达式 (Pattern)</label>
+                              <input id="regex-node-pattern" class="form-field-input mono" placeholder="例如：<思考过程>([\s\S]*?)</思考过程>" />
+                           </div>
+                           
+                           <div class="form-field-group">
+                              <label class="form-field-label">替换文本 (Replacement)</label>
+                              <input id="regex-node-replacement" class="form-field-input mono" placeholder="留空表示删除匹配内容" />
+                           </div>
+                           
+                           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                              <div class="form-field-group" style="margin-bottom:0;">
+                                 <label class="form-field-label">提取分组</label>
+                                 <input id="regex-node-extract-group" class="form-field-input" type="number" min="0" value="0" />
+                              </div>
+                              <div class="form-field-group" style="margin-bottom:0;">
+                                 <label class="form-field-label">应用目标</label>
+                                 <select id="regex-node-apply-to" class="form-field-input">
+                                    <option value="body">正文</option>
+                                    <option value="thinking">思考过程</option>
+                                    <option value="summary">内容总结</option>
+                                    <option value="actions">行动选项</option>
+                                    <option value="all">全部</option>
+                                 </select>
+                              </div>
+                           </div>
+                           
+                           <div class="form-field-group">
+                              <label class="form-field-label">描述</label>
+                              <textarea id="regex-node-description" class="form-field-input" rows="2" placeholder="规则用途说明..."></textarea>
+                           </div>
+                       </div>
+
+                    </div>
+
+                    <div id="regex-group-hint" class="group-node-hint">
+                       <div class="group-node-hint-icon">📁</div>
+                       <div class="group-node-hint-title">分组节点</div>
+                       <div class="group-node-hint-desc">包含子节点，自身不存储正则规则内容。</div>
+                    </div>
+
+                </div>
+
+                <div id="regex-node-empty-hint" class="empty-hint">
+                    <div class="empty-hint-icon">👈</div>
+                    <div class="empty-hint-title">请在中间栏选择一个节点</div>
+                    <div class="empty-hint-subtitle">以查看或编辑规则属性</div>
                 </div>
 
               </div>
@@ -559,6 +720,7 @@
     </section>
   </main>
 
+  <script src="assets/js/regex.js"></script>
   <script src="assets/js/settings.js"></script>
 </body>
 </html>

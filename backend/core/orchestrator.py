@@ -293,7 +293,7 @@ def generate_story_text(
     return full_text, meta, None
 
 
-def persist_story_segment(db: Session, session_id: str, story_text: str) -> int:
+def persist_story_segment(db: Session, session_id: str, story_text: str, user_input: str = None) -> int:
     """写入 StorySegment 并返回 order_index。"""
     st = _get_or_create_session_state(db, session_id)
     existing_count = db.query(models.StorySegment).filter(models.StorySegment.session_id == session_id).count()
@@ -303,6 +303,7 @@ def persist_story_segment(db: Session, session_id: str, story_text: str) -> int:
         segment_id=f"{session_id}_{order_index}",
         session_id=session_id,
         order_index=order_index,
+        user_input=user_input,
         text=story_text,
         created_at=datetime.utcnow(),
     )

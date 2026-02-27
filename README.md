@@ -241,3 +241,75 @@ Storyteller/
 * **`data/`**：持久化数据区。
   * **`db.sqlite`**：项目的本地核心数据库文件。
   * **`worldbook_import/`**：用于存放待导入的外部世界书原始文件。
+
+
+
+# Storyteller 项目任务清单
+
+## 剧情界面
+
+- [ ]  **1.1 写作节奏与统计面板实时计时**
+  前端发送请求前记录 `performance.now()`，接收响应后计算耗时，更新到 `#stat-duration-front`；确保后端响应中包含 `meta.duration_ms`；流式模式下更新耗时。
+- [ ]  **1.2 主角与玩家视角面板数据真实化**
+  后端在 `orchestrator.py` 中根据当前故事选择主角，创建新 API `/api/session/characters` 返回角色摘要；前端调用并更新 `#character-summary`、`#var-economy` 等。
+- [ ]  **1.3 当前场景与副本面板进度真实化**
+  扩展 `/api/session/summary` 返回详细进度；前端解析并更新 `#dungeon-progress`。
+- [ ]  **1.4 周围人物与势力面板**
+  会话状态添加 `scene_characters` 字段；创建 API `/api/session/scene-characters` 返回当前场景人物；前端渲染至 `#scene-characters-panel`。
+- [ ]  **1.5 地图与世界事件面板**
+  在全局设置或故事实体中添加地图描述、世界事件列表；会话摘要中返回地图信息和最近世界事件；前端渲染至 `#world-events-panel`。
+- [ ]  **1.6 下次行动建议动态生成**
+  创建新 API `/api/story/suggestions`，调用 LLM 生成建议；前端在页面加载、剧情生成后请求并动态填充 `.suggestion-chip`，点击填入输入框。
+- [ ]  **1.7 会话历史记录数据管理**
+  后端 `/api/session/history` 支持分页；前端实现“加载更多”或无限滚动，追加历史到 `#story-log`。
+- [ ]  **1.8 移除“新建会话”按钮**
+  删除 `index.html` 中 `#new-session-btn` 及其事件监听；默认使用固定或 localStorage 中的会话 ID。
+- [ ]  **1.9 新增“故事”实体（跨世界观管理）**
+  数据库新增 `stories` 表；创建 CRUD API `/api/stories`；会话表添加 `story_id`；新增故事管理页面；修改 `orchestrator.py` 从故事关联数据加载角色、世界书、剧本。
+
+## 角色界面
+
+- [ ]  **2.1 角色信息渲染优化**
+  改进 `characters.js` 中 `renderCharacterView`，根据字段类型生成美观 HTML；添加对应 CSS；支持图片字段缩略图。
+- [ ]  **2.2 角色信息真实配置到故事**
+  `orchestrator.py` 中根据故事 ID 查询关联角色，将角色当前状态注入上下文；实现变量追踪并更新角色数据。
+
+## 世界书界面
+
+- [ ]  **3.1 世界书信息真实配置到故事**
+  `orchestrator.py` 中根据故事关联的世界书 ID 调用 RAG 检索模块，基于检索结果返回条目。
+
+## 副本（剧本）界面
+
+- [ ]  **4.1 剧本信息真实配置到故事**
+  完善 `routes_dungeon.py` 的 CRUD 接口；`orchestrator.py` 中根据会话的 `current_dungeon_id` 和 `current_node_id` 加载节点信息；实现节点进度更新。
+- [ ]  **4.2 左侧目录美观布局**
+  修改 `dungeon.js` 中 `renderTree`，使用清晰层级缩进、图标；添加 CSS 样式；实现展开/折叠功能。
+
+## 设置界面
+
+- [ ]  **5.1 后处理正则规则真实应用**
+  `orchestrator.py` 中从全局设置读取 `text.post_processing_rules`，对生成文本进行正则替换。
+- [ ]  **5.2 摘要与记忆真实配置**
+  实现 `summary.py` 中的摘要生成；`orchestrator.py` 中根据设置判断是否触发摘要，存储至数据库（新增 `StorySummary` 表）。
+- [ ]  **5.3 变量思考真实配置**
+  实现 `variables.py` 中变量追踪逻辑；`orchestrator.py` 中根据设置调用变量分析模块，更新角色数据。
+- [ ]  **5.4 正文与演化真实配置**
+  实现 `text_opt.py` 润色功能和 `evolution.py` 世界演化功能；`orchestrator.py` 中根据设置调用这些模块。
+
+## 预设管理
+
+- [ ]  **6.1 控件布局重构**
+  修改 `settings.html` 中预设管理区域的 HTML 结构为三栏布局（文件列表、结构树、节点属性）；调整 CSS。
+- [ ]  **6.2 结构树美化（高亮框）**
+  `settings.js` 中为选中节点添加 `active` 类；在 `style.css` 中定义 `.list-item.active` 的样式。
+- [ ]  **6.3 保存修改按钮功能修复**
+  检查 `settings.js` 中 `btnSave` 的事件绑定，确保其调用 `savePreset` 函数并正确更新 `currentPreset`。
+- [ ]  **6.4 导入功能优化**
+  改进 `prompts.py` 中 `import_preset`，支持更多格式并提供详细错误信息；前端显示导入结果并自动刷新树。
+- [ ]  **6.5 节点“唯一标识”不可手动修改**
+  `settings.js` 中将 `nodeIdentifierEl` 设为 `readonly` 或 `disabled`；新建节点时自动生成 identifier。
+- [ ]  **6.6 节点控制功能真实实现**
+  `prompts.py` 中根据节点的 `enabled`、`role`、`injection_position`、`injection_order`、`injection_depth`、`forbid_overrides`、`injection_trigger` 等属性决定注入逻辑；`orchestrator.py` 中实现触发词匹配。
+- [ ]  **6.7 当前应用预设信息美观展示**
+  在预设管理左侧上方增加卡片或高亮区域，显示当前激活预设的名称和 ID；使用 CSS 美化。

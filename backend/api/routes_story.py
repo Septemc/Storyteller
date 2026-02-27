@@ -74,7 +74,7 @@ def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db)) -> 
     if gen is not None:
         story_text = "".join(list(gen))
 
-    orchestrator.persist_story_segment(db, req.session_id, story_text)
+    orchestrator.persist_story_segment(db, req.session_id, story_text, req.user_input)
 
     meta = StoryMeta(**(meta_obj.__dict__ if hasattr(meta_obj, "__dict__") else dict(meta_obj)))
     meta.word_count = len(story_text)
@@ -109,6 +109,9 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
             )
 
             meta_dict = meta_obj.__dict__ if hasattr(meta_obj, "__dict__") else dict(meta_obj)
+            # 确保meta_dict中包含duration_ms字段
+            if "duration_ms" not in meta_dict:
+                meta_dict["duration_ms"] = 0
             yield _sse("meta", meta_dict)
 
             if stream_gen is None:
@@ -122,7 +125,7 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
                     yield _sse("delta", {"text": delta})
 
             final_text = "".join(story_buf)
-            orchestrator.persist_story_segment(db, req.session_id, final_text)
+            orchestrator.persist_story_segment(db, req.session_id, final_text, req.user_input)
 
             yield _sse("done", {})
         except Exception as e:
@@ -197,3 +200,48 @@ def get_session_summary(
         characters=characters,
         variables=variables,
     )
+
+
+class StorySegmentItem(BaseModel):
+    segment_id: str
+    order_index: int
+    user_input: Optional[str] = None
+    text: str
+    created_at: Optional[str] = None
+
+
+class RecentSegmentsResponse(BaseModel):
+    segments: List[StorySegmentItem]
+
+
+@router.get("/story/recent", response_model=RecentSegmentsResponse)
+def get_recent_segments(
+    session_id: str = Query(..., description="会话 ID"),
+    limit: int = Query(5, description="返回的记录数量"),
+    db: Session = Depends(get_db),
+) -> RecentSegmentsResponse:
+    """获取最近的故事片段记录（包含用户输入和AI回复）。"""
+    
+    segments = (
+        db.query(models.StorySegment)
+        .filter(models.StorySegment.session_id == session_id)
+        .order_by(models.StorySegment.order_index.desc())
+        .limit(limit)
+        .all()
+    )
+    
+    segments.reverse()
+    
+    result = []
+    for seg in segments:
+        result.append(
+            StorySegmentItem(
+                segment_id=seg.segment_id,
+                order_index=seg.order_index,
+                user_input=seg.user_input,
+                text=seg.text,
+                created_at=seg.created_at.isoformat() if seg.created_at else None,
+            )
+        )
+    
+    return RecentSegmentsResponse(segments=result)

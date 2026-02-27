@@ -13,9 +13,9 @@ from .api import (
     routes_dungeon,
     routes_settings,
     routes_templates,
-    # --- 本次重构新增 ---
     routes_presets,
     routes_llm,
+    routes_regex,
 )
 
 app = FastAPI(title="Storyteller-说书人", version="0.2.0")
@@ -43,9 +43,9 @@ app.include_router(routes_characters.router, prefix="/api", tags=["characters"])
 app.include_router(routes_dungeon.router, prefix="/api", tags=["dungeon"])
 app.include_router(routes_settings.router, prefix="/api", tags=["settings"])
 
-# --- 本次重构核心：预设管理 / API 配置 ---
 app.include_router(routes_presets.router, prefix="/api", tags=["presets"])
 app.include_router(routes_llm.router, prefix="/api", tags=["llm"])
+app.include_router(routes_regex.router, tags=["regex"])
 
 # 保持原有模板路由（如果为空也不会影响）
 app.include_router(routes_templates.router)

@@ -69,6 +69,8 @@
   // =========================================
   let currentSessionId = null;
   let totalWordCount = 0;
+  let postprocessingRules = [];
+  let regexConfig = {};
 
   // =========================================
   // 4. 会话管理逻辑
@@ -128,7 +130,7 @@
     if (!storyLogEl) return;
 
     const block = document.createElement("div");
-    block.className = "story-block" + (type === "user" ? " story-block-user" : "");
+    block.className = "story-block" + (type === "user" ? " story-block-user" : " story-block-assistant");
 
     const metaEl = document.createElement("div");
     metaEl.className = "story-meta";
@@ -145,16 +147,326 @@
       metaEl.textContent = infoParts.join(" · ") + tags;
     }
 
+    block.appendChild(metaEl);
+
+    // 处理文本内容
+    const processedText = extractMainContent(text);
+    const thinkingText = extractThinking(text);
+    const summaryText = extractSummary(text);
+
+    // 添加思考过程（放在正文前面，默认折叠）
+    if (thinkingText) {
+      const thinkingContainer = document.createElement("div");
+      thinkingContainer.className = "story-thinking-container";
+      thinkingContainer.style.cssText = "margin-bottom: 8px;";
+      
+      const thinkingHeader = document.createElement("button");
+      thinkingHeader.className = "thinking-toggle";
+      thinkingHeader.style.cssText = "background: none; border: none; padding: 4px 8px; cursor: pointer; font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;";
+      thinkingHeader.innerHTML = '<span class="toggle-icon">▶</span>';
+      
+      const toggleText = document.createElement("span");
+      toggleText.className = "toggle-text";
+      toggleText.textContent = "思考过程";
+      thinkingHeader.appendChild(toggleText);
+      
+      const thinkingContent = document.createElement("div");
+      thinkingContent.className = "story-thinking";
+      thinkingContent.style.cssText = "margin-top: 4px; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic; display: none;";
+      thinkingContent.textContent = thinkingText;
+      
+      thinkingHeader.addEventListener('click', function() {
+        const isExpanded = thinkingContent.style.display === 'block';
+        thinkingContent.style.display = isExpanded ? 'none' : 'block';
+        thinkingHeader.querySelector('.toggle-icon').textContent = isExpanded ? '▶' : '▼';
+      });
+      
+      thinkingContainer.appendChild(thinkingHeader);
+      thinkingContainer.appendChild(thinkingContent);
+      block.appendChild(thinkingContainer);
+    }
+    
+    // 正文内容
     const textEl = document.createElement("div");
     textEl.className = "story-text";
-    textEl.textContent = text;
-
-    block.appendChild(metaEl);
+    textEl.textContent = processedText;
     block.appendChild(textEl);
+
+    // 添加内容总结（如果有，放在正文后面）
+    if (summaryText) {
+      const summaryEl = document.createElement("div");
+      summaryEl.className = "story-summary";
+      summaryEl.style.cssText = "margin-top: 8px; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px; font-size: 12px; color: var(--text-secondary); border-left: 3px solid var(--accent);";
+      summaryEl.textContent = "📝 " + summaryText;
+      block.appendChild(summaryEl);
+    }
+
+    // 添加"查看原文"链接
+    if (type !== "user" && text) {
+      const rawTextLink = document.createElement("button");
+      rawTextLink.className = "raw-text-link";
+      rawTextLink.style.cssText = "background: none; border: none; padding: 4px 8px; cursor: pointer; font-size: 11px; color: var(--accent); margin-top: 8px; text-decoration: underline; opacity: 0.7;";
+      rawTextLink.textContent = "查看原文";
+      rawTextLink.addEventListener('click', function() {
+        showRawTextModal(text);
+      });
+      block.appendChild(rawTextLink);
+    }
+
     storyLogEl.appendChild(block);
+
+    // 提取并更新行动选项
+    if (type !== "user") {
+      const actionOptions = extractActionOptions(text);
+      if (actionOptions.length > 0) {
+        updateActionSuggestions(actionOptions);
+      }
+    }
 
     // 自动滚动到底部
     storyLogEl.scrollTop = storyLogEl.scrollHeight;
+  }
+
+  // 显示原文模态框
+  function showRawTextModal(text) {
+    // 移除已存在的模态框
+    const existingModal = document.getElementById('raw-text-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    // 创建模态框
+    const modal = document.createElement('div');
+    modal.id = 'raw-text-modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; justify-content: center; align-items: center;';
+
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = 'background: var(--bg-elevated); border-radius: 12px; padding: 20px; max-width: 80%; max-height: 80%; width: 800px; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5);';
+
+    const modalHeader = document.createElement('div');
+    modalHeader.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft);';
+    modalHeader.innerHTML = '<h3 style="margin: 0; color: var(--text-primary);">原文内容</h3>';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
+    closeBtn.style.cssText = 'background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary); padding: 0; line-height: 1;';
+    closeBtn.addEventListener('click', function() {
+      modal.remove();
+    });
+    modalHeader.appendChild(closeBtn);
+
+    const textContent = document.createElement('pre');
+    textContent.style.cssText = 'flex: 1; overflow: auto; margin: 0; padding: 16px; background: var(--bg-primary); border-radius: 8px; font-family: monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; color: var(--text-primary);';
+    textContent.textContent = text;
+
+    modalContent.appendChild(modalHeader);
+    modalContent.appendChild(textContent);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    // 点击背景关闭
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+
+    // ESC键关闭
+    document.addEventListener('keydown', function escHandler(e) {
+      if (e.key === 'Escape') {
+        modal.remove();
+        document.removeEventListener('keydown', escHandler);
+      }
+    });
+  }
+
+  // 提取正文部分，过滤掉思考过程和行动选项
+  function extractMainContent(text) {
+    if (!text) return "";
+    
+    // 适配新的输出格式
+    const thinkingStart = text.indexOf('<思考过程>');
+    const bodyStart = text.indexOf('<正文部分>');
+    const bodyEnd = text.indexOf('<内容总结>');
+    
+    let mainContent = text;
+    
+    // 处理新格式
+    if (bodyStart > -1 && bodyEnd > -1) {
+      // 提取正文部分
+      mainContent = text.substring(bodyStart + 6, bodyEnd).trim();
+    } else if (thinkingStart > -1) {
+      // 处理旧格式（思考过程标记）
+      mainContent = text.substring(0, thinkingStart).trim();
+    } else {
+      // 处理没有标记的情况
+      const contentCheckIndex = text.indexOf('<!-- content check:');
+      mainContent = contentCheckIndex > -1 ? text.substring(0, contentCheckIndex) : text;
+      mainContent = mainContent.trim();
+    }
+    
+    // 应用后处理规则
+    return applyPostprocessingRules(mainContent, postprocessingRules);
+  }
+
+  // 提取思考过程
+  function extractThinking(text) {
+    if (!text) return "";
+    
+    const thinkingStart = text.indexOf('<思考过程>');
+    const thinkingEnd = text.indexOf('</思考过程>');
+    
+    if (thinkingStart > -1 && thinkingEnd > -1) {
+      return text.substring(thinkingStart + 6, thinkingEnd).trim();
+    }
+    
+    // 兼容旧格式
+    const contentCheckIndex = text.indexOf('<!-- content check:');
+    if (contentCheckIndex > -1) {
+      const optionsStart = text.indexOf('<行动选项>');
+      const endIndex = optionsStart > -1 ? optionsStart : text.length;
+      return text.substring(contentCheckIndex + 17, endIndex).trim();
+    }
+    
+    return "";
+  }
+
+  // 提取内容总结
+  function extractSummary(text) {
+    if (!text) return "";
+    
+    const summaryStart = text.indexOf('<内容总结>');
+    const summaryEnd = text.indexOf('</内容总结>');
+    
+    if (summaryStart > -1 && summaryEnd > -1) {
+      return text.substring(summaryStart + 6, summaryEnd).trim();
+    }
+    
+    return "";
+  }
+
+  // 获取后处理正则规则
+  async function initPostprocessingRules() {
+    try {
+      const response = await fetch('/regex/active');
+      if (response.ok) {
+        const data = await response.json();
+        regexConfig = data.config || {};
+      }
+    } catch (error) {
+      console.warn('Failed to load regex config:', error);
+    }
+  }
+
+  // 应用正则化规则处理文本
+  function applyRegexRules(text, section) {
+    if (!text || !regexConfig || !regexConfig.root) return text;
+    
+    let result = text;
+    
+    function processNode(node) {
+      if (!node || node.enabled === false) return;
+      
+      if (node.kind === 'regex' && node.pattern) {
+        const applyTo = node.apply_to || 'body';
+        if (applyTo === 'all' || applyTo === section) {
+          try {
+            const regex = new RegExp(node.pattern, 'g');
+            if (node.extract_group && node.extract_group > 0) {
+              const match = regex.exec(result);
+              if (match && match[node.extract_group]) {
+                result = match[node.extract_group];
+              }
+            } else if (node.replacement !== undefined) {
+              result = result.replace(regex, node.replacement);
+            }
+          } catch (error) {
+            console.warn('Invalid regex rule:', node, error);
+          }
+        }
+      }
+      
+      if (node.children && Array.isArray(node.children)) {
+        node.children.forEach(processNode);
+      }
+    }
+    
+    processNode(regexConfig.root);
+    return result;
+  }
+
+  // 应用后处理正则规则（旧版兼容）
+  function applyPostprocessingRules(text, rules) {
+    if (!text || !rules || !Array.isArray(rules)) return text;
+    
+    let processedText = text;
+    
+    rules.forEach(rule => {
+      try {
+        if (rule.pattern && rule.replacement !== undefined) {
+          const regex = new RegExp(rule.pattern, 'g');
+          processedText = processedText.replace(regex, rule.replacement);
+        }
+      } catch (error) {
+        console.warn('Invalid regex rule:', rule, error);
+      }
+    });
+    
+    return processedText;
+  }
+
+  // 提取行动选项部分
+  function extractActionOptions(text) {
+    if (!text) return [];
+    
+    const optionsStart = text.indexOf('<行动选项>');
+    const optionsEnd = text.indexOf('</行动选项>');
+    
+    if (optionsStart === -1 || optionsEnd === -1) {
+      return [];
+    }
+    
+    const optionsText = text.substring(optionsStart + 5, optionsEnd);
+    const options = [];
+    
+    // 解析行动选项
+    const lines = optionsText.split('\n');
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine && trimmedLine.match(/^\d+:/)) {
+        // 提取选项文本（去除数字和冒号）
+        const optionText = trimmedLine.replace(/^\d+:/, '').trim();
+        if (optionText) {
+          options.push(optionText);
+        }
+      }
+    }
+    
+    return options;
+  }
+
+  // 更新行动建议
+  function updateActionSuggestions(options) {
+    if (!actionSuggestionsEl) return;
+    
+    const suggestionsBody = document.getElementById('action-suggestions-body');
+    if (!suggestionsBody) return;
+    
+    // 清空现有内容
+    suggestionsBody.innerHTML = '';
+    
+    // 添加新的行动选项
+    options.forEach((option, index) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'suggestion-chip';
+      chip.setAttribute('data-suggest', option);
+      chip.textContent = option;
+      suggestionsBody.appendChild(chip);
+    });
+    
+    // 重新绑定建议芯片的点击事件
+    bindSuggestionChips();
   }
 
   function appendActionHistory(text) {
@@ -191,6 +503,12 @@
       ensureSession();
     }
 
+    // 提取行动选项并更新到建议区域
+    const actionOptions = extractActionOptions(userText);
+    if (actionOptions.length > 0) {
+      updateActionSuggestions(actionOptions);
+    }
+
     appendStoryBlock(userText, null, "user");
     appendActionHistory(userText);
     userInputEl.value = "";
@@ -202,9 +520,145 @@
       generateBtn.disabled = true;
     }
 
+    // 尝试使用流式生成，失败则回退到非流式
+    try {
+      await generateStoryStream(userText);
+    } catch (err) {
+      console.warn("流式生成失败，回退到非流式:", err);
+      await generateStoryNonStream(userText);
+    }
+  }
+
+  // 流式生成实现
+  async function generateStoryStream(userText) {
     const frontStart = performance.now();
+    let updateInterval;
+    let storyText = "";
+    let metaData = {};
 
     try {
+      // 启动实时更新计时器
+      updateInterval = setInterval(() => {
+        const currentTime = performance.now();
+        const durationFrontMs = currentTime - frontStart;
+        if (statDurationFrontEl) {
+          statDurationFrontEl.textContent = formatDuration(durationFrontMs);
+        }
+      }, 100); // 每100ms更新一次
+
+      const resp = await fetch("/api/story/generate_stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: currentSessionId,
+          user_input: userText
+        })
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error("请求失败：" + text);
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        // 处理SSE事件
+        const lines = buffer.split("\n\n");
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i];
+          if (!line) continue;
+
+          const eventMatch = line.match(/^event: (\w+)/m);
+          const dataMatch = line.match(/^data: (.+)/ms);
+
+          if (eventMatch && dataMatch) {
+            const event = eventMatch[1];
+            const dataStr = dataMatch[1];
+
+            try {
+              const data = JSON.parse(dataStr);
+
+              if (event === "meta") {
+                metaData = data;
+              } else if (event === "delta") {
+                storyText += data.text || "";
+                // 实时更新故事内容
+                appendStoryBlockIncremental(data.text || "");
+              } else if (event === "done") {
+                // 完成处理
+                break;
+              } else if (event === "error") {
+                throw new Error(data.message || "流式生成错误");
+              }
+            } catch (parseErr) {
+              console.warn("解析SSE数据失败:", parseErr);
+            }
+          }
+        }
+
+        buffer = lines[lines.length - 1];
+      }
+
+      const frontEnd = performance.now();
+      const durationFrontMs = frontEnd - frontStart;
+
+      // 确保metaData中包含必要字段
+      // 提取正文部分并计算字数
+      const mainStoryText = extractMainContent(storyText);
+      const wordCount = metaData.word_count || mainStoryText.length;
+      const durationMs = metaData.duration_ms || 0;
+      totalWordCount += wordCount;
+
+      if (statWordsEl) statWordsEl.textContent = String(wordCount);
+      if (statDurationEl) statDurationEl.textContent = formatDuration(durationMs);
+      if (statDurationFrontEl) statDurationFrontEl.textContent = formatDuration(durationFrontMs);
+      if (statTotalWordsEl) statTotalWordsEl.textContent = String(totalWordCount);
+
+      if (inputStatusEl) inputStatusEl.textContent = "已生成新剧情。";
+
+      updateSidebarFromMeta(metaData);
+      refreshSessionSummary();
+      
+      // 流式输出完毕后，重新加载最近5条交互记录进行渲染
+      await loadRecentSegments();
+    } catch (err) {
+      console.error("流式生成错误:", err);
+      throw err;
+    } finally {
+      // 清除更新计时器
+      if (updateInterval) {
+        clearInterval(updateInterval);
+      }
+      if (generateBtn) {
+        generateBtn.disabled = false;
+        userInputEl.focus(); // 聚焦回输入框
+      }
+    }
+  }
+
+  // 非流式生成实现（回退方案）
+  async function generateStoryNonStream(userText) {
+    const frontStart = performance.now();
+    let updateInterval;
+
+    try {
+      // 启动实时更新计时器
+      updateInterval = setInterval(() => {
+        const currentTime = performance.now();
+        const durationFrontMs = currentTime - frontStart;
+        if (statDurationFrontEl) {
+          statDurationFrontEl.textContent = formatDuration(durationFrontMs);
+        }
+      }, 100); // 每100ms更新一次
+
       const resp = await fetch("/api/story/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -215,7 +669,7 @@
       });
 
       const frontEnd = performance.now();
-      const durationFrontMs = Math.round(frontEnd - frontStart);
+      const durationFrontMs = frontEnd - frontStart;
 
       if (!resp.ok) {
         const text = await resp.text();
@@ -227,13 +681,15 @@
       appendStoryBlock(data.story || "", data.meta || {}, "story");
 
       const meta = data.meta || {};
-      const wordCount = meta.word_count || (data.story ? data.story.length : 0);
+      // 提取正文部分并计算字数
+      const mainStoryText = extractMainContent(data.story || "");
+      const wordCount = meta.word_count || mainStoryText.length;
       const durationMs = meta.duration_ms || 0;
       totalWordCount += wordCount;
 
       if (statWordsEl) statWordsEl.textContent = String(wordCount);
-      if (statDurationEl) statDurationEl.textContent = durationMs + " ms";
-      if (statDurationFrontEl) statDurationFrontEl.textContent = durationFrontMs + " ms";
+      if (statDurationEl) statDurationEl.textContent = formatDuration(durationMs);
+      if (statDurationFrontEl) statDurationFrontEl.textContent = formatDuration(durationFrontMs);
       if (statTotalWordsEl) statTotalWordsEl.textContent = String(totalWordCount);
 
       if (inputStatusEl) inputStatusEl.textContent = "已生成新剧情。";
@@ -243,12 +699,55 @@
     } catch (err) {
       console.error(err);
       if (inputStatusEl) inputStatusEl.textContent = "请求出错：" + err.message;
+      throw err;
     } finally {
+      // 清除更新计时器
+      if (updateInterval) {
+        clearInterval(updateInterval);
+      }
       if (generateBtn) {
         generateBtn.disabled = false;
         userInputEl.focus(); // 聚焦回输入框
       }
     }
+  }
+
+  // 增量添加故事内容（用于流式显示）
+  function appendStoryBlockIncremental(text) {
+    if (!storyLogEl) return;
+
+    let lastBlock = storyLogEl.lastElementChild;
+    if (!lastBlock || !lastBlock.classList.contains("story-block")) {
+      // 创建新的故事块
+      lastBlock = document.createElement("div");
+      lastBlock.className = "story-block";
+      
+      const metaEl = document.createElement("div");
+      metaEl.className = "story-meta";
+      metaEl.textContent = "AI 生成";
+      
+      const textEl = document.createElement("div");
+      textEl.className = "story-text";
+      textEl.textContent = text;
+      
+      lastBlock.appendChild(metaEl);
+      lastBlock.appendChild(textEl);
+      storyLogEl.appendChild(lastBlock);
+    } else {
+      // 更新现有故事块
+      const textEl = lastBlock.querySelector(".story-text");
+      if (textEl) {
+        textEl.textContent += text;
+      }
+    }
+
+    // 自动滚动到底部
+    storyLogEl.scrollTop = storyLogEl.scrollHeight;
+  }
+
+  // 格式化时间为 XX.XXXs 格式
+  function formatDuration(ms) {
+    return (ms / 1000).toFixed(3) + "s";
   }
 
   function updateSidebarFromMeta(meta) {
@@ -318,6 +817,30 @@
       }
     } catch (err) {
       console.warn("刷新会话摘要失败：", err);
+    }
+  }
+
+  async function loadRecentSegments() {
+    if (!currentSessionId || !storyLogEl) return;
+    try {
+      const resp = await fetch(
+        "/api/story/recent?session_id=" + encodeURIComponent(currentSessionId) + "&limit=5"
+      );
+      if (!resp.ok) return;
+      const data = await resp.json();
+
+      if (data.segments && Array.isArray(data.segments) && data.segments.length > 0) {
+        storyLogEl.innerHTML = "";
+        
+        data.segments.forEach(function (segment) {
+          if (segment.user_input) {
+            appendStoryBlock(segment.user_input, null, "user");
+          }
+          appendStoryBlock(segment.text, null, "assistant");
+        });
+      }
+    } catch (err) {
+      console.warn("加载最近故事片段失败：", err);
     }
   }
 
@@ -457,15 +980,19 @@
     bindInputPanelEvents();
   }
 
-  function init() {
+  async function init() {
     ensureSession();
     bindEvents();
+    await initPostprocessingRules();
     refreshSessionSummary();
+    await loadRecentSegments();
   }
 
   // 确保 DOM 加载完成后执行
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", async () => {
+      await init();
+    });
   } else {
     init();
   }

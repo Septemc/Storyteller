@@ -4,8 +4,12 @@
 
 from __future__ import annotations
 
+import json
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+DEFAULT_PRESET_PATH = Path(__file__).parent.parent.parent / "data" / "default_preset.json"
 
 # --- 核心工厂 ---
 
@@ -50,6 +54,14 @@ def new_prompt(
     }
 
 def default_preset(name: str = "默认预设") -> Dict[str, Any]:
+    if DEFAULT_PRESET_PATH.exists():
+        with open(DEFAULT_PRESET_PATH, "r", encoding="utf-8") as f:
+            preset_data = json.load(f)
+            preset_data["id"] = f"preset_{uuid.uuid4().hex[:10]}"
+            if name != "默认预设":
+                preset_data["name"] = name
+            return preset_data
+    
     root = new_group(
         "全局设定",
         children=[
@@ -67,6 +79,37 @@ def default_preset(name: str = "默认预设") -> Dict[str, Any]:
                 identifier="sys_setting",
                 injection_order=101,
                 enabled=False
+            ),
+            new_prompt(
+                name="📝输出格式",
+                content="""
+请严格按照以下格式输出内容：
+
+1. <思考过程>
+- 根据用户输入的行动信息
+- 参考当前世界书
+- 思考当前行动的正文输出大纲
+
+2. <正文部分>
+- 直接输出剧情内容，不要包含任何思考过程
+- 保持叙事流畅，语言生动
+- 字数控制在200-500字之间
+
+3. <内容总结>
+- 在正文内容后，添加 <内容总结> 开始标记
+- 使用100字以内的文本对本次输出的正文内容进行总结
+- 重点需要关注正文中出现的重要事件
+
+4. <行动选项>
+- 在思考过程结束后，添加 <行动选项> 开始标记
+- 提供3-5个可行的行动选项
+- 每个选项以数字开头，格式为：1: [选项内容]
+- 选项要多样化，给玩家不同的选择
+- 以 </行动选项> 结束标记
+                """,
+                role="system",
+                identifier="output_format",
+                injection_order=102
             )
         ],
         identifier="root_group"

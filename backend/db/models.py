@@ -133,6 +133,7 @@ class StorySegment(Base):
     segment_id = Column(String, unique=True, nullable=False)
     session_id = Column(String, index=True, nullable=False)
     order_index = Column(Integer, nullable=False, default=0)
+    user_input = Column(Text, nullable=True)
     text = Column(Text, nullable=False)
     dungeon_id = Column(String, nullable=True)
     dungeon_node_id = Column(String, nullable=True)
@@ -189,6 +190,25 @@ class DBLLMConfig(Base):
     default_model = Column(String, nullable=True)
 
     is_active = Column(Boolean, default=False)  # 标记是否为当前激活配置
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DBRegexProfile(Base):
+    """
+    正则化配置表
+    存储完整的正则化树结构 (JSON)
+    """
+    __tablename__ = "regex_profiles"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    version = Column(Integer, default=1)
+    is_default = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=False)
+
+    config_json = Column(Text, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -1,0 +1,143 @@
+{
+  "id": "regex_default",
+  "name": "默认正则化",
+  "version": 1,
+  "is_default": true,
+  "root": {
+    "id": "node_regex_root",
+    "identifier": "regex_root",
+    "kind": "group",
+    "title": "正则化规则组",
+    "enabled": true,
+    "children": [
+      {
+        "id": "node_tag_extraction",
+        "identifier": "tag_extraction",
+        "kind": "group",
+        "title": "标签提取规则",
+        "enabled": true,
+        "children": [
+          {
+            "id": "node_thinking_tag",
+            "kind": "regex",
+            "title": "思考过程标签",
+            "enabled": true,
+            "identifier": "thinking_tag",
+            "pattern": "<思考过程>([\\s\\S]*?)</思考过程>",
+            "extract_group": 1,
+            "target_section": "thinking",
+            "description": "提取<思考过程>标签内的内容",
+            "meta": {}
+          },
+          {
+            "id": "node_body_tag",
+            "kind": "regex",
+            "title": "正文部分标签",
+            "enabled": true,
+            "identifier": "body_tag",
+            "pattern": "<正文部分>([\\s\\S]*?)</正文部分>",
+            "extract_group": 1,
+            "target_section": "body",
+            "description": "提取<正文部分>标签内的内容",
+            "meta": {}
+          },
+          {
+            "id": "node_summary_tag",
+            "kind": "regex",
+            "title": "内容总结标签",
+            "enabled": true,
+            "identifier": "summary_tag",
+            "pattern": "<内容总结>([\\s\\S]*?)</内容总结>",
+            "extract_group": 1,
+            "target_section": "summary",
+            "description": "提取<内容总结>标签内的内容",
+            "meta": {}
+          },
+          {
+            "id": "node_action_tag",
+            "kind": "regex",
+            "title": "行动选项标签",
+            "enabled": true,
+            "identifier": "action_tag",
+            "pattern": "<行动选项>([\\s\\S]*?)</行动选项>",
+            "extract_group": 1,
+            "target_section": "actions",
+            "description": "提取<行动选项>标签内的内容",
+            "meta": {}
+          }
+        ],
+        "injection_order": 0
+      },
+      {
+        "id": "node_cleanup_rules",
+        "identifier": "cleanup_rules",
+        "kind": "group",
+        "title": "清理规则",
+        "enabled": true,
+        "children": [
+          {
+            "id": "node_multi_newline",
+            "kind": "regex",
+            "title": "移除多余空行",
+            "enabled": true,
+            "identifier": "multi_newline",
+            "pattern": "\\n{3,}",
+            "replacement": "\\n\\n",
+            "apply_to": "body",
+            "description": "将连续3个及以上换行替换为2个换行",
+            "meta": {}
+          },
+          {
+            "id": "node_leading_space",
+            "kind": "regex",
+            "title": "移除行首空格",
+            "enabled": true,
+            "identifier": "leading_space",
+            "pattern": "^[ \\t]+",
+            "replacement": "",
+            "apply_to": "body",
+            "description": "移除每行开头的空格和制表符",
+            "meta": {}
+          },
+          {
+            "id": "node_trailing_space",
+            "kind": "regex",
+            "title": "移除行尾空格",
+            "enabled": true,
+            "identifier": "trailing_space",
+            "pattern": "[ \\t]+$",
+            "replacement": "",
+            "apply_to": "body",
+            "description": "移除每行末尾的空格和制表符",
+            "meta": {}
+          }
+        ],
+        "injection_order": 1
+      },
+      {
+        "id": "node_action_parse",
+        "identifier": "action_parse",
+        "kind": "group",
+        "title": "行动选项解析",
+        "enabled": true,
+        "children": [
+          {
+            "id": "node_action_item",
+            "kind": "regex",
+            "title": "解析行动选项",
+            "enabled": true,
+            "identifier": "action_item",
+            "pattern": "^\\d+[:.、]\\s*(.+)$",
+            "extract_group": 1,
+            "target_section": "action_items",
+            "description": "解析行动选项列表，提取选项文本",
+            "meta": {}
+          }
+        ],
+        "injection_order": 2
+      }
+    ],
+    "injection_order": 0
+  },
+  "meta": {}
+}

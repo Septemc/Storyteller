@@ -467,22 +467,15 @@
       if (!node) return;
 
       const row = document.createElement("div");
-      row.className = "list-item";
+      row.className = "config-tree-node";
       if (selectedNodeId && node.id === selectedNodeId) {
-          row.classList.add("active");
-          row.style.backgroundColor = "rgba(var(--primary-rgb), 0.15)";
-          row.style.borderLeft = "3px solid var(--primary)";
-      } else {
-          row.style.borderLeft = "3px solid transparent";
+          row.classList.add("selected");
+      }
+      if (node.enabled === false) {
+          row.classList.add("disabled");
       }
 
-      row.style.display = "flex";
-      row.style.alignItems = "center";
-      row.style.gap = "8px";
-      row.style.padding = "6px 8px";
       row.style.paddingLeft = (depth * 18 + 8) + "px";
-      row.style.cursor = "pointer";
-      row.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
 
       const toggleLabel = document.createElement("label");
       toggleLabel.className = "toggle-switch";
@@ -498,6 +491,7 @@
           if (selectedNodeId === node.id && nodeEnabledEl) {
               nodeEnabledEl.checked = input.checked;
           }
+          renderTree();
       };
 
       const slider = document.createElement("span");
@@ -506,19 +500,12 @@
       toggleLabel.appendChild(slider);
 
       const icon = document.createElement("span");
+      icon.className = "tree-icon";
       icon.textContent = node.kind === "group" ? "📁" : "📝";
-      icon.style.opacity = "0.8";
-      icon.style.fontSize = "14px";
 
       const titleDiv = document.createElement("div");
-      titleDiv.style.flex = "1";
-      titleDiv.style.fontWeight = node.kind === "group" ? "bold" : "normal";
-      titleDiv.style.fontSize = "13px";
-      titleDiv.style.whiteSpace = "nowrap";
-      titleDiv.style.overflow = "hidden";
-      titleDiv.style.textOverflow = "ellipsis";
+      titleDiv.className = "tree-title";
       titleDiv.textContent = node.title || node.identifier || "未命名";
-      if (!node.enabled) titleDiv.style.opacity = "0.5";
 
       if (node.kind === "prompt") {
           const infoDiv = document.createElement("span");
@@ -585,7 +572,7 @@
 
     if (isGroup) {
       if(promptFields) promptFields.style.display = "none";
-      if(groupHint) groupHint.style.display = "block";
+      if(groupHint) groupHint.style.display = "flex";
     } else {
       if(promptFields) promptFields.style.display = "flex";
       if(groupHint) groupHint.style.display = "none";
@@ -699,13 +686,17 @@
       for (const p of presetsOverview) {
         const opt = document.createElement("option");
         opt.value = p.id;
-        opt.textContent = p.name || p.id;
+        opt.textContent = p.name + (p.is_default ? " (默认)" : "");
         presetSelectEl.appendChild(opt);
       }
       if (activePresetId) presetSelectEl.value = activePresetId;
     }
 
-    if (presetActiveHintEl) setText(presetActiveHintEl, "当前：" + (activePresetId || "-"));
+    // 查找当前预设的名称
+    const currentPreset = presetsOverview.find(p => p.id === activePresetId);
+    const presetName = currentPreset ? (currentPreset.name + (currentPreset.is_default ? " (默认)" : "")) : activePresetId || "-";
+    
+    if (presetActiveHintEl) setText(presetActiveHintEl, "当前：" + presetName);
     if (presetStatusEl) setText(presetStatusEl, "就绪");
 
     const toLoad = (presetSelectEl && presetSelectEl.value) ? presetSelectEl.value : (presetsOverview[0] && presetsOverview[0].id);
@@ -783,14 +774,31 @@
     }
     const data = await resp.json();
     activePresetId = data.preset_id;
-    if (presetActiveHintEl) setText(presetActiveHintEl, "当前：" + (activePresetId || "-"));
+    
+    // 查找当前预设的名称
+    const currentPreset = presetsOverview.find(p => p.id === activePresetId);
+    const presetName = currentPreset ? (currentPreset.name + (currentPreset.is_default || data.is_default ? " (默认)" : "")) : activePresetId || "-";
+    
+    if (presetActiveHintEl) setText(presetActiveHintEl, "当前：" + presetName);
     if (presetStatusEl) setText(presetStatusEl, "已设为当前");
+    
+    // 确保下拉选择框的选中状态正确
+    if (presetSelectEl.value !== activePresetId) {
+      presetSelectEl.value = activePresetId;
+    }
   }
 
   async function deletePreset() {
     if (!presetSelectEl) return;
     const pid = presetSelectEl.value;
     if (!pid) return;
+    
+    const presetToDelete = presetsOverview.find(p => p.id === pid);
+    if (presetToDelete && presetToDelete.is_default) {
+      alert("默认预设不可删除！");
+      return;
+    }
+    
     if (!confirm("确认删除该预设？")) return;
 
     if (presetStatusEl) setText(presetStatusEl, "删除中...");
@@ -954,13 +962,17 @@
   }
 
   function collectLLMEditor() {
-    const cfg = getSelectedCfg() || { id: nowId("llm") };
-    cfg.name = llmNameEl ? llmNameEl.value.trim() : (cfg.name || "未命名配置");
-    cfg.base_url = llmBaseUrlEl ? llmBaseUrlEl.value.trim() : (cfg.base_url || "");
-    cfg.api_key = llmApiKeyEl ? llmApiKeyEl.value.trim() : (cfg.api_key || "");
-    cfg.stream = llmStreamEl ? !!llmStreamEl.checked : true;
-    cfg.default_model = llmDefaultModelEl ? llmDefaultModelEl.value.trim() : (cfg.default_model || null);
-    return cfg;
+    const selectedCfg = getSelectedCfg();
+    // 返回新对象，不修改 llmConfigs 数组中的原对象
+    // 这样判断 isNewConfig 时才能正确检测 base_url 是否为空
+    return {
+      id: selectedCfg ? selectedCfg.id : nowId("llm"),
+      name: llmNameEl ? llmNameEl.value.trim() : (selectedCfg ? selectedCfg.name : "未命名配置"),
+      base_url: llmBaseUrlEl ? llmBaseUrlEl.value.trim() : (selectedCfg ? selectedCfg.base_url : ""),
+      api_key: llmApiKeyEl ? llmApiKeyEl.value.trim() : (selectedCfg ? selectedCfg.api_key : ""),
+      stream: llmStreamEl ? !!llmStreamEl.checked : true,
+      default_model: llmDefaultModelEl ? llmDefaultModelEl.value.trim() : (selectedCfg ? selectedCfg.default_model : null)
+    };
   }
 
   async function loadLLMConfigs() {
@@ -985,8 +997,16 @@
       return;
     }
     if (llmStatusEl) setText(llmStatusEl, "保存中...");
-    const method = llmConfigs.some(c => c.id === cfg.id) ? "PUT" : "POST";
+    
+    // 检查配置是否已存在于数据库中
+    // 通过检查 llmConfigs 数组中是否有相同 ID 的配置且该配置有 base_url
+    // 新创建的配置 base_url 为空，已保存的配置有 base_url
+    const existingConfig = llmConfigs.find(c => c.id === cfg.id);
+    const isNewConfig = !existingConfig || !existingConfig.base_url;
+    
+    const method = isNewConfig ? "POST" : "PUT";
     const url = method === "PUT" ? ("/api/llm/configs/" + encodeURIComponent(cfg.id)) : "/api/llm/configs";
+    
     const resp = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
@@ -1108,9 +1128,18 @@
   // =========================================================
   // Init
   // =========================================================
-  const hasPresetArea = !!$("tab-presets");
-  const hasLLMArea = !!$("tab-api");
+  function initPresetAndLLM() {
+    const hasPresetArea = !!$("tab-presets");
+    const hasLLMArea = !!$("tab-api");
 
-  if (hasPresetArea) loadPresetsOverview().catch(console.error);
-  if (hasLLMArea) loadLLMConfigs().catch(console.error);
+    if (hasPresetArea) loadPresetsOverview().catch(console.error);
+    if (hasLLMArea) loadLLMConfigs().catch(console.error);
+  }
+
+  // 确保DOM加载完成后再执行
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initPresetAndLLM);
+  } else {
+    initPresetAndLLM();
+  }
 })();

@@ -162,6 +162,7 @@ def delete_config(config_id: str, db: Session = Depends(get_db)):
 @router.put("/llm/active")
 def set_active(body: ActiveLLM, db: Session = Depends(get_db)):
     """设置当前激活的配置 ID 及选中的模型"""
+    print(body)
     if not body.config_id:
         # 如果没有传 ID，视为清除激活状态
         db.query(DBLLMConfig).update({DBLLMConfig.is_active: False})
