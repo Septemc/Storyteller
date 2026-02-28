@@ -12,12 +12,10 @@
 
   const regexCreateBtn = document.getElementById('regex-create-btn');
   const regexSetActiveBtn = document.getElementById('regex-set-active-btn');
-  const regexSaveBtn = document.getElementById('regex-save-btn');
+  const regexRenameBtn = document.getElementById('regex-rename-btn');
   const regexDeleteBtn = document.getElementById('regex-delete-btn');
-  const regexImportBtn = document.getElementById('regex-import-btn');
   const regexExportBtn = document.getElementById('regex-export-btn');
   const regexImportFile = document.getElementById('regex-import-file');
-  const regexImportName = document.getElementById('regex-import-name');
 
   const regexAddGroupBtn = document.getElementById('regex-add-group-btn');
   const regexAddRuleBtn = document.getElementById('regex-add-rule-btn');
@@ -228,23 +226,26 @@
 
     const profile = regexProfiles.find(function (p) { return p.id === currentRegexId; });
     if (profile && profile.is_default) {
-      alert('默认正则化配置不可修改！');
       return;
     }
 
-    try {
-      const resp = await fetch('/regex/profiles/' + currentRegexId, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config: currentRegexConfig })
-      });
-      if (!resp.ok) throw new Error('Failed to save regex profile');
-      alert('保存成功！');
-    } catch (err) {
-      console.error('Save regex profile error:', err);
-      alert('保存失败：' + err.message);
-    }
+    const resp = await fetch('/regex/profiles/' + currentRegexId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: currentRegexConfig })
+    });
+    if (!resp.ok) throw new Error('Failed to save regex profile');
+    await loadRegexProfiles();
   }
+
+  window.saveCurrentRegex = async function() {
+    if (!currentRegexId || !currentRegexConfig) return;
+    const profile = regexProfiles.find(function (p) { return p.id === currentRegexId; });
+    if (profile && profile.is_default) {
+      return;
+    }
+    await saveRegexProfile();
+  };
 
   async function deleteRegexProfile() {
     if (!currentRegexId) return;
@@ -361,7 +362,6 @@
   async function importRegex() {
     const file = regexImportFile ? regexImportFile.files[0] : null;
     if (!file) {
-      alert('请先选择文件');
       return;
     }
 
@@ -369,7 +369,9 @@
     reader.onload = async function (e) {
       try {
         const config = JSON.parse(e.target.result);
-        const name = (regexImportName && regexImportName.value) || config.name || '导入的正则化';
+        const defaultName = config.name || file.name.replace(/\.json$/i, '');
+        const name = prompt('请输入正则化配置名称：', defaultName);
+        if (!name) return;
 
         const resp = await fetch('/regex/profiles', {
           method: 'POST',
@@ -377,14 +379,43 @@
           body: JSON.stringify({ name: name, config: config })
         });
         if (!resp.ok) throw new Error('Failed to import regex profile');
+        const data = await resp.json();
         await loadRegexProfiles();
-        alert('导入成功！');
+        regexSelect.value = data.id;
+        await loadSelectedRegex();
+        if (regexImportFile) regexImportFile.value = '';
       } catch (err) {
         console.error('Import regex error:', err);
         alert('导入失败：' + err.message);
       }
     };
     reader.readAsText(file);
+  }
+
+  async function renameRegexProfile() {
+    if (!currentRegexId) return;
+
+    const profile = regexProfiles.find(function (p) { return p.id === currentRegexId; });
+    if (profile && profile.is_default) {
+      alert('默认正则化配置不可重命名！');
+      return;
+    }
+
+    const newName = prompt('请输入新的名称：', currentRegexConfig ? currentRegexConfig.name : '');
+    if (!newName || newName.trim() === '') return;
+
+    try {
+      const resp = await fetch('/regex/profiles/' + currentRegexId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim(), config: currentRegexConfig })
+      });
+      if (!resp.ok) throw new Error('Failed to rename regex profile');
+      await loadRegexProfiles();
+    } catch (err) {
+      console.error('Rename regex profile error:', err);
+      alert('重命名失败：' + err.message);
+    }
   }
 
   function exportRegex() {
@@ -410,8 +441,8 @@
     if (regexSetActiveBtn) {
       regexSetActiveBtn.addEventListener('click', setActiveRegex);
     }
-    if (regexSaveBtn) {
-      regexSaveBtn.addEventListener('click', saveRegexProfile);
+    if (regexRenameBtn) {
+      regexRenameBtn.addEventListener('click', renameRegexProfile);
     }
     if (regexDeleteBtn) {
       regexDeleteBtn.addEventListener('click', deleteRegexProfile);
@@ -427,8 +458,8 @@
       regexDeleteNodeBtn.addEventListener('click', deleteNode);
     }
 
-    if (regexImportBtn) {
-      regexImportBtn.addEventListener('click', importRegex);
+    if (regexImportFile) {
+      regexImportFile.addEventListener('change', importRegex);
     }
     if (regexExportBtn) {
       regexExportBtn.addEventListener('click', exportRegex);

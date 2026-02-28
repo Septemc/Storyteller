@@ -135,7 +135,7 @@
     const metaEl = document.createElement("div");
     metaEl.className = "story-meta";
     if (type === "user") {
-      metaEl.textContent = "玩家输入";
+      metaEl.textContent = "用户输入";
     } else {
       const tags =
         meta && meta.tags && meta.tags.length ? " · " + meta.tags.join(", ") : "";
@@ -172,7 +172,7 @@
       
       const thinkingContent = document.createElement("div");
       thinkingContent.className = "story-thinking";
-      thinkingContent.style.cssText = "margin-top: 4px; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic; display: none;";
+      thinkingContent.style.cssText = "margin-top: 4px; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px; color: var(--text-secondary); font-style: italic; display: none;";
       thinkingContent.textContent = thinkingText;
       
       thinkingHeader.addEventListener('click', function() {
@@ -189,14 +189,30 @@
     // 正文内容
     const textEl = document.createElement("div");
     textEl.className = "story-text";
-    textEl.textContent = processedText;
+    
+    // 按段落分割并创建p元素，使首行缩进对每段生效
+    const paragraphs = processedText.split(/\n+/);
+    paragraphs.forEach(function(para) {
+      if (para.trim()) {
+        const p = document.createElement("p");
+        p.textContent = para.trim();
+        p.style.margin = "0 0 0.8em 0";
+        textEl.appendChild(p);
+      }
+    });
+    
+    // 如果没有段落，直接设置文本
+    if (textEl.children.length === 0) {
+      textEl.textContent = processedText;
+    }
+    
     block.appendChild(textEl);
 
     // 添加内容总结（如果有，放在正文后面）
     if (summaryText) {
       const summaryEl = document.createElement("div");
       summaryEl.className = "story-summary";
-      summaryEl.style.cssText = "margin-top: 8px; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px; font-size: 12px; color: var(--text-secondary); border-left: 3px solid var(--accent);";
+      summaryEl.style.cssText = "margin-top: 8px; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px; color: var(--text-secondary); border-left: 3px solid var(--accent);";
       summaryEl.textContent = "📝 " + summaryText;
       block.appendChild(summaryEl);
     }
@@ -256,7 +272,8 @@
     modalHeader.appendChild(closeBtn);
 
     const textContent = document.createElement('pre');
-    textContent.style.cssText = 'flex: 1; overflow: auto; margin: 0; padding: 16px; background: var(--bg-primary); border-radius: 8px; font-family: monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; color: var(--text-primary);';
+    textContent.className = 'raw-text-content';
+    textContent.style.cssText = 'flex: 1; overflow: auto; margin: 0; padding: 16px; background: var(--bg-primary); border-radius: 8px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; color: var(--text-primary);';
     textContent.textContent = text;
 
     modalContent.appendChild(modalHeader);
@@ -284,26 +301,29 @@
   function extractMainContent(text) {
     if (!text) return "";
     
-    // 适配新的输出格式
-    const thinkingStart = text.indexOf('<思考过程>');
-    const bodyStart = text.indexOf('<正文部分>');
-    const bodyEnd = text.indexOf('<内容总结>');
+    // 使用正则表达式匹配标签，更健壮地处理各种格式
+    const bodyMatch = text.match(/<正文部分>([\s\S]*?)<\/正文部分>/);
     
     let mainContent = text;
     
-    // 处理新格式
-    if (bodyStart > -1 && bodyEnd > -1) {
-      // 提取正文部分
-      mainContent = text.substring(bodyStart + 6, bodyEnd).trim();
-    } else if (thinkingStart > -1) {
-      // 处理旧格式（思考过程标记）
-      mainContent = text.substring(0, thinkingStart).trim();
+    if (bodyMatch && bodyMatch[1]) {
+      mainContent = bodyMatch[1];
     } else {
-      // 处理没有标记的情况
-      const contentCheckIndex = text.indexOf('<!-- content check:');
-      mainContent = contentCheckIndex > -1 ? text.substring(0, contentCheckIndex) : text;
-      mainContent = mainContent.trim();
+      const thinkingStart = text.indexOf('<思考过程>');
+      if (thinkingStart > -1) {
+        mainContent = text.substring(0, thinkingStart);
+      } else {
+        const contentCheckIndex = text.indexOf('<!-- content check:');
+        mainContent = contentCheckIndex > -1 ? text.substring(0, contentCheckIndex) : text;
+      }
     }
+    
+    // 清理残留的标签
+    mainContent = mainContent
+      .replace(/<\/?正文部分>/g, '')
+      .replace(/<\/?思考过程>/g, '')
+      .replace(/<\/?内容总结>/g, '')
+      .replace(/<\/?行动选项>/g, '');
     
     // 应用后处理规则
     return applyPostprocessingRules(mainContent, postprocessingRules);
@@ -313,11 +333,9 @@
   function extractThinking(text) {
     if (!text) return "";
     
-    const thinkingStart = text.indexOf('<思考过程>');
-    const thinkingEnd = text.indexOf('</思考过程>');
-    
-    if (thinkingStart > -1 && thinkingEnd > -1) {
-      return text.substring(thinkingStart + 6, thinkingEnd).trim();
+    const thinkingMatch = text.match(/<思考过程>([\s\S]*?)<\/思考过程>/);
+    if (thinkingMatch && thinkingMatch[1]) {
+      return thinkingMatch[1];
     }
     
     // 兼容旧格式
@@ -325,7 +343,7 @@
     if (contentCheckIndex > -1) {
       const optionsStart = text.indexOf('<行动选项>');
       const endIndex = optionsStart > -1 ? optionsStart : text.length;
-      return text.substring(contentCheckIndex + 17, endIndex).trim();
+      return text.substring(contentCheckIndex + 17, endIndex);
     }
     
     return "";
@@ -335,11 +353,9 @@
   function extractSummary(text) {
     if (!text) return "";
     
-    const summaryStart = text.indexOf('<内容总结>');
-    const summaryEnd = text.indexOf('</内容总结>');
-    
-    if (summaryStart > -1 && summaryEnd > -1) {
-      return text.substring(summaryStart + 6, summaryEnd).trim();
+    const summaryMatch = text.match(/<内容总结>([\s\S]*?)<\/内容总结>/);
+    if (summaryMatch && summaryMatch[1]) {
+      return summaryMatch[1];
     }
     
     return "";
@@ -518,6 +534,15 @@
 
     if (generateBtn) {
       generateBtn.disabled = true;
+    }
+
+    // 发送后自动最小化输入栏
+    if (inputBarEl && !inputBarEl.classList.contains("input-bar--collapsed")) {
+      inputBarEl.classList.add("input-bar--collapsed");
+      if (inputCollapseToggleEl) {
+        inputCollapseToggleEl.innerHTML = iconChevronUp;
+        inputCollapseToggleEl.setAttribute("aria-label", "展开输入栏");
+      }
     }
 
     // 尝试使用流式生成，失败则回退到非流式
@@ -978,11 +1003,199 @@
     bindActionSuggestionsToggle();
     bindSuggestionChips();
     bindInputPanelEvents();
+    bindFontSettingsModal();
+  }
+
+  // 字体设置弹窗相关逻辑
+  function bindFontSettingsModal() {
+    const fontSettingsBtn = document.getElementById('font-settings-btn');
+    const fontSettingsModal = document.getElementById('font-settings-modal');
+    const fontModalClose = document.getElementById('font-modal-close');
+    const fontModalSave = document.getElementById('font-modal-save');
+    const fontModalReset = document.getElementById('font-modal-reset');
+
+    if (!fontSettingsModal) return;
+
+    // 打开弹窗
+    if (fontSettingsBtn) {
+      fontSettingsBtn.addEventListener('click', function() {
+        loadFontSettings();
+        fontSettingsModal.style.display = 'flex';
+      });
+    }
+
+    // 关闭弹窗
+    if (fontModalClose) {
+      fontModalClose.addEventListener('click', function() {
+        fontSettingsModal.style.display = 'none';
+      });
+    }
+
+    // 点击背景关闭
+    fontSettingsModal.addEventListener('click', function(e) {
+      if (e.target === fontSettingsModal) {
+        fontSettingsModal.style.display = 'none';
+      }
+    });
+
+    // 保存设置
+    if (fontModalSave) {
+      fontModalSave.addEventListener('click', function() {
+        saveFontSettings();
+        fontSettingsModal.style.display = 'none';
+      });
+    }
+
+    // 重置默认
+    if (fontModalReset) {
+      fontModalReset.addEventListener('click', function() {
+        resetFontSettings();
+      });
+    }
+  }
+
+  // 加载字体设置
+  function loadFontSettings() {
+    const zones = ['thinking', 'body', 'summary', 'raw', 'stats'];
+    zones.forEach(function(zone) {
+      const familyEl = document.getElementById('font-' + zone + '-family');
+      const sizeEl = document.getElementById('font-' + zone + '-size');
+      const boldEl = document.getElementById('font-' + zone + '-bold');
+      
+      if (familyEl) {
+        const savedFamily = localStorage.getItem('app_font_' + zone + '_family');
+        if (savedFamily) familyEl.value = savedFamily;
+      }
+      if (sizeEl) {
+        const savedSize = localStorage.getItem('app_font_' + zone + '_size');
+        if (savedSize) sizeEl.value = savedSize;
+      }
+      if (boldEl) {
+        const savedBold = localStorage.getItem('app_font_' + zone + '_bold');
+        boldEl.checked = savedBold === 'true';
+      }
+    });
+
+    // 加载缩进设置
+    const indentEl = document.getElementById('font-body-indent');
+    if (indentEl) {
+      const savedIndent = localStorage.getItem('app_font_body_indent');
+      indentEl.checked = savedIndent === 'true';
+    }
+  }
+
+  // 保存字体设置
+  function saveFontSettings() {
+    const zones = {
+      thinking: { familyVar: '--font-thinking-family', sizeVar: '--font-thinking-size', boldVar: '--font-thinking-weight' },
+      body: { familyVar: '--font-body-family', sizeVar: '--font-body-size', boldVar: '--font-body-weight' },
+      summary: { familyVar: '--font-summary-family', sizeVar: '--font-summary-size', boldVar: '--font-summary-weight' },
+      raw: { familyVar: '--font-raw-family', sizeVar: '--font-raw-size', boldVar: '--font-raw-weight' },
+      stats: { familyVar: '--font-stats-family', sizeVar: '--font-stats-size', boldVar: '--font-stats-weight' }
+    };
+
+    Object.keys(zones).forEach(function(zone) {
+      const familyEl = document.getElementById('font-' + zone + '-family');
+      const sizeEl = document.getElementById('font-' + zone + '-size');
+      const boldEl = document.getElementById('font-' + zone + '-bold');
+      
+      if (familyEl && sizeEl) {
+        const family = familyEl.value;
+        const size = sizeEl.value;
+        const bold = boldEl ? boldEl.checked : false;
+        
+        localStorage.setItem('app_font_' + zone + '_family', family);
+        localStorage.setItem('app_font_' + zone + '_size', size);
+        localStorage.setItem('app_font_' + zone + '_bold', bold);
+        
+        document.documentElement.style.setProperty(zones[zone].familyVar, family);
+        document.documentElement.style.setProperty(zones[zone].sizeVar, size);
+        document.documentElement.style.setProperty(zones[zone].boldVar, bold ? 'bold' : 'normal');
+      }
+    });
+
+    // 保存缩进设置
+    const indentEl = document.getElementById('font-body-indent');
+    if (indentEl) {
+      const indent = indentEl.checked;
+      localStorage.setItem('app_font_body_indent', indent);
+      document.documentElement.style.setProperty('--font-body-indent', indent ? '2em' : '0');
+    }
+
+    // 同步到全局设置（如果存在）
+    syncToGlobalSettings();
+  }
+
+  // 重置字体设置
+  function resetFontSettings() {
+    const defaults = {
+      thinking: { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: '12px', bold: false },
+      body: { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: '15px', bold: false },
+      summary: { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: '12px', bold: false },
+      raw: { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: '12px', bold: false },
+      stats: { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: '12px', bold: false }
+    };
+
+    Object.keys(defaults).forEach(function(zone) {
+      const familyEl = document.getElementById('font-' + zone + '-family');
+      const sizeEl = document.getElementById('font-' + zone + '-size');
+      const boldEl = document.getElementById('font-' + zone + '-bold');
+      
+      if (familyEl) familyEl.value = defaults[zone].family;
+      if (sizeEl) sizeEl.value = defaults[zone].size;
+      if (boldEl) boldEl.checked = defaults[zone].bold;
+    });
+
+    // 重置缩进设置
+    const indentEl = document.getElementById('font-body-indent');
+    if (indentEl) {
+      indentEl.checked = false;
+    }
+  }
+
+  // 同步到全局设置
+  function syncToGlobalSettings() {
+    // 触发自定义事件，通知设置页面更新
+    window.dispatchEvent(new CustomEvent('fontSettingsChanged'));
+  }
+
+  // 应用保存的字体设置
+  function applySavedFontSettings() {
+    const zones = {
+      thinking: { familyVar: '--font-thinking-family', sizeVar: '--font-thinking-size', boldVar: '--font-thinking-weight' },
+      body: { familyVar: '--font-body-family', sizeVar: '--font-body-size', boldVar: '--font-body-weight' },
+      summary: { familyVar: '--font-summary-family', sizeVar: '--font-summary-size', boldVar: '--font-summary-weight' },
+      raw: { familyVar: '--font-raw-family', sizeVar: '--font-raw-size', boldVar: '--font-raw-weight' },
+      stats: { familyVar: '--font-stats-family', sizeVar: '--font-stats-size', boldVar: '--font-stats-weight' }
+    };
+
+    Object.keys(zones).forEach(function(zone) {
+      const savedFamily = localStorage.getItem('app_font_' + zone + '_family');
+      const savedSize = localStorage.getItem('app_font_' + zone + '_size');
+      const savedBold = localStorage.getItem('app_font_' + zone + '_bold');
+      
+      if (savedFamily) {
+        document.documentElement.style.setProperty(zones[zone].familyVar, savedFamily);
+      }
+      if (savedSize) {
+        document.documentElement.style.setProperty(zones[zone].sizeVar, savedSize);
+      }
+      if (savedBold) {
+        document.documentElement.style.setProperty(zones[zone].boldVar, savedBold === 'true' ? 'bold' : 'normal');
+      }
+    });
+
+    // 应用缩进设置
+    const savedIndent = localStorage.getItem('app_font_body_indent');
+    if (savedIndent) {
+      document.documentElement.style.setProperty('--font-body-indent', savedIndent === 'true' ? '2em' : '0');
+    }
   }
 
   async function init() {
     ensureSession();
     bindEvents();
+    applySavedFontSettings();
     await initPostprocessingRules();
     refreshSessionSummary();
     await loadRecentSegments();

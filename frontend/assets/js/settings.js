@@ -292,19 +292,47 @@
     applyTypography(settings.ui.typography || {});
 
     statusEl.textContent = "保存中...";
+    let hasError = false;
+    
     try {
       const resp = await fetch("/api/settings/global", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings)
       });
-      if (!resp.ok) throw new Error("HTTP " + resp.status);
-      statusEl.textContent = "保存成功";
-      setTimeout(() => statusEl.textContent = "就绪", 2000);
+      if (!resp.ok) {
+        hasError = true;
+        console.error("保存全局设置失败");
+      }
     } catch (err) {
       console.error(err);
-      statusEl.textContent = "保存失败";
+      hasError = true;
     }
+    
+    if (typeof window.saveCurrentPreset === 'function') {
+      try {
+        await window.saveCurrentPreset();
+      } catch (err) {
+        console.error("保存预设失败:", err);
+        hasError = true;
+      }
+    }
+    
+    if (typeof window.saveCurrentRegex === 'function') {
+      try {
+        await window.saveCurrentRegex();
+      } catch (err) {
+        console.error("保存正则化失败:", err);
+        hasError = true;
+      }
+    }
+    
+    if (hasError) {
+      statusEl.textContent = "部分保存失败";
+    } else {
+      statusEl.textContent = "保存成功";
+    }
+    setTimeout(() => statusEl.textContent = "就绪", 2000);
   }
 
   // --- 6. 事件绑定 ---
@@ -380,16 +408,14 @@
   // =========================================================
   const presetSelectEl = $("preset-select");
   const presetActiveHintEl = $("preset-active-hint");
-  const presetStatusEl = $("preset-status"); // 可能不存在，已做兼容处理
+  const presetStatusEl = $("preset-status");
 
   const presetCreateBtn = $("preset-create-btn");
   const presetSetActiveBtn = $("preset-set-active-btn");
-  const presetSaveBtn = $("preset-save-btn");
+  const presetRenameBtn = $("preset-rename-btn");
   const presetDeleteBtn = $("preset-delete-btn");
 
   const presetImportFileEl = $("preset-import-file");
-  const presetImportNameEl = $("preset-import-name");
-  const presetImportBtn = $("preset-import-btn");
   const presetExportBtn = $("preset-export-btn");
 
   const presetTreeEl = $("preset-tree");
@@ -734,13 +760,19 @@
     });
     if (!resp.ok) {
       const t = await resp.text();
-      if (presetStatusEl) setText(presetStatusEl, "保存失败：" + t);
-      return;
+      throw new Error(t);
     }
-    if (presetStatusEl) setText(presetStatusEl, "保存成功");
-    await sleep(800);
     await loadPresetsOverview();
   }
+
+  window.saveCurrentPreset = async function() {
+    if (!currentPreset) return;
+    const presetInfo = presetsOverview.find(p => p.id === currentPreset.id);
+    if (presetInfo && presetInfo.is_default) {
+      return;
+    }
+    await savePreset();
+  };
 
   async function createPreset() {
     const name = prompt("新预设名称：", "新预设");
@@ -823,7 +855,12 @@
     let payload;
     try { payload = JSON.parse(text); } catch (e) { alert("JSON 解析失败"); return; }
 
-    const nameHint = (presetImportNameEl && presetImportNameEl.value.trim()) ? presetImportNameEl.value.trim() : ("导入_" + f.name.replace(/\.json$/i, ""));
+    const nameHint = prompt("请输入预设名称：", f.name.replace(/\.json$/i, ""));
+    if (!nameHint) {
+      if (presetStatusEl) setText(presetStatusEl, "已取消导入");
+      return;
+    }
+
     const resp = await fetch("/api/presets/import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -839,6 +876,47 @@
     await loadPresetsOverview();
     if (presetSelectEl) presetSelectEl.value = p.id;
     await loadPresetDetail(p.id);
+    
+    if (presetImportFileEl) presetImportFileEl.value = "";
+  }
+
+  async function renamePreset() {
+    if (!presetSelectEl) return;
+    const pid = presetSelectEl.value;
+    if (!pid) return;
+    
+    const currentPresetInfo = presetsOverview.find(p => p.id === pid);
+    if (currentPresetInfo && currentPresetInfo.is_default) {
+      alert("默认预设不可重命名！");
+      return;
+    }
+    
+    const newName = prompt("请输入新的预设名称：", currentPreset ? currentPreset.name : "");
+    if (!newName || newName.trim() === "") return;
+    
+    if (presetStatusEl) setText(presetStatusEl, "重命名中...");
+    
+    currentPreset.name = newName.trim();
+    const resp = await fetch("/api/presets/" + encodeURIComponent(pid), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: currentPreset.id,
+        name: currentPreset.name,
+        version: currentPreset.version || 1,
+        root: currentPreset.root,
+        meta: currentPreset.meta || {}
+      })
+    });
+    
+    if (!resp.ok) {
+      const t = await resp.text();
+      if (presetStatusEl) setText(presetStatusEl, "重命名失败：" + t);
+      return;
+    }
+    
+    if (presetStatusEl) setText(presetStatusEl, "重命名成功");
+    await loadPresetsOverview();
   }
 
   async function exportPreset() {
@@ -871,9 +949,9 @@
   }
   presetCreateBtn && presetCreateBtn.addEventListener("click", createPreset);
   presetSetActiveBtn && presetSetActiveBtn.addEventListener("click", setActivePreset);
-  presetSaveBtn && presetSaveBtn.addEventListener("click", savePreset);
+  presetRenameBtn && presetRenameBtn.addEventListener("click", renamePreset);
   presetDeleteBtn && presetDeleteBtn.addEventListener("click", deletePreset);
-  presetImportBtn && presetImportBtn.addEventListener("click", importPreset);
+  presetImportFileEl && presetImportFileEl.addEventListener("change", importPreset);
   presetExportBtn && presetExportBtn.addEventListener("click", exportPreset);
 
   addGroupBtn && addGroupBtn.addEventListener("click", () => addChildNode("group"));

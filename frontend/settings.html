@@ -164,9 +164,9 @@
             </div>
 
             <div class="typography-row">
-              <div class="typography-col typography-col-label">剧情正文</div>
+              <div class="typography-col typography-col-label">角色详情</div>
               <div class="typography-col">
-                <select id="font-story-family" class="form-select">
+                <select id="font-char-family" class="form-select">
                   <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
                   <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
                   <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
@@ -175,14 +175,59 @@
                 </select>
               </div>
               <div class="typography-col">
-                <select id="font-story-size" class="form-select">
+                <select id="font-char-size" class="form-select">
                   <option value="12px">12px</option>
                   <option value="13px">13px</option>
-                  <option value="14px">14px</option>
+                  <option value="14px">14px（默认）</option>
                   <option value="15px">15px</option>
                   <option value="16px">16px</option>
                   <option value="18px">18px</option>
-                  <option value="20px">20px</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">世界书</div>
+              <div class="typography-col">
+                <select id="font-world-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-world-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px（默认）</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">副本</div>
+              <div class="typography-col">
+                <select id="font-dungeon-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-dungeon-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px（默认）</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
                 </select>
               </div>
             </div>
@@ -333,28 +378,15 @@
                 <div class="action-buttons">
                     <button id="preset-set-active-btn" class="btn-primary btn-small" style="width:100%; justify-content:center;">★ 应用为当前预设</button>
                     <div class="action-buttons-row">
-                        <button id="preset-save-btn" class="btn-secondary btn-small" style="flex:1;">保存</button>
-                        <button id="preset-delete-btn" class="btn-danger btn-small" style="flex:1;">删除</button>
+                        <label class="btn-secondary btn-small" style="flex:1; text-align:center; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                            📥 导入
+                            <input id="preset-import-file" type="file" accept=".json" style="display:none;" />
+                        </label>
+                        <button id="preset-export-btn" class="btn-secondary btn-small" style="flex:1;">📤 导出</button>
                     </div>
-                </div>
-
-                <div class="divider"></div>
-
-                <div>
-                    <div class="panel-title" style="font-size:13px; margin-bottom:8px; opacity:0.8;">导入 / 导出</div>
-
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <input id="preset-import-name" class="form-field-input" placeholder="重命名 (可选)" style="font-size:12px; padding:6px 10px;" />
-
-                        <div style="display:flex; gap:6px;">
-                             <label class="btn-secondary btn-small" style="flex:1; text-align:center; cursor:pointer; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:flex; align-items:center; justify-content:center;">
-                                📂 选文件
-                                <input id="preset-import-file" type="file" accept=".json" style="display:none;" />
-                             </label>
-                             <button id="preset-import-btn" class="btn-secondary btn-small" style="flex:0 0 auto;">导入</button>
-                        </div>
-
-                        <button id="preset-export-btn" class="btn-secondary btn-small" style="width:100%;">📤 导出当前 JSON</button>
+                    <div class="action-buttons-row">
+                        <button id="preset-rename-btn" class="btn-secondary btn-small" style="flex:1;">✏️ 重命名</button>
+                        <button id="preset-delete-btn" class="btn-danger btn-small" style="flex:1;">�️ 删除</button>
                     </div>
                 </div>
 
@@ -516,28 +548,15 @@
                 <div class="action-buttons">
                     <button id="regex-set-active-btn" class="btn-primary btn-small" style="width:100%; justify-content:center;">★ 应用为当前配置</button>
                     <div class="action-buttons-row">
-                        <button id="regex-save-btn" class="btn-secondary btn-small" style="flex:1;">保存</button>
-                        <button id="regex-delete-btn" class="btn-danger btn-small" style="flex:1;">删除</button>
+                        <label class="btn-secondary btn-small" style="flex:1; text-align:center; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                            📥 导入
+                            <input id="regex-import-file" type="file" accept=".json" style="display:none;" />
+                        </label>
+                        <button id="regex-export-btn" class="btn-secondary btn-small" style="flex:1;">📤 导出</button>
                     </div>
-                </div>
-
-                <div class="divider"></div>
-
-                <div>
-                    <div class="panel-title" style="font-size:13px; margin-bottom:8px; opacity:0.8;">导入 / 导出</div>
-
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <input id="regex-import-name" class="form-field-input" placeholder="重命名 (可选)" style="font-size:12px; padding:6px 10px;" />
-
-                        <div style="display:flex; gap:6px;">
-                             <label class="btn-secondary btn-small" style="flex:1; text-align:center; cursor:pointer; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:flex; align-items:center; justify-content:center;">
-                                📂 选文件
-                                <input id="regex-import-file" type="file" accept=".json" style="display:none;" />
-                             </label>
-                             <button id="regex-import-btn" class="btn-secondary btn-small" style="flex:0 0 auto;">导入</button>
-                        </div>
-
-                        <button id="regex-export-btn" class="btn-secondary btn-small" style="width:100%;">📤 导出当前 JSON</button>
+                    <div class="action-buttons-row">
+                        <button id="regex-rename-btn" class="btn-secondary btn-small" style="flex:1;">✏️ 重命名</button>
+                        <button id="regex-delete-btn" class="btn-danger btn-small" style="flex:1;">�️ 删除</button>
                     </div>
                 </div>
 

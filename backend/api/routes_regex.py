@@ -179,7 +179,47 @@ def create_regex_profile(req: RegexProfileCreate, db: Session = Depends(get_db))
     
     profile_id = f"regex_{uuid.uuid4().hex[:10]}"
     
-    config = req.config or {"root": {"children": []}}
+    if req.config:
+        config = req.config
+    else:
+        config = {
+            "id": profile_id,
+            "name": req.name,
+            "version": 1,
+            "is_default": False,
+            "root": {
+                "id": f"node_{uuid.uuid4().hex[:8]}",
+                "kind": "group",
+                "title": "正则化规则组",
+                "identifier": "regex_root",
+                "enabled": True,
+                "children": [
+                    {
+                        "id": f"node_{uuid.uuid4().hex[:8]}",
+                        "kind": "group",
+                        "title": "新建规则组",
+                        "identifier": "new_group",
+                        "enabled": True,
+                        "children": [
+                            {
+                                "id": f"node_{uuid.uuid4().hex[:8]}",
+                                "kind": "regex",
+                                "title": "未命名规则",
+                                "identifier": "new_rule",
+                                "enabled": True,
+                                "pattern": "",
+                                "replacement": "",
+                                "extract_group": 0,
+                                "apply_to": "body",
+                                "description": ""
+                            }
+                        ]
+                    }
+                ]
+            },
+            "meta": {}
+        }
+    
     if "id" not in config:
         config["id"] = profile_id
     if "name" not in config:
