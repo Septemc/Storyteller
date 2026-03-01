@@ -13,55 +13,166 @@
       <span class="app-title">Storyteller</span>
       <span class="app-subtitle">说书人·叙事控制台</span>
     </div>
+    <div class="nav-center">
+      <div class="current-save-info" id="current-save-info">
+        <div class="save-name" id="current-save-name">未加载存档</div>
+        <div class="save-id" id="current-save-id">--</div>
+        <button class="save-manager-toggle-btn" id="save-manager-toggle-btn" title="存档管理">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          存档管理
+        </button>
+      </div>
+    </div>
     <nav class="nav-links">
       <a href="index.html" class="nav-link active">剧情</a>
       <a href="characters.html" class="nav-link">角色</a>
       <a href="worldbook.html" class="nav-link">世界书</a>
-      <a href="dungeon.html" class="nav-link">副本</a>
+      <a href="dungeon.html" class="nav-link">剧本</a>
       <a href="settings.html" class="nav-link">设置</a>
     </nav>
   </header>
 
   <main class="main-layout">
-    <!-- 左侧：主观信息（项目相关 + 玩家视角） -->
+    <!-- 左侧：主角与玩家视角 -->
     <aside class="side-panel side-panel-left">
-      <section class="sidebar-section">
-        <div class="sidebar-header">
-          <div class="sidebar-title">写作节奏与统计</div>
-        </div>
-        <div class="sidebar-body small-text">
-          <div>本段字数：<span id="stat-words">0</span></div>
-          <div>后端耗时：<span id="stat-duration">0 ms</span></div>
-          <div>前端耗时：<span id="stat-duration-front">0 ms</span></div>
-          <div>会话累计字数：<span id="stat-total-words">0</span></div>
-        </div>
-      </section>
-
-      <section class="sidebar-section">
+      <section class="sidebar-section player-panel">
         <div class="sidebar-header">
           <div class="sidebar-title">主角与玩家视角</div>
+          <button class="panel-collapse-btn" data-panel="player" aria-label="收起/展开">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
         </div>
-        <div class="sidebar-body small-text">
-          <div class="sidebar-subtitle">主角与关键角色</div>
-          <div id="character-summary">
-            <div>加载中...</div>
+        <div class="sidebar-body player-body">
+          <!-- 1. 主观数值与状态 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-stats">
+              <span class="subsection-title">主观数值与状态</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-stats">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div class="stat-label">生命值</div>
+                  <div class="stat-bar-container">
+                    <div class="stat-bar stat-bar-health" style="width: 100%"></div>
+                  </div>
+                  <div class="stat-value">100/100</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-label">魔法值</div>
+                  <div class="stat-bar-container">
+                    <div class="stat-bar stat-bar-mana" style="width: 100%"></div>
+                  </div>
+                  <div class="stat-value">100/100</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-label">体力值</div>
+                  <div class="stat-bar-container">
+                    <div class="stat-bar stat-bar-stamina" style="width: 100%"></div>
+                  </div>
+                  <div class="stat-value">100/100</div>
+                </div>
+              </div>
+              <div class="status-badges">
+                <span class="status-badge status-normal">正常</span>
+              </div>
+            </div>
           </div>
 
-          <div class="sidebar-subtitle">主观数值与状态</div>
-          <div class="sidebar-kv">
-            <div>经济 / 资源：<span id="var-economy">未知</span></div>
-            <div>能力评级：<span id="var-ability">未知</span></div>
-            <div>势力 / 阵营：<span id="var-faction">未知</span></div>
+          <!-- 2. 经济/资源系统 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-resources">
+              <span class="subsection-title">经济/资源</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-resources">
+              <div class="resource-grid">
+                <div class="resource-item">
+                  <span class="resource-icon">💰</span>
+                  <div class="resource-info">
+                    <div class="resource-name">金币</div>
+                    <div class="resource-value" id="resource-gold">0</div>
+                  </div>
+                </div>
+                <div class="resource-item">
+                  <span class="resource-icon">💎</span>
+                  <div class="resource-info">
+                    <div class="resource-name">钻石</div>
+                    <div class="resource-value" id="resource-diamond">0</div>
+                  </div>
+                </div>
+              </div>
+              <div class="resource-summary" id="var-economy">未知</div>
+            </div>
           </div>
 
-          <div class="sidebar-subtitle">历史行动输入</div>
-          <div id="action-history" class="action-history">
-            <div class="muted">暂无历史行动，等待你的第一次指令。</div>
+          <!-- 3. 能力评级 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-abilities">
+              <span class="subsection-title">能力评级</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-abilities">
+              <div class="ability-summary" id="var-ability">未知</div>
+              <div class="ability-stars">
+                <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">☆</span>
+              </div>
+            </div>
           </div>
 
-          <div class="sidebar-subtitle">物品栏 / 状态栏（预留）</div>
-          <div class="muted small-text">
-            将来可接入主角物品栏、Buff / Debuff 等更细致的数据面板。
+          <!-- 4. 势力/阵营 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-factions">
+              <span class="subsection-title">势力/阵营</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-factions">
+              <div class="faction-summary" id="var-faction">未知</div>
+            </div>
+          </div>
+
+          <!-- 5. 物品栏/状态栏 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-inventory">
+              <span class="subsection-title">物品栏</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-inventory">
+              <div class="inventory-grid">
+                <div class="inventory-slot empty"></div>
+                <div class="inventory-slot empty"></div>
+                <div class="inventory-slot empty"></div>
+                <div class="inventory-slot empty"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. Buff/Debuff -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-buffs">
+              <span class="subsection-title">Buff/Debuff</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-buffs">
+              <div class="buff-list">
+                <div class="muted small-text">暂无生效效果</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 历史行动输入 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="action-history">
+              <span class="subsection-title">历史行动</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="action-history">
+              <div class="muted">暂无历史行动</div>
+            </div>
           </div>
         </div>
       </section>
@@ -72,46 +183,320 @@
       <div class="panel-header">
         <div>
           <div class="panel-title">故事进程</div>
-          <div class="panel-subtitle" id="session-label">会话初始化中...</div>
         </div>
         <div class="panel-header-right">
           <button id="font-settings-btn" class="btn-secondary" title="字体设置">字体设置</button>
-          <button id="new-session-btn" class="btn-secondary">新建会话</button>
         </div>
       </div>
       <div id="story-log" class="story-log">
         <!-- 剧情内容将插入到这里 -->
       </div>
+      <!-- 实时计时显示区域 -->
+      <div id="story-timer" class="story-timer" style="display: none;">
+        <span class="timer-item">前端耗时：<span id="timer-frontend">0.0s</span></span>
+        <span class="timer-divider">|</span>
+        <span class="timer-item">后端耗时：<span id="timer-backend">0.0s</span></span>
+      </div>
     </section>
 
-    <!-- 右侧：客观信息（当前场景 / 地图 / 世界事件） -->
+    <!-- 右侧：客观信息 -->
     <aside class="side-panel side-panel-right">
-      <section class="sidebar-section">
+      <!-- 当前场景与剧本模块 -->
+      <section class="sidebar-section scene-panel">
         <div class="sidebar-header">
-          <div class="sidebar-title">当前场景与副本</div>
+          <div class="sidebar-title">当前场景与剧本</div>
+          <button class="panel-collapse-btn" data-panel="scene" aria-label="收起/展开">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
         </div>
-        <div id="dungeon-info" class="sidebar-body small-text">
-          <div>当前副本：<span id="dungeon-name">暂无</span></div>
-          <div>当前节点：<span id="dungeon-node-name">暂无</span></div>
-          <div>节点进度：<span id="dungeon-progress">未知</span></div>
+        <div class="sidebar-body scene-body">
+          <!-- 1. 场景信息 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-info">
+              <span class="subsection-title">场景信息</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-info">
+              <div class="scene-name">
+                <span class="scene-icon">📍</span>
+                <span id="dungeon-name">暂无</span>
+              </div>
+              <div class="scene-node">
+                <span class="node-label">当前节点：</span>
+                <span id="dungeon-node-name">暂无</span>
+              </div>
+              <div class="scene-description" id="scene-description">
+                暂无场景描述
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 任务目标 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-quests">
+              <span class="subsection-title">任务目标</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-quests">
+              <div class="quest-list">
+                <div class="quest-item quest-main">
+                  <span class="quest-type">主线</span>
+                  <span class="quest-name">暂无任务</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 环境状态 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-environment">
+              <span class="subsection-title">环境状态</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-environment">
+              <div class="environment-grid">
+                <div class="env-item">
+                  <span class="env-icon">🌤️</span>
+                  <span class="env-value" id="env-weather">晴朗</span>
+                </div>
+                <div class="env-item">
+                  <span class="env-icon">🕐</span>
+                  <span class="env-value" id="env-time">白天</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 剧本进度 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-progress">
+              <span class="subsection-title">剧本进度</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-progress">
+              <div class="progress-container">
+                <div class="progress-bar-wrapper">
+                  <div class="progress-bar" id="dungeon-progress-bar" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="dungeon-progress">0%</div>
+              </div>
+              <div class="progress-hint" id="dungeon-progress-hint">暂无进度提示</div>
+            </div>
+          </div>
+
+          <!-- 5. 场景互动点 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-interact">
+              <span class="subsection-title">场景互动点</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-interact">
+              <div class="interact-list">
+                <div class="muted small-text">暂无可互动元素</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. 挑战信息 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-challenge">
+              <span class="subsection-title">挑战信息</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-challenge">
+              <div class="challenge-info">
+                <div class="muted small-text">暂无挑战信息</div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="sidebar-section">
+      <!-- 周围人物与势力模块 -->
+      <section class="sidebar-section characters-panel">
         <div class="sidebar-header">
           <div class="sidebar-title">周围人物与势力</div>
+          <button class="panel-collapse-btn" data-panel="characters" aria-label="收起/展开">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
         </div>
-        <div id="scene-characters-panel" class="sidebar-body small-text">
-          <div class="muted">预留区域：用于展示当前场景的 NPC、势力分布等信息。</div>
+        <div class="sidebar-body characters-body">
+          <!-- 1. NPC列表 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="npc-list">
+              <span class="subsection-title">NPC列表</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="npc-list">
+              <div class="npc-grid">
+                <div class="muted small-text">暂无NPC</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 敌对目标 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="enemy-list">
+              <span class="subsection-title">敌对目标</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="enemy-list">
+              <div class="enemy-grid">
+                <div class="muted small-text">暂无敌对目标</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 势力分布 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="faction-distribution">
+              <span class="subsection-title">势力分布</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="faction-distribution">
+              <div class="faction-list">
+                <div class="muted small-text">暂无势力信息</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 社交关系 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="social-relations">
+              <span class="subsection-title">社交关系</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="social-relations">
+              <div class="relation-list">
+                <div class="muted small-text">暂无社交关系</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. 队伍信息 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="party-info">
+              <span class="subsection-title">队伍信息</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="party-info">
+              <div class="party-status">
+                <div class="muted small-text">当前为单人模式</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. 势力任务 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="faction-quests">
+              <span class="subsection-title">势力任务</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="faction-quests">
+              <div class="faction-quest-list">
+                <div class="muted small-text">暂无可接任务</div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="sidebar-section">
+      <!-- 地图与世界事件模块 -->
+      <section class="sidebar-section world-panel">
         <div class="sidebar-header">
           <div class="sidebar-title">地图与世界事件</div>
+          <button class="panel-collapse-btn" data-panel="world" aria-label="收起/展开">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
         </div>
-        <div id="world-events-panel" class="sidebar-body small-text">
-          <div class="muted">预留区域：用于展示当前地图与世界线重大事件。</div>
+        <div class="sidebar-body world-body">
+          <!-- 1. 区域地图 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="area-map">
+              <span class="subsection-title">区域地图</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="area-map">
+              <div class="map-container">
+                <div class="map-placeholder">
+                  <span class="map-icon">🗺️</span>
+                  <span class="map-text">点击展开地图</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 世界地图 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="world-map">
+              <span class="subsection-title">世界地图</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="world-map">
+              <div class="world-map-btn">
+                <button class="btn-secondary btn-small">查看世界地图</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 事件标记 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="event-markers">
+              <span class="subsection-title">事件标记</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="event-markers">
+              <div class="event-list">
+                <div class="muted small-text">暂无进行中的事件</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 快速旅行 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="fast-travel">
+              <span class="subsection-title">快速旅行</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="fast-travel">
+              <div class="travel-list">
+                <div class="muted small-text">暂无已发现地点</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. 探索进度 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="exploration-progress">
+              <span class="subsection-title">探索进度</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="exploration-progress">
+              <div class="exploration-stats">
+                <div class="exploration-item">
+                  <span class="exploration-label">已探索区域</span>
+                  <span class="exploration-value">0/0</span>
+                </div>
+                <div class="exploration-item">
+                  <span class="exploration-label">隐藏地点</span>
+                  <span class="exploration-value">0/0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. 事件日历 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="event-calendar">
+              <span class="subsection-title">事件日历</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="event-calendar">
+              <div class="calendar-list">
+                <div class="muted small-text">暂无即将发生的事件</div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </aside>
@@ -354,6 +739,77 @@
     </div>
   </div>
 
+  <!-- 存档管理弹窗 -->
+  <div id="save-manager-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-window save-manager-window">
+      <div class="modal-header">
+        <h3 class="modal-title">存档管理</h3>
+        <button id="save-manager-close" class="modal-close-btn" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body save-manager-body">
+        <!-- 左侧存档列表 -->
+        <div class="save-list-panel">
+          <div class="save-list-header">
+            <span class="save-list-title">所有存档</span>
+            <button id="new-save-btn" class="btn-primary btn-small">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" style="margin-right: 4px;">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              新建存档
+            </button>
+          </div>
+          <div class="save-list" id="save-list">
+            <!-- 存档列表项将动态生成 -->
+            <div class="save-list-empty">
+              <div class="empty-icon">📂</div>
+              <div class="empty-text">暂无存档</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 右侧存档详情 -->
+        <div class="save-detail-panel">
+          <div class="save-detail-header">
+            <span class="save-detail-title">存档详情</span>
+          </div>
+          <div class="save-detail-content" id="save-detail-content">
+            <div class="save-detail-empty">
+              <div class="empty-icon">📄</div>
+              <div class="empty-text">选择一个存档查看详情</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="save-manager-cancel" class="btn-secondary">关闭</button>
+        <button id="load-save-btn" class="btn-primary" disabled>加载存档</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 存档重命名弹窗 -->
+  <div id="rename-save-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-window" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">重命名存档</h3>
+        <button id="rename-modal-close" class="modal-close-btn" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field-group">
+          <label class="form-field-label">存档名称</label>
+          <input type="text" id="rename-input" class="form-field-input" placeholder="输入新的存档名称">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="rename-cancel" class="btn-secondary">取消</button>
+        <button id="rename-confirm" class="btn-primary">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/save-manager.js"></script>
+  <script src="assets/js/dev-tools.js"></script>
   <script src="assets/js/main.js"></script>
 </body>
 </html>

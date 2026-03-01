@@ -137,6 +137,14 @@ class StorySegment(Base):
     text = Column(Text, nullable=False)
     dungeon_id = Column(String, nullable=True)
     dungeon_node_id = Column(String, nullable=True)
+    paragraph_word_count = Column(Integer, default=0)
+    cumulative_word_count = Column(Integer, default=0)
+    frontend_duration = Column(Float, default=0.0)
+    backend_duration = Column(Float, default=0.0)
+    content_thinking = Column(Text, nullable=True)
+    content_story = Column(Text, nullable=True)
+    content_summary = Column(Text, nullable=True)
+    content_actions = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -168,6 +176,7 @@ class DBPreset(Base):
     name = Column(String, index=True, nullable=False)
     version = Column(Integer, default=1)
     is_active = Column(Boolean, default=False)  # 标记是否为当前激活预设
+    is_default = Column(Boolean, default=False)  # 标记是否为默认预设（不可删除）
 
     # 存储整个 root 节点树结构
     config_json = Column(Text, nullable=False)

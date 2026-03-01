@@ -107,6 +107,28 @@ def get_active_preset(db: Session) -> Optional[Dict[str, Any]]:
         "meta": data.get("meta", {})
     }
 
+# --- Regex Profile Access ---
+
+def get_active_regex(db: Session) -> Optional[Dict[str, Any]]:
+    """获取当前激活的正则配置"""
+    row = db.query(models.DBRegexProfile).filter(models.DBRegexProfile.is_active == True).first()
+    if not row:
+        row = db.query(models.DBRegexProfile).filter(models.DBRegexProfile.is_default == True).first()
+    
+    if not row:
+        return None
+    
+    # 解析 JSON
+    config = _parse_preset_config(row.config_json) if row.config_json else {}
+    
+    return {
+        "id": row.id,
+        "name": row.name,
+        "version": row.version,
+        "is_default": row.is_default,
+        "config_json": config
+    }
+
 # --- Deprecated / Compatibility ---
 # 下面的 set_ 方法在基于 Table 的架构中通常由 Route 直接处理 DB 操作。
 # 这里保留空实现或抛错，防止旧代码调用报错。

@@ -362,6 +362,18 @@
        }
     });
 
+    // 开发者模式开关
+    const devModeCheckbox = document.getElementById('developer-mode-enabled');
+    if (devModeCheckbox) {
+      devModeCheckbox.checked = localStorage.getItem('developer_mode_enabled') === 'true';
+      devModeCheckbox.addEventListener('change', function() {
+        localStorage.setItem('developer_mode_enabled', this.checked ? 'true' : 'false');
+        if (typeof window.DevTools !== 'undefined') {
+          window.DevTools.setDeveloperMode(this.checked);
+        }
+      });
+    }
+
     loadBtn.addEventListener("click", loadSettings);
     saveBtn.addEventListener("click", saveSettings);
   }

@@ -187,12 +187,18 @@ def generate_story_text(
     session_id: str,
     user_input: str,
     force_stream: Optional[bool] = None,
-) -> Tuple[str, GenerateMeta, Optional[Generator[str, None, None]]]:
-    """返回 (full_text, meta, stream_gen)
+) -> Tuple[str, GenerateMeta, Optional[Generator[str, None, None]], Dict[str, Any]]:
+    """返回 (full_text, meta, stream_gen, dev_log_info)
 
     - 如果 stream_gen 不为空：full_text=""，由调用方边读边拼
+    - dev_log_info 包含开发者日志所需的所有信息
     """
     t0 = perf_counter()
+    
+    dev_log_info: Dict[str, Any] = {
+        "userInput": user_input,
+        "fullPrompt": ""
+    }
 
     st = _get_or_create_session_state(db, session_id)
 
@@ -219,6 +225,46 @@ def generate_story_text(
 
     history = _recent_story(db, session_id, limit=4)
     messages = _build_messages(system_prompt, context, history, user_input)
+    
+    # 构建发送给AI的完整文本用于开发者日志
+    full_prompt_parts = []
+    if system_prompt:
+        full_prompt_parts.append(f"[System]\n{system_prompt}")
+    
+    # 添加上下文
+    ctx_lines = []
+    mc = context.get("main_character")
+    if mc:
+        ctx_lines.append(f"【主角】\n- id: {mc.get('character_id')}  名称: {mc.get('name') or '未知'}")
+        if mc.get("ability_tier"):
+            ctx_lines.append(f"- 能力: {mc.get('ability_tier')}")
+        if mc.get("economy_summary"):
+            ctx_lines.append(f"- 资源: {mc.get('economy_summary')}")
+    
+    wb = context.get("worldbook") or []
+    if wb:
+        ctx_lines.append("\n【世界书（节选）】")
+        for it in wb:
+            cat = f"[{it.get('category')}] " if it.get("category") else ""
+            ctx_lines.append(f"- {cat}{it.get('title')}: {it.get('content')}")
+    
+    dungeon_ctx = context.get("dungeon")
+    if dungeon_ctx:
+        ctx_lines.append("\n【剧本】")
+        ctx_lines.append(f"- 剧本: {dungeon_ctx.get('name') or '未命名'}")
+        if dungeon_ctx.get("node_name"):
+            ctx_lines.append(f"- 节点: {dungeon_ctx.get('node_name')} 进度: {dungeon_ctx.get('progress_hint')}")
+    
+    if history:
+        ctx_lines.append("\n【近期剧情（节选）】")
+        for i, h in enumerate(history[-6:], 1):
+            ctx_lines.append(f"({i}) {h[-1200:]}")
+    
+    if ctx_lines:
+        full_prompt_parts.append("[Context]\n" + "\n".join(ctx_lines))
+    
+    full_prompt_parts.append(f"[User]\n{user_input}")
+    dev_log_info["fullPrompt"] = "\n\n".join(full_prompt_parts)
 
     # 若没有配置模型，则返回占位
     if not llm_cfg:
@@ -240,7 +286,7 @@ def generate_story_text(
             word_count=len(story_text),
             duration_ms=duration_ms,
         )
-        return story_text, meta, None
+        return story_text, meta, None, dev_log_info
 
     base_url = str(llm_cfg.get("base_url") or "")
     api_key = str(llm_cfg.get("api_key") or "")
@@ -253,7 +299,7 @@ def generate_story_text(
         story_text = "【未选择模型】请在【设置 → API 配置】里选择一个可用模型。"
         duration_ms = int((perf_counter() - t0) * 1000)
         meta = GenerateMeta(scene_title="占位输出", tags=["no_model"], word_count=len(story_text), duration_ms=duration_ms)
-        return story_text, meta, None
+        return story_text, meta, None, dev_log_info
 
     try:
         full_text, gen = chat_completion(
@@ -269,7 +315,7 @@ def generate_story_text(
         story_text = f"【模型请求失败】{e}"
         duration_ms = int((perf_counter() - t0) * 1000)
         meta = GenerateMeta(scene_title="错误", tags=["error"], word_count=len(story_text), duration_ms=duration_ms)
-        return story_text, meta, None
+        return story_text, meta, None, dev_log_info
 
     duration_ms = int((perf_counter() - t0) * 1000)
 
@@ -287,17 +333,49 @@ def generate_story_text(
 
     # stream：交给上层写入 story_segment
     if gen is not None:
-        return "", meta, gen
+        return "", meta, gen, dev_log_info
 
     meta.word_count = len(full_text)
-    return full_text, meta, None
+    return full_text, meta, None, dev_log_info
 
 
-def persist_story_segment(db: Session, session_id: str, story_text: str, user_input: str = None) -> int:
+def persist_story_segment(
+    db: Session,
+    session_id: str,
+    story_text: str,
+    user_input: str = None,
+    paragraph_word_count: int = 0,
+    frontend_duration: float = 0.0,
+    backend_duration: float = 0.0,
+) -> int:
     """写入 StorySegment 并返回 order_index。"""
+    import re
+    
     st = _get_or_create_session_state(db, session_id)
     existing_count = db.query(models.StorySegment).filter(models.StorySegment.session_id == session_id).count()
     order_index = existing_count + 1
+
+    # 计算累积字数
+    last_segment = (
+        db.query(models.StorySegment)
+        .filter(models.StorySegment.session_id == session_id)
+        .order_by(models.StorySegment.order_index.desc())
+        .first()
+    )
+    cumulative_word_count = (last_segment.cumulative_word_count if last_segment else 0) + paragraph_word_count
+
+    # 提取各部分内容
+    def extract_tag_content(text, tag_name):
+        pattern = rf'<{tag_name}>(.*?)</{tag_name}>'
+        match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        return None
+
+    content_thinking = extract_tag_content(story_text, '思考过程')
+    content_story = extract_tag_content(story_text, '正文部分')
+    content_summary = extract_tag_content(story_text, '内容总结')
+    content_actions = extract_tag_content(story_text, '行动选项')
 
     seg = models.StorySegment(
         segment_id=f"{session_id}_{order_index}",
@@ -305,11 +383,19 @@ def persist_story_segment(db: Session, session_id: str, story_text: str, user_in
         order_index=order_index,
         user_input=user_input,
         text=story_text,
+        paragraph_word_count=paragraph_word_count,
+        cumulative_word_count=cumulative_word_count,
+        frontend_duration=frontend_duration,
+        backend_duration=backend_duration,
+        content_thinking=content_thinking,
+        content_story=content_story,
+        content_summary=content_summary,
+        content_actions=content_actions,
         created_at=datetime.utcnow(),
     )
     db.add(seg)
 
-    st.total_word_count = (st.total_word_count or 0) + len(story_text)
+    st.total_word_count = (st.total_word_count or 0) + paragraph_word_count
     db.commit()
 
     return order_index

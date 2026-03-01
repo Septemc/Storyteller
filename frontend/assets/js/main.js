@@ -7,9 +7,6 @@
   const generateBtn = document.getElementById("generate-btn");
   const userInputEl = document.getElementById("user-input");
   const inputStatusEl = document.getElementById("input-status");
-  const sessionLabelEl = document.getElementById("session-label");
-  const sessionLabelInlineEl = document.getElementById("session-label-inline");
-  const newSessionBtn = document.getElementById("new-session-btn");
 
   const actionHistoryEl = document.getElementById("action-history");
 
@@ -20,11 +17,10 @@
   const actionSuggestionsEl = document.getElementById("action-suggestions");
   const actionSuggestionsToggleEl = document.getElementById("action-suggestions-toggle");
 
-  // 统计面板元素
-  const statWordsEl = document.getElementById("stat-words");
-  const statDurationEl = document.getElementById("stat-duration");
-  const statDurationFrontEl = document.getElementById("stat-duration-front");
-  const statTotalWordsEl = document.getElementById("stat-total-words");
+  // 实时计时器元素
+  const storyTimerEl = document.getElementById("story-timer");
+  const timerFrontendEl = document.getElementById("timer-frontend");
+  const timerBackendEl = document.getElementById("timer-backend");
 
   // 右侧面板元素
   const dungeonNameEl = document.getElementById("dungeon-name");
@@ -84,26 +80,39 @@
   }
 
   function ensureSession() {
-    let savedId = window.localStorage.getItem("novel_session_id");
+    let savedId = window.localStorage.getItem("storyteller_session_id");
     if (!savedId) {
       savedId = generateSessionId();
-      window.localStorage.setItem("novel_session_id", savedId);
+      window.localStorage.setItem("storyteller_session_id", savedId);
     }
     currentSessionId = savedId;
-    updateSessionLabel();
+    updateCurrentSaveDisplay(null, currentSessionId);
+    ensureSessionInDB(currentSessionId);
+  }
+
+  async function ensureSessionInDB(sessionId) {
+    try {
+      const response = await fetch('/api/story/saves/detail?session_id=' + encodeURIComponent(sessionId));
+      const data = await response.json();
+      if (data.display_name && data.display_name !== sessionId) {
+        updateCurrentSaveDisplay(data.display_name, sessionId);
+      }
+    } catch (err) {
+      console.log('Session not in DB, will be created on first save');
+    }
   }
 
   function resetSession() {
     currentSessionId = generateSessionId();
-    window.localStorage.setItem("novel_session_id", currentSessionId);
+    window.localStorage.setItem("storyteller_session_id", currentSessionId);
     totalWordCount = 0;
 
     if (statTotalWordsEl) statTotalWordsEl.textContent = "0";
     if (storyLogEl) storyLogEl.innerHTML = "";
 
-    updateSessionLabel();
+    updateCurrentSaveDisplay(null, currentSessionId);
 
-    if (inputStatusEl) inputStatusEl.textContent = "已创建新会话。";
+    if (inputStatusEl) inputStatusEl.textContent = "已创建新存档。";
 
     if (actionHistoryEl) {
       actionHistoryEl.innerHTML = "";
@@ -115,18 +124,13 @@
   }
 
   function updateSessionLabel() {
-    if (sessionLabelEl) {
-      sessionLabelEl.textContent = "当前会话 ID：" + currentSessionId;
-    }
-    if (sessionLabelInlineEl) {
-      sessionLabelInlineEl.textContent = currentSessionId || "初始化中...";
-    }
+    updateCurrentSaveDisplay(null, currentSessionId);
   }
 
   // =========================================
   // 5. UI 更新辅助函数
   // =========================================
-  function appendStoryBlock(text, meta, type) {
+  function appendStoryBlock(text, meta, type, stats, isLatest) {
     if (!storyLogEl) return;
 
     const block = document.createElement("div");
@@ -217,25 +221,55 @@
       block.appendChild(summaryEl);
     }
 
-    // 添加"查看原文"链接
+    // 添加"查看原文"链接和统计信息
     if (type !== "user" && text) {
+      const footerEl = document.createElement("div");
+      footerEl.className = "story-footer";
+      footerEl.style.cssText = "display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px;";
+
       const rawTextLink = document.createElement("button");
       rawTextLink.className = "raw-text-link";
-      rawTextLink.style.cssText = "background: none; border: none; padding: 4px 8px; cursor: pointer; font-size: 11px; color: var(--accent); margin-top: 8px; text-decoration: underline; opacity: 0.7;";
+      rawTextLink.style.cssText = "background: none; border: none; padding: 4px 8px; cursor: pointer; font-size: 11px; color: var(--accent); text-decoration: underline; opacity: 0.7;";
       rawTextLink.textContent = "查看原文";
       rawTextLink.addEventListener('click', function() {
         showRawTextModal(text);
       });
-      block.appendChild(rawTextLink);
+      footerEl.appendChild(rawTextLink);
+
+      // 添加统计信息
+      if (stats) {
+        const statsEl = document.createElement("span");
+        statsEl.className = "story-stats";
+        
+        const wordCount = stats.paragraph_word_count || 0;
+        const cumulativeCount = stats.cumulative_word_count || 0;
+        const frontDuration = stats.frontend_duration || 0;
+        const backDuration = stats.backend_duration || 0;
+
+        statsEl.innerHTML = 
+          '<span class="story-stats-item">本段字数：' + wordCount + '</span>' +
+          '<span class="story-stats-divider">|</span>' +
+          '<span class="story-stats-item">累计字数：' + cumulativeCount + '</span>' +
+          '<span class="story-stats-divider">|</span>' +
+          '<span class="story-stats-item">前端耗时：' + formatDuration(frontDuration) + '</span>' +
+          '<span class="story-stats-divider">|</span>' +
+          '<span class="story-stats-item">后端耗时：' + formatDuration(backDuration) + '</span>';
+        
+        footerEl.appendChild(statsEl);
+      }
+
+      block.appendChild(footerEl);
     }
 
     storyLogEl.appendChild(block);
 
-    // 提取并更新行动选项
-    if (type !== "user") {
+    // 只从最新一条记录提取并更新行动选项
+    if (type !== "user" && isLatest) {
       const actionOptions = extractActionOptions(text);
       if (actionOptions.length > 0) {
         updateActionSuggestions(actionOptions);
+      } else {
+        clearActionSuggestions();
       }
     }
 
@@ -485,6 +519,16 @@
     bindSuggestionChips();
   }
 
+  // 清空行动建议
+  function clearActionSuggestions() {
+    if (!actionSuggestionsEl) return;
+    
+    const suggestionsBody = document.getElementById('action-suggestions-body');
+    if (!suggestionsBody) return;
+    
+    suggestionsBody.innerHTML = '<div class="empty-suggestions" style="color: var(--text-secondary); font-size: 12px; padding: 8px; text-align: center;">暂无行动建议</div>';
+  }
+
   function appendActionHistory(text) {
     if (!actionHistoryEl) return;
 
@@ -560,14 +604,23 @@
     let updateInterval;
     let storyText = "";
     let metaData = {};
+    let backendDuration = 0;
 
     try {
+      // 显示实时计时器
+      if (storyTimerEl) {
+        storyTimerEl.style.display = 'flex';
+      }
+
       // 启动实时更新计时器
       updateInterval = setInterval(() => {
         const currentTime = performance.now();
         const durationFrontMs = currentTime - frontStart;
-        if (statDurationFrontEl) {
-          statDurationFrontEl.textContent = formatDuration(durationFrontMs);
+        if (timerFrontendEl) {
+          timerFrontendEl.textContent = formatDuration(durationFrontMs);
+        }
+        if (timerBackendEl && backendDuration > 0) {
+          timerBackendEl.textContent = formatDuration(backendDuration);
         }
       }, 100); // 每100ms更新一次
 
@@ -611,8 +664,16 @@
             try {
               const data = JSON.parse(dataStr);
 
-              if (event === "meta") {
+              if (event === "dev_log") {
+                // 开发者日志信息
+                if (window.DevTools && typeof window.DevTools.logRequest === 'function') {
+                  window.DevTools.logRequest(data);
+                }
+              } else if (event === "meta") {
                 metaData = data;
+                if (data.duration_ms) {
+                  backendDuration = data.duration_ms;
+                }
               } else if (event === "delta") {
                 storyText += data.text || "";
                 // 实时更新故事内容
@@ -635,17 +696,11 @@
       const frontEnd = performance.now();
       const durationFrontMs = frontEnd - frontStart;
 
-      // 确保metaData中包含必要字段
       // 提取正文部分并计算字数
       const mainStoryText = extractMainContent(storyText);
-      const wordCount = metaData.word_count || mainStoryText.length;
-      const durationMs = metaData.duration_ms || 0;
+      const wordCount = mainStoryText.length;
+      const durationMs = metaData.duration_ms || backendDuration || 0;
       totalWordCount += wordCount;
-
-      if (statWordsEl) statWordsEl.textContent = String(wordCount);
-      if (statDurationEl) statDurationEl.textContent = formatDuration(durationMs);
-      if (statDurationFrontEl) statDurationFrontEl.textContent = formatDuration(durationFrontMs);
-      if (statTotalWordsEl) statTotalWordsEl.textContent = String(totalWordCount);
 
       if (inputStatusEl) inputStatusEl.textContent = "已生成新剧情。";
 
@@ -654,6 +709,36 @@
       
       // 流式输出完毕后，重新加载最近5条交互记录进行渲染
       await loadRecentSegments();
+
+      // 更新前端耗时到数据库
+      try {
+        const recentResp = await fetch(
+          "/api/story/recent?session_id=" + encodeURIComponent(currentSessionId) + "&limit=1"
+        );
+        if (recentResp.ok) {
+          const recentData = await recentResp.json();
+          if (recentData.segments && recentData.segments.length > 0) {
+            const latestSegment = recentData.segments[0];
+            await fetch("/api/story/update_frontend_duration", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                segment_id: latestSegment.segment_id,
+                frontend_duration: durationFrontMs
+              })
+            });
+            // 更新完成后重新加载显示
+            await loadRecentSegments();
+          }
+        }
+      } catch (updateErr) {
+        console.warn("更新前端耗时失败:", updateErr);
+      }
+
+      // 隐藏实时计时器
+      if (storyTimerEl) {
+        storyTimerEl.style.display = 'none';
+      }
     } catch (err) {
       console.error("流式生成错误:", err);
       throw err;
@@ -675,12 +760,17 @@
     let updateInterval;
 
     try {
+      // 显示实时计时器
+      if (storyTimerEl) {
+        storyTimerEl.style.display = 'flex';
+      }
+
       // 启动实时更新计时器
       updateInterval = setInterval(() => {
         const currentTime = performance.now();
         const durationFrontMs = currentTime - frontStart;
-        if (statDurationFrontEl) {
-          statDurationFrontEl.textContent = formatDuration(durationFrontMs);
+        if (timerFrontendEl) {
+          timerFrontendEl.textContent = formatDuration(durationFrontMs);
         }
       }, 100); // 每100ms更新一次
 
@@ -703,24 +793,47 @@
 
       const data = await resp.json();
 
+      // 记录开发者日志
+      if (data.dev_log_info && window.DevTools && typeof window.DevTools.logRequest === 'function') {
+        window.DevTools.logRequest(data.dev_log_info);
+      }
+
       appendStoryBlock(data.story || "", data.meta || {}, "story");
 
       const meta = data.meta || {};
       // 提取正文部分并计算字数
       const mainStoryText = extractMainContent(data.story || "");
-      const wordCount = meta.word_count || mainStoryText.length;
+      const wordCount = mainStoryText.length;
       const durationMs = meta.duration_ms || 0;
       totalWordCount += wordCount;
-
-      if (statWordsEl) statWordsEl.textContent = String(wordCount);
-      if (statDurationEl) statDurationEl.textContent = formatDuration(durationMs);
-      if (statDurationFrontEl) statDurationFrontEl.textContent = formatDuration(durationFrontMs);
-      if (statTotalWordsEl) statTotalWordsEl.textContent = String(totalWordCount);
 
       if (inputStatusEl) inputStatusEl.textContent = "已生成新剧情。";
 
       updateSidebarFromMeta(meta);
       refreshSessionSummary();
+
+      // 更新前端耗时到数据库
+      if (data.segment_id) {
+        try {
+          await fetch("/api/story/update_frontend_duration", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              segment_id: data.segment_id,
+              frontend_duration: durationFrontMs
+            })
+          });
+          // 更新完成后重新加载显示
+          await loadRecentSegments();
+        } catch (updateErr) {
+          console.warn("更新前端耗时失败:", updateErr);
+        }
+      }
+
+      // 隐藏实时计时器
+      if (storyTimerEl) {
+        storyTimerEl.style.display = 'none';
+      }
     } catch (err) {
       console.error(err);
       if (inputStatusEl) inputStatusEl.textContent = "请求出错：" + err.message;
@@ -857,12 +970,23 @@
       if (data.segments && Array.isArray(data.segments) && data.segments.length > 0) {
         storyLogEl.innerHTML = "";
         
-        data.segments.forEach(function (segment) {
+        const segmentsCount = data.segments.length;
+        
+        data.segments.forEach(function (segment, index) {
           if (segment.user_input) {
             appendStoryBlock(segment.user_input, null, "user");
           }
-          appendStoryBlock(segment.text, null, "assistant");
+          const stats = {
+            paragraph_word_count: segment.paragraph_word_count || 0,
+            cumulative_word_count: segment.cumulative_word_count || 0,
+            frontend_duration: segment.frontend_duration || 0,
+            backend_duration: segment.backend_duration || 0
+          };
+          const isLatest = (index === segmentsCount - 1);
+          appendStoryBlock(segment.text, null, "assistant", stats, isLatest);
         });
+      } else {
+        clearActionSuggestions();
       }
     } catch (err) {
       console.warn("加载最近故事片段失败：", err);
@@ -992,18 +1116,61 @@
       });
     }
 
-    if (newSessionBtn) {
-      newSessionBtn.addEventListener("click", function () {
-        if(confirm("确定要开始新会话吗？当前记录将被清空。")) {
-            resetSession();
-        }
-      });
-    }
-
     bindActionSuggestionsToggle();
     bindSuggestionChips();
     bindInputPanelEvents();
     bindFontSettingsModal();
+    bindSubsectionToggles();
+    bindPanelCollapse();
+    
+    window.onSaveLoaded = function(sessionId) {
+      currentSessionId = sessionId;
+      if (storyLogEl) {
+        storyLogEl.innerHTML = '';
+      }
+      loadRecentSegments();
+    };
+  }
+
+  // 子区块折叠/展开功能
+  function bindSubsectionToggles() {
+    const subsectionHeaders = document.querySelectorAll('.subsection-header');
+    
+    subsectionHeaders.forEach(function(header) {
+      header.addEventListener('click', function() {
+        const toggleId = this.getAttribute('data-toggle');
+        const content = document.getElementById(toggleId);
+        const icon = this.querySelector('.toggle-icon');
+        
+        if (content) {
+          content.classList.toggle('collapsed');
+        }
+        if (icon) {
+          icon.style.transform = content && content.classList.contains('collapsed') 
+            ? 'rotate(-90deg)' 
+            : 'rotate(0deg)';
+        }
+      });
+    });
+  }
+
+  // 面板整体折叠功能
+  function bindPanelCollapse() {
+    const collapseBtns = document.querySelectorAll('.panel-collapse-btn');
+    
+    collapseBtns.forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const panelType = this.getAttribute('data-panel');
+        const panel = this.closest('.sidebar-section');
+        const body = panel.querySelector('.sidebar-body');
+        
+        if (body) {
+          body.classList.toggle('collapsed');
+          this.classList.toggle('collapsed');
+        }
+      });
+    });
   }
 
   // 字体设置弹窗相关逻辑

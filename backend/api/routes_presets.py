@@ -13,13 +13,45 @@ from ..core import prompts
 router = APIRouter()
 
 DEFAULT_PRESET_PATH = Path(__file__).parent.parent.parent / "data" / "default_preset.json"
+DEFAULT_PRESET_ID = "preset_default"
 
 
-def load_default_preset() -> Dict[str, Any]:
+def load_default_preset_from_file() -> Dict[str, Any]:
     if DEFAULT_PRESET_PATH.exists():
         with open(DEFAULT_PRESET_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     return prompts.default_preset("默认预设")
+
+
+def ensure_default_preset_in_db(db: Session) -> DBPreset:
+    default_preset = db.query(DBPreset).filter(DBPreset.is_default == True).first()
+    
+    if default_preset:
+        return default_preset
+    
+    file_preset = load_default_preset_from_file()
+    
+    preset_id = file_preset.get("id", DEFAULT_PRESET_ID)
+    
+    existing = db.query(DBPreset).filter(DBPreset.id == preset_id).first()
+    if existing:
+        existing.is_default = True
+        db.commit()
+        return existing
+    
+    default_preset = DBPreset(
+        id=preset_id,
+        name=file_preset.get("name", "默认预设"),
+        version=file_preset.get("version", 1),
+        is_active=True,
+        is_default=True,
+        config_json=json.dumps(file_preset, ensure_ascii=False)
+    )
+    db.add(default_preset)
+    db.commit()
+    db.refresh(default_preset)
+    
+    return default_preset
 
 
 class PresetIn(BaseModel):
@@ -40,48 +72,30 @@ class PresetListItem(BaseModel):
 
 @router.get("/presets")
 def list_presets(db: Session = Depends(get_db)):
-    default_preset = load_default_preset()
+    ensure_default_preset_in_db(db)
     
-    rows = db.query(DBPreset).all()
+    rows = db.query(DBPreset).order_by(DBPreset.is_default.desc(), DBPreset.created_at.asc()).all()
     active_row = db.query(DBPreset).filter(DBPreset.is_active == True).first()
 
-    out_list = [
-        PresetListItem(
-            id=default_preset["id"],
-            name=default_preset["name"],
-            version=default_preset.get("version", 1),
-            is_default=True,
-            is_active=active_row is None
-        ).model_dump()
-    ]
-
+    out_list = []
     for r in rows:
         out_list.append({
             "id": r.id,
             "name": r.name,
             "version": r.version,
-            "is_default": False,
+            "is_default": r.is_default,
             "is_active": r.is_active
         })
 
     return {
         "presets": out_list,
-        "active": {"preset_id": active_row.id} if active_row else {"preset_id": default_preset["id"]}
+        "active": {"preset_id": active_row.id if active_row else (rows[0].id if rows else None)}
     }
 
 
 @router.get("/presets/{preset_id}", response_model=PresetIn)
 def get_preset(preset_id: str, db: Session = Depends(get_db)):
-    default_preset = load_default_preset()
-    
-    if preset_id == default_preset["id"]:
-        return {
-            "id": default_preset["id"],
-            "name": default_preset["name"],
-            "version": default_preset.get("version", 1),
-            "root": default_preset.get("root", {}),
-            "meta": default_preset.get("meta", {})
-        }
+    ensure_default_preset_in_db(db)
     
     row = db.query(DBPreset).filter(DBPreset.id == preset_id).first()
     if not row:
@@ -99,6 +113,8 @@ def get_preset(preset_id: str, db: Session = Depends(get_db)):
 
 @router.post("/presets", response_model=PresetIn)
 def create_preset(name: str = "新预设", db: Session = Depends(get_db)):
+    ensure_default_preset_in_db(db)
+    
     data = prompts.default_preset(name=name)
     pid = data["id"]
 
@@ -107,7 +123,8 @@ def create_preset(name: str = "新预设", db: Session = Depends(get_db)):
         name=name,
         version=1,
         config_json=json.dumps(data, ensure_ascii=False),
-        is_active=False
+        is_active=False,
+        is_default=False
     )
     db.add(db_obj)
     db.commit()
@@ -117,13 +134,9 @@ def create_preset(name: str = "新预设", db: Session = Depends(get_db)):
 
 @router.put("/presets/active")
 def set_active(body: Dict[str, str] = Body(...), db: Session = Depends(get_db)):
-    default_preset = load_default_preset()
-    preset_id = body.get("preset_id")
+    ensure_default_preset_in_db(db)
     
-    if preset_id == default_preset["id"]:
-        db.query(DBPreset).update({DBPreset.is_active: False})
-        db.commit()
-        return {"preset_id": preset_id, "is_default": True}
+    preset_id = body.get("preset_id")
     
     target = db.query(DBPreset).filter(DBPreset.id == preset_id).first()
     if not target:
@@ -133,15 +146,12 @@ def set_active(body: Dict[str, str] = Body(...), db: Session = Depends(get_db)):
     target.is_active = True
     db.commit()
 
-    return {"preset_id": target.id, "is_default": False}
+    return {"preset_id": target.id, "is_default": target.is_default}
 
 
 @router.put("/presets/{preset_id}")
 def update_preset(preset_id: str, body: PresetIn, db: Session = Depends(get_db)):
-    default_preset = load_default_preset()
-    
-    if preset_id == default_preset["id"]:
-        raise HTTPException(status_code=400, detail="Cannot modify default preset")
+    ensure_default_preset_in_db(db)
     
     row = db.query(DBPreset).filter(DBPreset.id == preset_id).first()
     if not row:
@@ -160,14 +170,14 @@ def update_preset(preset_id: str, body: PresetIn, db: Session = Depends(get_db))
 
 @router.delete("/presets/{preset_id}")
 def delete_preset(preset_id: str, db: Session = Depends(get_db)):
-    default_preset = load_default_preset()
-    
-    if preset_id == default_preset["id"]:
-        raise HTTPException(status_code=400, detail="Cannot delete default preset")
+    ensure_default_preset_in_db(db)
     
     row = db.query(DBPreset).filter(DBPreset.id == preset_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="preset not found")
+
+    if row.is_default:
+        raise HTTPException(status_code=400, detail="Cannot delete default preset")
 
     db.delete(row)
     db.commit()
@@ -176,6 +186,8 @@ def delete_preset(preset_id: str, db: Session = Depends(get_db)):
 
 @router.post("/presets/import")
 def import_any(body: Dict[str, Any], db: Session = Depends(get_db)):
+    ensure_default_preset_in_db(db)
+    
     payload = body.get("payload")
     name_hint = body.get("name_hint", "Imported")
 
@@ -186,7 +198,8 @@ def import_any(body: Dict[str, Any], db: Session = Depends(get_db)):
         id=pid,
         name=name_hint,
         version=1,
-        config_json=json.dumps(data, ensure_ascii=False)
+        config_json=json.dumps(data, ensure_ascii=False),
+        is_default=False
     )
     db.add(db_obj)
     db.commit()

@@ -13,11 +13,25 @@
       <span class="app-title">Storyteller</span>
       <span class="app-subtitle">说书人·剧本与长剧情编排</span>
     </div>
+    <div class="nav-center">
+      <div class="current-save-info" id="current-save-info">
+        <div class="save-name" id="current-save-name">未加载存档</div>
+        <div class="save-id" id="current-save-id">--</div>
+        <button class="save-manager-toggle-btn" id="save-manager-toggle-btn" title="存档管理">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          存档管理
+        </button>
+      </div>
+    </div>
     <nav class="nav-links">
       <a href="index.html" class="nav-link">剧情</a>
       <a href="characters.html" class="nav-link">角色</a>
       <a href="worldbook.html" class="nav-link">世界书</a>
-      <a href="dungeon.html" class="nav-link active">副本</a>
+      <a href="dungeon.html" class="nav-link active">剧本</a>
       <a href="settings.html" class="nav-link">设置</a>
     </nav>
   </header>
@@ -50,9 +64,9 @@
           </button>
         </div>
         <div class="toolbar-actions" style="display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap;">
-          <button id="btn-create-dungeon" class="btn-secondary btn-small" style="flex:1;">新建副本</button>
+          <button id="btn-create-dungeon" class="btn-secondary btn-small" style="flex:1;">新建剧本</button>
           <button id="btn-create-node" class="btn-secondary btn-small" style="flex:1;">新建节点</button>
-          <button id="btn-import-dungeon" class="btn-secondary btn-small" style="flex:1;">导入副本</button>
+          <button id="btn-import-dungeon" class="btn-secondary btn-small" style="flex:1;">导入剧本</button>
           <button id="btn-import-node" class="btn-secondary btn-small" style="flex:1;">导入节点</button>
           <button id="btn-delete-node" class="btn-secondary btn-small" style="color:var(--danger)">删除</button>
         </div>
@@ -82,6 +96,72 @@
     </section>
   </main>
 
+  <!-- 存档管理弹窗 -->
+  <div id="save-manager-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-window save-manager-window">
+      <div class="modal-header">
+        <h3 class="modal-title">存档管理</h3>
+        <button id="save-manager-close" class="modal-close-btn" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body save-manager-body">
+        <div class="save-list-panel">
+          <div class="save-list-header">
+            <span class="save-list-title">所有存档</span>
+            <button id="new-save-btn" class="btn-primary btn-small">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" style="margin-right: 4px;">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              新建存档
+            </button>
+          </div>
+          <div class="save-list" id="save-list">
+            <div class="save-list-empty">
+              <div class="empty-icon">📂</div>
+              <div class="empty-text">暂无存档</div>
+            </div>
+          </div>
+        </div>
+        <div class="save-detail-panel">
+          <div class="save-detail-header">
+            <span class="save-detail-title">存档详情</span>
+          </div>
+          <div class="save-detail-content" id="save-detail-content">
+            <div class="save-detail-empty">
+              <div class="empty-icon">📄</div>
+              <div class="empty-text">选择一个存档查看详情</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="save-manager-cancel" class="btn-secondary">关闭</button>
+        <button id="load-save-btn" class="btn-primary" disabled>加载存档</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 存档重命名弹窗 -->
+  <div id="rename-save-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-window" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">重命名存档</h3>
+        <button id="rename-modal-close" class="modal-close-btn" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field-group">
+          <label class="form-field-label">存档名称</label>
+          <input type="text" id="rename-input" class="form-field-input" placeholder="输入新的存档名称">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="rename-cancel" class="btn-secondary">取消</button>
+        <button id="rename-confirm" class="btn-primary">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/save-manager.js"></script>
   <script src="assets/js/dungeon.js"></script>
 </body>
 </html>
