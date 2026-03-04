@@ -295,6 +295,13 @@ def generate_story_text(
     if force_stream is not None:
         stream_flag = bool(force_stream)
 
+    print(f"[ORCH_DEBUG] LLM config:")
+    print(f"  base_url: {base_url[:50]}...")
+    print(f"  api_key: {api_key[:15]}...")
+    print(f"  llm_active: {llm_active}")
+    print(f"  llm_cfg default_model: {llm_cfg.get('default_model')}")
+    print(f"  final model: '{model}'")
+
     if not model:
         story_text = "【未选择模型】请在【设置 → API 配置】里选择一个可用模型。"
         duration_ms = int((perf_counter() - t0) * 1000)

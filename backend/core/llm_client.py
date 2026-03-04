@@ -94,6 +94,19 @@ def chat_completion(
         "stream": bool(stream),
     }
 
+    print(f"[LLM_DEBUG] chat_completion called:")
+    print(f"  base_url: {base_url}")
+    print(f"  model: '{model}'")
+    print(f"  stream: {stream}")
+    print(f"  messages count: {len(messages)}")
+    for i, msg in enumerate(messages):
+        content = msg.get("content", "")
+        # preview = content[:200] + "..." if len(content) > 200 else content
+        print(f"  message[{i}] role={msg.get('role')}, len={len(content)}:")
+        # print(f"    {preview}")
+    
+    print(f"[LLM_DEBUG] Payload JSON size: {len(json.dumps(payload, ensure_ascii=False))} bytes")
+
     if not stream:
         with httpx.Client(timeout=timeout_s) as client:
             r = client.post(url, headers=headers, json=payload)
@@ -106,15 +119,20 @@ def chat_completion(
             raise LLMError(f"解析模型响应失败: {data}")
 
     def _iter() -> Generator[str, None, None]:
+        chunk_count = 0
+        raw_line_count = 0
         with httpx.Client(timeout=timeout_s) as client:
             with client.stream("POST", url, headers=headers, json=payload) as r:
+                print(f"[LLM_DEBUG] Stream response status: {r.status_code}")
                 if r.status_code >= 400:
                     text = r.read().decode("utf-8", errors="ignore")
                     raise LLMError(f"流式生成请求失败: HTTP {r.status_code}: {text}")
 
-                # OpenAI 风格 SSE：
-                # data: {json}\n\n
                 for line in r.iter_lines():
+                    raw_line_count += 1
+                    if raw_line_count <= 5:
+                        print(f"[LLM_DEBUG] Raw line {raw_line_count}: {line[:200]}")
+                    
                     if not line:
                         continue
                     if line.startswith("data:"):
@@ -123,19 +141,29 @@ def chat_completion(
                         chunk = line.strip()
 
                     if chunk == "[DONE]":
+                        print(f"[LLM_DEBUG] Stream done, total chunks: {chunk_count}, raw lines: {raw_line_count}")
                         break
 
                     try:
                         obj = json.loads(chunk)
-                    except Exception:
+                    except Exception as e:
+                        if raw_line_count <= 5:
+                            print(f"[LLM_DEBUG] JSON parse error: {e}")
                         continue
 
                     try:
                         delta = obj["choices"][0].get("delta") or {}
                         content = delta.get("content")
                         if content:
+                            chunk_count += 1
                             yield str(content)
-                    except Exception:
+                        elif raw_line_count <= 5:
+                            print(f"[LLM_DEBUG] Delta keys: {list(delta.keys())}")
+                    except Exception as e:
+                        if raw_line_count <= 5:
+                            print(f"[LLM_DEBUG] Extract content error: {e}")
                         continue
+                
+                print(f"[LLM_DEBUG] Stream finished, yielded {chunk_count} chunks, total raw lines: {raw_line_count}")
 
     return "", _iter()

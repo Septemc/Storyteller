@@ -74,16 +74,34 @@ def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db)) -> 
         force_stream=False,
     )
 
-    # force_stream=False 时 gen 必为空
     if gen is not None:
         story_text = "".join(list(gen))
 
-    # 计算正文字数
-    import re
+    def _is_valid_content(text: str) -> bool:
+        if not text:
+            return False
+        cleaned = text.strip()
+        if not cleaned:
+            return False
+        tags = ['<正文部分>', '<思考过程>', '<内容总结>', '<行动选项>']
+        has_any_tag = any(tag in cleaned for tag in tags)
+        if has_any_tag:
+            body_match = re.search(r'<正文部分>(.*?)</正文部分>', cleaned, re.DOTALL)
+            if body_match and body_match.group(1).strip():
+                return True
+            thinking_match = re.search(r'<思考过程>(.*?)</思考过程>', cleaned, re.DOTALL)
+            if thinking_match and thinking_match.group(1).strip():
+                return True
+            return False
+        return len(cleaned) >= 10
+
+    if not _is_valid_content(story_text):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="AI返回内容为空，请重试")
+
     body_match = re.search(r'<正文部分>(.*?)</正文部分>', story_text, re.DOTALL)
     paragraph_word_count = len(body_match.group(1)) if body_match else 0
 
-    # 获取后端耗时
     backend_duration = meta_obj.duration_ms if hasattr(meta_obj, 'duration_ms') else 0
 
     order_index = orchestrator.persist_story_segment(
@@ -113,12 +131,33 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
     - event: delta data: {"text": "..."}
     - event: done  data: {}
     - event: error data: {"message": "..."}
+    - event: empty data: {"message": "..."}  # AI返回空内容
     """
 
     def _sse(event: str, data_obj: Dict) -> str:
         import json
 
         return f"event: {event}\ndata: {json.dumps(data_obj, ensure_ascii=False)}\n\n"
+
+    def _is_valid_content(text: str) -> bool:
+        """检查内容是否有效（非空且包含实际内容）"""
+        if not text:
+            return False
+        cleaned = text.strip()
+        if not cleaned:
+            return False
+        import re
+        tags = ['<正文部分>', '<思考过程>', '<内容总结>', '<行动选项>']
+        has_any_tag = any(tag in cleaned for tag in tags)
+        if has_any_tag:
+            body_match = re.search(r'<正文部分>(.*?)</正文部分>', cleaned, re.DOTALL)
+            if body_match and body_match.group(1).strip():
+                return True
+            thinking_match = re.search(r'<思考过程>(.*?)</思考过程>', cleaned, re.DOTALL)
+            if thinking_match and thinking_match.group(1).strip():
+                return True
+            return False
+        return len(cleaned) >= 10
 
     def _gen():
         import re
@@ -132,33 +171,38 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
             )
 
             meta_dict = meta_obj.__dict__ if hasattr(meta_obj, "__dict__") else dict(meta_obj)
-            # 确保meta_dict中包含duration_ms字段
             if "duration_ms" not in meta_dict:
                 meta_dict["duration_ms"] = 0
             
-            # 发送开发者日志信息
             if dev_log_info:
                 yield _sse("dev_log", dev_log_info)
             
             yield _sse("meta", meta_dict)
 
             if stream_gen is None:
-                # 后端可能没有可流式的模型配置；直接一次性返回
+                print(f"[ROUTE_DEBUG] stream_gen is None, full_text len={len(full_text)}")
                 story_buf.append(full_text)
                 if full_text:
                     yield _sse("delta", {"text": full_text})
             else:
+                print(f"[ROUTE_DEBUG] stream_gen is not None, iterating...")
+                delta_count = 0
                 for delta in stream_gen:
+                    delta_count += 1
                     story_buf.append(delta)
                     yield _sse("delta", {"text": delta})
+                print(f"[ROUTE_DEBUG] stream_gen iteration done, total deltas: {delta_count}")
 
             final_text = "".join(story_buf)
+            print(f"[ROUTE_DEBUG] final_text length: {len(final_text)}")
             
-            # 计算正文字数
+            if not _is_valid_content(final_text):
+                yield _sse("empty", {"message": "AI返回内容为空，请重试"})
+                return
+            
             body_match = re.search(r'<正文部分>(.*?)</正文部分>', final_text, re.DOTALL)
             paragraph_word_count = len(body_match.group(1)) if body_match else 0
 
-            # 获取后端耗时
             backend_duration = meta_obj.duration_ms if hasattr(meta_obj, 'duration_ms') else 0
 
             orchestrator.persist_story_segment(
@@ -325,6 +369,80 @@ def update_frontend_duration(
     return {"success": True}
 
 
+class UpdateSegmentRequest(BaseModel):
+    segment_id: str
+    text: str
+
+
+def extract_content_parts(text: str) -> Dict[str, Optional[str]]:
+    """从文本中提取思考、正文、总结、行动选项四个部分"""
+    result = {
+        "thinking": None,
+        "story": None,
+        "summary": None,
+        "actions": None
+    }
+    
+    thinking_match = re.search(r'<思考过程>([\s\S]*?)</思考过程>', text)
+    if thinking_match:
+        result["thinking"] = thinking_match.group(1).strip()
+    
+    story_match = re.search(r'<正文部分>([\s\S]*?)</正文部分>', text)
+    if story_match:
+        result["story"] = story_match.group(1).strip()
+    
+    summary_match = re.search(r'<内容总结>([\s\S]*?)</内容总结>', text)
+    if summary_match:
+        result["summary"] = summary_match.group(1).strip()
+    
+    actions_match = re.search(r'<行动选项>([\s\S]*?)</行动选项>', text)
+    if actions_match:
+        result["actions"] = actions_match.group(1).strip()
+    
+    return result
+
+
+@router.post("/story/update_segment")
+def update_segment(
+    req: UpdateSegmentRequest,
+    db: Session = Depends(get_db),
+):
+    """更新故事片段内容并重新提取各部分"""
+    segment = (
+        db.query(models.StorySegment)
+        .filter(models.StorySegment.segment_id == req.segment_id)
+        .first()
+    )
+    
+    if not segment:
+        return {"success": False, "message": "Segment not found"}
+    
+    segment.text = req.text
+    
+    parts = extract_content_parts(req.text)
+    segment.content_thinking = parts["thinking"]
+    segment.content_story = parts["story"]
+    segment.content_summary = parts["summary"]
+    segment.content_actions = parts["actions"]
+    
+    if parts["story"]:
+        segment.paragraph_word_count = len(parts["story"])
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "segment_id": req.segment_id,
+        "extracted": {
+            "has_thinking": parts["thinking"] is not None,
+            "has_story": parts["story"] is not None,
+            "has_summary": parts["summary"] is not None,
+            "has_actions": parts["actions"] is not None,
+            "word_count": segment.paragraph_word_count
+        }
+    }
+
+
 class SaveInfo(BaseModel):
     session_id: str
     display_name: str
@@ -428,6 +546,7 @@ def get_save_detail(session_id: str = Query(..., description="会话 ID"), db: S
         
         segment_list.append({
             "index": seg.order_index,
+            "order_index": seg.order_index,
             "segment_id": seg.segment_id,
             "preview": preview,
             "word_count": paragraph_word_count,
@@ -514,3 +633,111 @@ def delete_save(session_id: str = Query(..., description="会话 ID"), db: Sessi
     db.commit()
     
     return {"success": True}
+
+
+class DeleteSegmentCascadeRequest(BaseModel):
+    session_id: str
+    from_order_index: int
+
+
+@router.post("/story/segments/delete_cascade")
+def delete_segment_cascade(req: DeleteSegmentCascadeRequest, db: Session = Depends(get_db)):
+    """删除指定段及其后续所有段（链式删除）"""
+    session = db.query(models.SessionState).filter(
+        models.SessionState.session_id == req.session_id
+    ).first()
+    
+    if not session:
+        return {"success": False, "message": "存档不存在"}
+    
+    deleted_count = db.query(models.StorySegment).filter(
+        models.StorySegment.session_id == req.session_id,
+        models.StorySegment.order_index >= req.from_order_index
+    ).delete()
+    
+    remaining_segments = db.query(models.StorySegment).filter(
+        models.StorySegment.session_id == req.session_id
+    ).order_by(models.StorySegment.order_index).all()
+    
+    total_words = sum(seg.paragraph_word_count or 0 for seg in remaining_segments)
+    session.total_word_count = total_words
+    db.commit()
+    
+    return {
+        "success": True,
+        "deleted_count": deleted_count,
+        "remaining_count": len(remaining_segments)
+    }
+
+
+class CopySaveFromSegmentRequest(BaseModel):
+    source_session_id: str
+    to_order_index: int
+
+
+@router.post("/story/saves/copy_from_segment")
+def copy_save_from_segment(req: CopySaveFromSegmentRequest, db: Session = Depends(get_db)):
+    """从指定段创建副本存档（包含从第1段到指定段的所有内容）"""
+    import time
+    import json
+    
+    source_session = db.query(models.SessionState).filter(
+        models.SessionState.session_id == req.source_session_id
+    ).first()
+    
+    if not source_session:
+        return {"success": False, "message": "源存档不存在"}
+    
+    source_segments = db.query(models.StorySegment).filter(
+        models.StorySegment.session_id == req.source_session_id,
+        models.StorySegment.order_index <= req.to_order_index
+    ).order_by(models.StorySegment.order_index).all()
+    
+    if not source_segments:
+        return {"success": False, "message": "没有可复制的段"}
+    
+    timestamp = int(time.time() * 1000)
+    time_suffix = time.strftime("%H%M%S")
+    new_session_id = f"S_{timestamp}_{time_suffix}"
+    
+    new_session = models.SessionState(
+        session_id=new_session_id,
+        total_word_count=sum(seg.paragraph_word_count or 0 for seg in source_segments),
+    )
+    
+    try:
+        source_state = json.loads(source_session.global_state_json) if source_session.global_state_json else {}
+        source_state["display_name"] = f"副本_{source_state.get('display_name', req.source_session_id[:12])}"
+        new_session.global_state_json = json.dumps(source_state, ensure_ascii=False)
+    except:
+        new_session.global_state_json = json.dumps({"display_name": f"副本_{req.source_session_id[:12]}"}, ensure_ascii=False)
+    
+    db.add(new_session)
+    
+    for seg in source_segments:
+        new_segment = models.StorySegment(
+            segment_id=f"{new_session_id}_{seg.order_index}",
+            session_id=new_session_id,
+            order_index=seg.order_index,
+            user_input=seg.user_input,
+            text=seg.text,
+            dungeon_id=seg.dungeon_id,
+            dungeon_node_id=seg.dungeon_node_id,
+            paragraph_word_count=seg.paragraph_word_count,
+            cumulative_word_count=seg.cumulative_word_count,
+            frontend_duration=seg.frontend_duration,
+            backend_duration=seg.backend_duration,
+            content_thinking=seg.content_thinking,
+            content_story=seg.content_story,
+            content_summary=seg.content_summary,
+            content_actions=seg.content_actions,
+        )
+        db.add(new_segment)
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "new_session_id": new_session_id,
+        "copied_segments": len(source_segments)
+    }

@@ -280,10 +280,26 @@
 
       const segmentsHtml = detail.segments && detail.segments.length > 0 
         ? detail.segments.map(seg => `
-            <div class="segment-item" title="${escapeHtml(seg.preview || '') || '(无预览)'}">
-              <span class="segment-index">#${seg.index || 0}</span>
-              <span class="segment-preview">${escapeHtml(seg.preview) || '(无预览)'}</span>
-              <span class="segment-words">${seg.word_count || 0}字</span>
+            <div class="segment-item" data-segment-id="${seg.segment_id || ''}" data-order-index="${seg.order_index || 0}">
+              <div class="segment-info">
+                <span class="segment-index">#${seg.order_index || seg.index || 0}</span>
+                <span class="segment-preview">${escapeHtml(seg.preview) || '(无预览)'}</span>
+                <span class="segment-words">${seg.word_count || 0}字</span>
+              </div>
+              <div class="segment-actions">
+                <button class="segment-action-btn segment-copy-btn" title="从此段创建副本存档" data-segment-id="${seg.segment_id || ''}" data-order-index="${seg.order_index || 0}">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+                <button class="segment-action-btn segment-delete-btn" title="删除此段及后续所有段" data-segment-id="${seg.segment_id || ''}" data-order-index="${seg.order_index || 0}">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
             </div>
           `).join('')
         : '<div class="empty-text" style="padding: 12px; text-align: center; color: var(--text-secondary);">暂无分段</div>';
@@ -352,6 +368,29 @@
           }
         });
       }
+
+      // 绑定段删除按钮事件
+      detailContent.querySelectorAll('.segment-delete-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const segmentId = this.dataset.segmentId;
+          const orderIndex = parseInt(this.dataset.orderIndex);
+          if (confirm(`确定要删除第 ${orderIndex} 段及其后续所有段吗？此操作不可恢复。`)) {
+            deleteSegmentCascade(sessionId, orderIndex);
+          }
+        });
+      });
+
+      // 绑定段拷贝副本按钮事件
+      detailContent.querySelectorAll('.segment-copy-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const orderIndex = parseInt(this.dataset.orderIndex);
+          if (confirm(`确定要从第 ${orderIndex} 段创建副本存档吗？\n新存档将包含第 1 段到第 ${orderIndex} 段的内容。`)) {
+            copySaveFromSegment(sessionId, orderIndex);
+          }
+        });
+      });
 
     } catch (err) {
       console.error('加载存档详情失败:', err);
@@ -445,6 +484,55 @@
       }
     } catch (err) {
       console.error('删除存档失败:', err);
+    }
+  }
+
+  async function deleteSegmentCascade(sessionId, orderIndex) {
+    try {
+      const response = await fetch('/api/story/segments/delete_cascade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          session_id: sessionId, 
+          from_order_index: orderIndex 
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        loadSaveDetail(sessionId);
+        loadSaveList();
+        
+        let currentSessionId = localStorage.getItem('storyteller_session_id');
+        if (currentSessionId === sessionId && typeof window.onSaveLoaded === 'function') {
+          window.onSaveLoaded(sessionId);
+        }
+      }
+    } catch (err) {
+      console.error('删除段失败:', err);
+      alert('删除失败：' + err.message);
+    }
+  }
+
+  async function copySaveFromSegment(sessionId, orderIndex) {
+    try {
+      const response = await fetch('/api/story/saves/copy_from_segment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          source_session_id: sessionId, 
+          to_order_index: orderIndex 
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        loadSaveList();
+        alert(`副本存档创建成功！\n新存档ID: ${result.new_session_id}`);
+      }
+    } catch (err) {
+      console.error('创建副本存档失败:', err);
+      alert('创建副本失败：' + err.message);
     }
   }
 

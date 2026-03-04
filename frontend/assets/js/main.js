@@ -33,6 +33,26 @@
   const variableSummaryFactionEl = document.getElementById("var-faction");
 
   // =========================================
+  // 1.5 生成状态管理
+  // =========================================
+  let isGenerating = false;
+  let abortController = null;
+  let currentUserText = "";
+  let currentUserBlock = null;
+
+  // 停止按钮图标
+  const stopIcon = `
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+      <rect x="6" y="6" width="12" height="12" rx="2"/>
+    </svg>`;
+
+  // 发送按钮图标
+  const sendIcon = `
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+    </svg>`;
+
+  // =========================================
   // 2. SVG 图标定义 (用于 JS 动态切换)
   // =========================================
 
@@ -67,6 +87,60 @@
   let totalWordCount = 0;
   let postprocessingRules = [];
   let regexConfig = {};
+
+  // =========================================
+  // 3.5 按钮状态管理
+  // =========================================
+  function setButtonState(generating) {
+    isGenerating = generating;
+    if (!generateBtn) return;
+    
+    if (generating) {
+      generateBtn.innerHTML = stopIcon + '<span class="btn-stop-text">停止</span>';
+      generateBtn.classList.add('btn-stop');
+      generateBtn.classList.remove('btn-primary');
+      generateBtn.disabled = false;
+    } else {
+      generateBtn.innerHTML = '生成下一段';
+      generateBtn.classList.remove('btn-stop');
+      generateBtn.classList.add('btn-primary');
+      generateBtn.disabled = false;
+    }
+  }
+
+  function stopGeneration() {
+    if (!isGenerating) return;
+    
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
+    
+    // 清除用户输入块
+    if (currentUserBlock && currentUserBlock.parentNode) {
+      currentUserBlock.remove();
+    }
+    currentUserBlock = null;
+    currentUserText = "";
+    
+    // 清除AI输出块（如果有）
+    const lastBlock = storyLogEl ? storyLogEl.lastElementChild : null;
+    if (lastBlock && lastBlock.classList.contains("story-block-assistant")) {
+      lastBlock.remove();
+    }
+    
+    // 重置状态
+    setButtonState(false);
+    
+    if (inputStatusEl) {
+      inputStatusEl.textContent = "已停止生成";
+      inputStatusEl.style.color = "var(--accent)";
+    }
+    
+    if (storyTimerEl) {
+      storyTimerEl.style.display = 'none';
+    }
+  }
 
   // =========================================
   // 4. 会话管理逻辑
@@ -130,11 +204,14 @@
   // =========================================
   // 5. UI 更新辅助函数
   // =========================================
-  function appendStoryBlock(text, meta, type, stats, isLatest) {
+  function appendStoryBlock(text, meta, type, stats, isLatest, segmentId) {
     if (!storyLogEl) return;
 
     const block = document.createElement("div");
     block.className = "story-block" + (type === "user" ? " story-block-user" : " story-block-assistant");
+    if (segmentId) {
+      block.dataset.segmentId = segmentId;
+    }
 
     const metaEl = document.createElement("div");
     metaEl.className = "story-meta";
@@ -232,7 +309,7 @@
       rawTextLink.style.cssText = "background: none; border: none; padding: 4px 8px; cursor: pointer; font-size: 11px; color: var(--accent); text-decoration: underline; opacity: 0.7;";
       rawTextLink.textContent = "查看原文";
       rawTextLink.addEventListener('click', function() {
-        showRawTextModal(text);
+        showRawTextModal(text, segmentId);
       });
       footerEl.appendChild(rawTextLink);
 
@@ -278,51 +355,157 @@
   }
 
   // 显示原文模态框
-  function showRawTextModal(text) {
-    // 移除已存在的模态框
+  function showRawTextModal(text, segmentId) {
     const existingModal = document.getElementById('raw-text-modal');
     if (existingModal) {
       existingModal.remove();
     }
 
-    // 创建模态框
     const modal = document.createElement('div');
     modal.id = 'raw-text-modal';
     modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; justify-content: center; align-items: center;';
 
     const modalContent = document.createElement('div');
-    modalContent.style.cssText = 'background: var(--bg-elevated); border-radius: 12px; padding: 20px; max-width: 80%; max-height: 80%; width: 800px; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5);';
+    modalContent.style.cssText = 'background: var(--bg-elevated); border-radius: 12px; padding: 20px; max-width: 80%; width: 800px; height: 70vh; max-height: 80%; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5);';
 
     const modalHeader = document.createElement('div');
     modalHeader.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft);';
-    modalHeader.innerHTML = '<h3 style="margin: 0; color: var(--text-primary);">原文内容</h3>';
+    
+    const titleEl = document.createElement('h3');
+    titleEl.style.cssText = 'margin: 0; color: var(--text-primary);';
+    titleEl.textContent = '原文内容';
+    modalHeader.appendChild(titleEl);
+
+    const headerRight = document.createElement('div');
+    headerRight.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'raw-modal-btn raw-modal-edit-btn';
+    editBtn.textContent = '修改文本';
+    editBtn.style.cssText = 'background: var(--accent); color: #fff; border: none; padding: 6px 14px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12px; transition: all 0.2s;';
+    headerRight.appendChild(editBtn);
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'raw-modal-btn raw-modal-confirm-btn';
+    confirmBtn.textContent = '确认';
+    confirmBtn.style.cssText = 'background: #22c55e; color: #fff; border: none; padding: 6px 14px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12px; display: none; transition: all 0.2s;';
+    headerRight.appendChild(confirmBtn);
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'raw-modal-btn raw-modal-cancel-btn';
+    cancelBtn.textContent = '取消';
+    cancelBtn.style.cssText = 'background: var(--bg-elevated-alt); color: var(--text-primary); border: 1px solid var(--border-soft); padding: 6px 14px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12px; display: none; transition: all 0.2s;';
+    headerRight.appendChild(cancelBtn);
 
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '×';
-    closeBtn.style.cssText = 'background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary); padding: 0; line-height: 1;';
-    closeBtn.addEventListener('click', function() {
-      modal.remove();
-    });
-    modalHeader.appendChild(closeBtn);
+    closeBtn.style.cssText = 'background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary); padding: 0; line-height: 1; margin-left: 8px;';
+    headerRight.appendChild(closeBtn);
 
-    const textContent = document.createElement('pre');
+    modalHeader.appendChild(headerRight);
+
+    const textContent = document.createElement('textarea');
     textContent.className = 'raw-text-content';
-    textContent.style.cssText = 'flex: 1; overflow: auto; margin: 0; padding: 16px; background: var(--bg-primary); border-radius: 8px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; color: var(--text-primary);';
-    textContent.textContent = text;
+    textContent.style.cssText = 'flex: 1; overflow: auto; margin: 0; padding: 16px; background: var(--bg-primary); border-radius: 8px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; color: var(--text-primary); border: 1px solid var(--border-soft); resize: none; font-family: inherit; font-size: 13px;';
+    textContent.value = text;
+    textContent.readOnly = true;
 
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'raw-modal-loading';
+    loadingOverlay.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; border-radius: 12px;';
+    loadingOverlay.innerHTML = '<div style="background: var(--bg-elevated); padding: 20px 30px; border-radius: 8px; color: var(--text-primary);">保存中...</div>';
+
+    modalContent.style.position = 'relative';
     modalContent.appendChild(modalHeader);
     modalContent.appendChild(textContent);
+    modalContent.appendChild(loadingOverlay);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
 
-    // 点击背景关闭
+    let originalText = text;
+    let isEditing = false;
+
+    function toggleEditMode(editing) {
+      isEditing = editing;
+      textContent.readOnly = !editing;
+      editBtn.style.display = editing ? 'none' : 'block';
+      confirmBtn.style.display = editing ? 'block' : 'none';
+      cancelBtn.style.display = editing ? 'block' : 'none';
+      if (editing) {
+        textContent.style.background = 'var(--bg-elevated)';
+        textContent.style.borderColor = 'var(--accent)';
+        textContent.focus();
+      } else {
+        textContent.style.background = 'var(--bg-primary)';
+        textContent.style.borderColor = 'var(--border-soft)';
+      }
+    }
+
+    editBtn.addEventListener('click', function() {
+      toggleEditMode(true);
+    });
+
+    cancelBtn.addEventListener('click', function() {
+      textContent.value = originalText;
+      toggleEditMode(false);
+    });
+
+    confirmBtn.addEventListener('click', async function() {
+      const newText = textContent.value.trim();
+      if (!newText) {
+        alert('内容不能为空');
+        return;
+      }
+      if (newText === originalText) {
+        toggleEditMode(false);
+        return;
+      }
+      if (!segmentId) {
+        alert('无法保存：缺少片段ID');
+        return;
+      }
+
+      loadingOverlay.style.display = 'flex';
+      confirmBtn.disabled = true;
+      cancelBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/story/update_segment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            segment_id: segmentId,
+            text: newText
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.detail || '保存失败');
+        }
+
+        originalText = newText;
+        toggleEditMode(false);
+        await loadRecentSegments();
+      } catch (err) {
+        alert('保存失败：' + err.message);
+      } finally {
+        loadingOverlay.style.display = 'none';
+        confirmBtn.disabled = false;
+        cancelBtn.disabled = false;
+      }
+    });
+
+    closeBtn.addEventListener('click', function() {
+      modal.remove();
+    });
+
     modal.addEventListener('click', function(e) {
       if (e.target === modal) {
         modal.remove();
       }
     });
 
-    // ESC键关闭
     document.addEventListener('keydown', function escHandler(e) {
       if (e.key === 'Escape') {
         modal.remove();
@@ -552,6 +735,12 @@
   // 6. 核心生成逻辑 (Fetch API)
   // =========================================
   async function generateStory() {
+    // 如果正在生成，点击按钮表示停止
+    if (isGenerating) {
+      stopGeneration();
+      return;
+    }
+
     if (!userInputEl) return;
 
     const userText = userInputEl.value.trim();
@@ -569,16 +758,20 @@
       updateActionSuggestions(actionOptions);
     }
 
+    // 保存用户输入块引用
+    currentUserText = userText;
     appendStoryBlock(userText, null, "user");
+    currentUserBlock = storyLogEl ? storyLogEl.lastElementChild : null;
+    
     appendActionHistory(userText);
     userInputEl.value = "";
     if (inputStatusEl) {
       inputStatusEl.textContent = "正在向后端请求剧情...";
+      inputStatusEl.style.color = "";
     }
 
-    if (generateBtn) {
-      generateBtn.disabled = true;
-    }
+    // 设置按钮为停止状态
+    setButtonState(true);
 
     // 发送后自动最小化输入栏
     if (inputBarEl && !inputBarEl.classList.contains("input-bar--collapsed")) {
@@ -589,12 +782,32 @@
       }
     }
 
+    // 创建AbortController
+    abortController = new AbortController();
+
     // 尝试使用流式生成，失败则回退到非流式
     try {
       await generateStoryStream(userText);
     } catch (err) {
-      console.warn("流式生成失败，回退到非流式:", err);
+      if (err.name === 'AbortError') {
+        return;
+      }
+      console.warn("流式生成失败:", err.message);
+      if (err.message && err.message.includes("空")) {
+        if (inputStatusEl) {
+          inputStatusEl.textContent = err.message;
+          inputStatusEl.style.color = "var(--accent)";
+        }
+        if (currentUserBlock && currentUserBlock.parentNode) {
+          currentUserBlock.remove();
+        }
+        currentUserBlock = null;
+        setButtonState(false);
+        return;
+      }
       await generateStoryNonStream(userText);
+    } finally {
+      currentUserBlock = null;
     }
   }
 
@@ -630,7 +843,8 @@
         body: JSON.stringify({
           session_id: currentSessionId,
           user_input: userText
-        })
+        }),
+        signal: abortController ? abortController.signal : undefined
       });
 
       if (!resp.ok) {
@@ -641,14 +855,14 @@
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let streamDone = false;
 
-      while (true) {
+      while (!streamDone) {
         const { done, value } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
         
-        // 处理SSE事件
         const lines = buffer.split("\n\n");
         for (let i = 0; i < lines.length - 1; i++) {
           const line = lines[i];
@@ -665,7 +879,6 @@
               const data = JSON.parse(dataStr);
 
               if (event === "dev_log") {
-                // 开发者日志信息
                 if (window.DevTools && typeof window.DevTools.logRequest === 'function') {
                   window.DevTools.logRequest(data);
                 }
@@ -676,15 +889,19 @@
                 }
               } else if (event === "delta") {
                 storyText += data.text || "";
-                // 实时更新故事内容
                 appendStoryBlockIncremental(data.text || "");
+              } else if (event === "empty") {
+                throw new Error(data.message || "AI返回内容为空，请重试");
               } else if (event === "done") {
-                // 完成处理
+                streamDone = true;
                 break;
               } else if (event === "error") {
                 throw new Error(data.message || "流式生成错误");
               }
             } catch (parseErr) {
+              if (parseErr.message && (parseErr.message.includes("空") || parseErr.message.includes("流式生成错误"))) {
+                throw parseErr;
+              }
               console.warn("解析SSE数据失败:", parseErr);
             }
           }
@@ -743,13 +960,13 @@
       console.error("流式生成错误:", err);
       throw err;
     } finally {
-      // 清除更新计时器
       if (updateInterval) {
         clearInterval(updateInterval);
       }
-      if (generateBtn) {
-        generateBtn.disabled = false;
-        userInputEl.focus(); // 聚焦回输入框
+      setButtonState(false);
+      abortController = null;
+      if (userInputEl) {
+        userInputEl.focus();
       }
     }
   }
@@ -780,15 +997,36 @@
         body: JSON.stringify({
           session_id: currentSessionId,
           user_input: userText
-        })
+        }),
+        signal: abortController ? abortController.signal : undefined
       });
 
       const frontEnd = performance.now();
       const durationFrontMs = frontEnd - frontStart;
 
       if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error("请求失败：" + text);
+        const errData = await resp.json().catch(() => ({}));
+        const errMsg = errData.detail || "请求失败";
+        // 如果是空内容错误
+        if (errMsg.includes("空")) {
+          if (inputStatusEl) {
+            inputStatusEl.textContent = errMsg;
+            inputStatusEl.style.color = "var(--accent)";
+          }
+          // 移除最后添加的用户输入块
+          if (currentUserBlock && currentUserBlock.parentNode) {
+            currentUserBlock.remove();
+          }
+          currentUserBlock = null;
+          if (storyTimerEl) {
+            storyTimerEl.style.display = 'none';
+          }
+          if (generateBtn) {
+            generateBtn.disabled = false;
+          }
+          return;
+        }
+        throw new Error(errMsg);
       }
 
       const data = await resp.json();
@@ -836,16 +1074,19 @@
       }
     } catch (err) {
       console.error(err);
+      if (err.name === 'AbortError') {
+        return;
+      }
       if (inputStatusEl) inputStatusEl.textContent = "请求出错：" + err.message;
       throw err;
     } finally {
-      // 清除更新计时器
       if (updateInterval) {
         clearInterval(updateInterval);
       }
-      if (generateBtn) {
-        generateBtn.disabled = false;
-        userInputEl.focus(); // 聚焦回输入框
+      setButtonState(false);
+      abortController = null;
+      if (userInputEl) {
+        userInputEl.focus();
       }
     }
   }
@@ -983,7 +1224,7 @@
             backend_duration: segment.backend_duration || 0
           };
           const isLatest = (index === segmentsCount - 1);
-          appendStoryBlock(segment.text, null, "assistant", stats, isLatest);
+          appendStoryBlock(segment.text, null, "assistant", stats, isLatest, segment.segment_id);
         });
       } else {
         clearActionSuggestions();
