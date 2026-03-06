@@ -221,3 +221,25 @@ class DBRegexProfile(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class WorldbookEmbedding(Base):
+    """
+    [RAG] 世界书向量缓存表
+    存储世界书条目的向量化表示，用于语义检索
+    """
+    __tablename__ = "worldbook_embeddings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entry_id = Column(String, ForeignKey("worldbook_entries.entry_id"), nullable=False, index=True)
+    
+    # 向量数据 (SQLite 使用 JSON 存储数组)
+    embedding_json = Column(Text, nullable=False)  # 存储为 JSON 数组字符串
+    
+    # 元数据
+    content_hash = Column(String, nullable=False, index=True)  # 用于检测内容变更
+    embedding_model = Column(String, nullable=False)  # 使用的模型标识
+    dimension = Column(Integer, nullable=False)  # 向量维度
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

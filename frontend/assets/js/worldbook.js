@@ -10,7 +10,8 @@
     currentSelection: null, // { type: 'world'|'category'|'entry', worldId, catName?, entryId? }
     isEditMode: false,
     keyword: '',
-    importMode: null        // 'world' | 'category' | 'entry'
+    importMode: null,       // 'world' | 'category' | 'entry'
+    useSemanticSearch: false // 是否启用语义搜索
   };
 
   // ====== DOM 缓存 ======
@@ -43,14 +44,86 @@
   };
 
   // ====== 初始化入口 ======
-  function init() {
-    loadData();
+  async function init() {
+    await loadData();  // 等待数据加载完成
     bindEvents();
     refreshUI();
   }
 
   // ====== 数据持久化 ======
-  function loadData() {
+  // 从 localStorage 或数据库加载数据
+  async function loadData() {
+    console.log('[加载] 开始加载数据...');
+    
+    // 1. 优先从数据库加载（覆盖 localStorage）
+    try {
+      console.log('[加载] 尝试从数据库加载...');
+      const response = await fetch('/api/worldbook/list');
+      console.log(`[加载] API 响应状态：${response.status}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`[加载] API 返回数据：`, result);
+        
+        // API 返回分页格式：{items: [...], page, total_pages}
+        const dbEntries = result.items || result;
+        console.log(`[加载] 解析后条目数：${dbEntries.length}`);
+        
+        if (dbEntries && dbEntries.length > 0) {
+          console.log(`[加载] 从数据库加载 ${dbEntries.length} 条世界书`);
+          console.log(`[加载] 第一条数据：`, dbEntries[0]);
+          
+          // 将数据库条目转换为前端格式
+          const world = {
+            id: '1',
+            name: '世界书',
+            description: '从数据库加载',
+            categories: {
+              '1': []  // 统一放在模块 "1" 中
+            },
+            categoryMeta: {
+              '1': { name: '1' }
+            },
+            _expanded_cats: {}
+          };
+          
+          // 所有条目都放在模块 "1" 下
+          dbEntries.forEach(entry => {
+            const entryId = entry.entry_id || `TEMP_${Date.now()}_${Math.random()}`;
+            world.categories['1'].push({
+              id: entryId.replace('WB_', ''),
+              title: entry.title || '未命名条目',
+              // 从数据库加载时，content 字段需要从详情接口获取
+              // 暂时使用空内容，用户点击时会从详情接口加载
+              content: entry.content || '',
+              importance: entry.importance || 0.5,
+              tags: (entry.tags && typeof entry.tags === 'string') ? entry.tags.split(',') : [],
+              canonical: entry.canonical || false
+            });
+          });
+          
+          console.log(`[加载] 模块 "1" 下有 ${world.categories['1'].length} 个条目`);
+          
+          state.worldbooks = [world];
+          state.currentWorldId = world.id;
+          
+          // 保存到 localStorage（作为缓存）- 覆盖旧的，不合并
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state.worldbooks));
+          if (state.appliedWorldId) {
+            localStorage.setItem(APPLIED_KEY, state.appliedWorldId);
+          } else {
+            localStorage.removeItem(APPLIED_KEY);
+          }
+          
+          console.log('[加载] 已更新 localStorage 缓存');
+          return;
+        }
+      }
+    } catch (error) {
+      console.warn('[加载] 数据库加载失败，回退到 localStorage:', error);
+    }
+    
+    // 2. 数据库没有数据时，从 localStorage 加载
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       try {
@@ -80,6 +153,116 @@
       localStorage.setItem(APPLIED_KEY, state.appliedWorldId);
     } else {
       localStorage.removeItem(APPLIED_KEY);
+    }
+    
+    // 自动同步到数据库（静默后台执行，但返回 Promise）
+    return syncToDatabaseSilent();
+  }
+
+  // 静默同步到数据库（不显示提示）- 增量同步
+  let syncPromise = null;  // 防止重复同步
+  
+  async function syncToDatabaseSilent() {
+    // 如果已有同步在进行中，跳过
+    if (syncPromise) {
+      console.log('[同步] 已有同步在进行中，跳过');
+      return;
+    }
+    
+    const world = getWorldById(state.currentWorldId);
+    if (!world) {
+      console.warn('[同步] 当前没有选择世界书，跳过同步');
+      return;
+    }
+
+    try {
+      // 1. 先获取数据库中的条目列表（page_size 最大 100）
+      const listResponse = await fetch('/api/worldbook/list?page_size=100');
+      if (!listResponse.ok) {
+        const errorText = await listResponse.text();
+        throw new Error(`获取列表失败：HTTP ${listResponse.status} - ${errorText}`);
+      }
+      const listData = await listResponse.json();
+      const dbEntries = listData.items || [];
+      
+      // 创建数据库条目的映射（用于比较）
+      const dbMap = new Map();
+      dbEntries.forEach(e => {
+        const key = e.entry_id.replace('WB_', '');
+        dbMap.set(key, e);
+      });
+      
+      console.log('[同步] 数据库条目映射:', Array.from(dbMap.keys()));
+      
+      // 2. 找出需要新增或更新的条目
+      const entriesToSync = [];
+      Object.entries(world.categories).forEach(([catName, catEntries]) => {
+        catEntries.forEach(entry => {
+          const dbEntry = dbMap.get(entry.id);
+          
+          console.log(`[同步] 检查条目 ${entry.id}:`, {
+            title: entry.title,
+            dbExists: !!dbEntry,
+            dbTitle: dbEntry?.title,
+            needsSync: !dbEntry || 
+                      dbEntry.title !== entry.title ||
+                      dbEntry.content !== (entry.content || '') ||
+                      dbEntry.importance !== (entry.importance || 0.5)
+          });
+          
+          // 检查是否需要同步（新增或内容有变化）
+          const needsSync = !dbEntry || 
+                           dbEntry.title !== entry.title ||
+                           dbEntry.content !== (entry.content || '') ||
+                           dbEntry.importance !== (entry.importance || 0.5);
+          
+          if (needsSync) {
+            entriesToSync.push({
+              entry_id: `WB_${entry.id}`,
+              title: entry.title,
+              category: catName,
+              content: entry.content || '',
+              importance: entry.importance || 0.5,
+              tags: entry.tags || [],
+              canonical: entry.canonical || false
+            });
+          }
+        });
+      });
+
+      if (entriesToSync.length === 0) {
+        console.log('[同步] ✅ 数据已同步，无需更新');
+        return;
+      }
+
+      console.log(`[同步] 准备增量同步 ${entriesToSync.length} 个条目:`, entriesToSync.map(e => e.entry_id));
+      
+      // 3. 调用后端 API 导入
+      syncPromise = fetch('/api/worldbook/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(entriesToSync)
+      });
+      
+      const response = await syncPromise;
+      syncPromise = null;
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log(`[同步] ✅ 成功同步 ${result.created_or_updated} 个条目到数据库`);
+      console.log(`[同步] 新增：${result.created}, 更新：${result.updated}`);
+      
+    } catch (error) {
+      syncPromise = null;
+      console.error(`[同步] ❌ 失败:`, error);
+      alert(`同步失败：${error.message}`);
+      throw error;  // 抛出错误，让调用者知道同步失败了
     }
   }
 
@@ -493,6 +676,76 @@
     els.btnSave.disabled = !canSave;
   }
 
+  // ====== 语义搜索 API 调用 ======
+  
+  async function performSemanticSearch(query) {
+    try {
+      const response = await fetch('/api/worldbook/semantic_search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: query,
+          top_k: 20,
+          use_hybrid: true,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`搜索失败：HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // 在树状结构中高亮显示搜索结果
+      highlightSearchResults(data.results);
+      
+    } catch (error) {
+      console.error('[语义搜索失败]:', error);
+      alert(`语义搜索失败：${error.message}\n将使用关键词搜索`);
+      // 降级到关键词搜索
+      state.useSemanticSearch = false;
+      if (semanticToggle) semanticToggle.checked = false;
+      if (semanticHint) semanticHint.style.display = 'none';
+      renderTree();
+    }
+  }
+  
+  function highlightSearchResults(results) {
+    if (!results || results.length === 0) {
+      alert('未找到相关条目');
+      return;
+    }
+    
+    // 在树状结构中查找并高亮匹配的条目
+    const treeRoot = document.getElementById('tree-root');
+    if (!treeRoot) return;
+    
+    // 清除之前的高亮
+    treeRoot.querySelectorAll('.search-highlight').forEach(el => {
+      el.classList.remove('search-highlight');
+    });
+    
+    // 为每个搜索结果添加高亮
+    results.forEach((result, index) => {
+      const entryId = result.entry_id;
+      const entryEl = treeRoot.querySelector(`.tree-item-3[data-id="${entryId}"]`);
+      if (entryEl) {
+        entryEl.classList.add('search-highlight');
+        // 添加相关性分数提示
+        entryEl.title = `相关性：${result.relevance_score} | ${entryEl.title}`;
+      }
+    });
+    
+    // 显示结果数量提示
+    const hint = document.getElementById('semantic-search-hint');
+    if (hint) {
+      hint.textContent = `🌟 语义搜索已启用：找到 ${results.length} 个相关条目，按相关性排序`;
+      hint.style.display = 'block';
+    }
+  }
+  
   // ====== 导入 / 导出 ======
 
   // 通用：把各种 JSON 结构转成 worldbook 数组（不直接放入 state）
@@ -1011,10 +1264,35 @@
       e.target.value = '';
     };
 
+    // 语义搜索开关
+    const semanticToggle = document.getElementById('semantic-search-toggle');
+    const semanticHint = document.getElementById('semantic-search-hint');
+    
+    if (semanticToggle) {
+      semanticToggle.onchange = () => {
+        state.useSemanticSearch = semanticToggle.checked;
+        if (semanticHint) {
+          semanticHint.style.display = state.useSemanticSearch ? 'block' : 'none';
+        }
+        // 如果当前有搜索词，重新搜索
+        if (state.keyword) {
+          doSearch();
+        }
+      };
+    }
+
     // 搜索内容
-    function doSearch() {
-      state.keyword = (els.searchInput.value || '').trim();
-      renderTree();
+    async function doSearch() {
+      const keyword = (els.searchInput.value || '').trim();
+      state.keyword = keyword;
+      
+      // 如果启用语义搜索且有搜索词
+      if (state.useSemanticSearch && keyword) {
+        await performSemanticSearch(keyword);
+      } else {
+        // 传统关键词搜索
+        renderTree();
+      }
     }
 
     els.btnSearch.onclick = () => {
@@ -1025,10 +1303,12 @@
         doSearch();
       }
     };
-    // 即时搜索
+    // 即时搜索（仅在非语义模式下）
     els.searchInput.oninput = () => {
-      state.keyword = (els.searchInput.value || '').trim();
-      renderTree();
+      if (!state.useSemanticSearch) {
+        state.keyword = (els.searchInput.value || '').trim();
+        renderTree();
+      }
     };
 
     // 新建模块
@@ -1068,7 +1348,7 @@
         alert('请先选择一个世界书。');
         return;
       }
-      openNewEntryModal(world, ({ catName, entryName }, close) => {
+      openNewEntryModal(world, async ({ catName, entryName }, close) => {
         if (!world.categories[catName]) {
           world.categories[catName] = [];
         }
@@ -1082,7 +1362,10 @@
         if (!world._expanded_cats) world._expanded_cats = {};
         world._expanded_cats[catName] = true;
 
-        saveData();
+        // 等待同步完成再关闭
+        await saveData();
+        console.log('[新建条目] 同步完成');
+        
         selectNode('entry', { worldId: world.id, catName, entryId: entry.id });
         renderTree();
         close();
@@ -1161,14 +1444,34 @@
         const ok = confirm(`确认删除条目「${entry.title || '未命名条目'}」？该操作不可撤销。`);
         if (!ok) return;
 
-        entries.splice(idx, 1);
-
-        state.currentSelection = { type: 'category', worldId: world.id, catName };
-        state.isEditMode = false;
-
-        saveData();
-        renderTree();
-        renderDetail();
+        // 先调用后端 API 删除数据库记录
+        const entryId = `WB_${entry.id}`;
+        fetch(`/api/worldbook/${entryId}`, {
+          method: 'DELETE'
+        })
+        .then(response => {
+          if (response.ok) {
+            console.log(`[删除] ✅ 成功删除条目 ${entryId}`);
+            // 前端也删除
+            entries.splice(idx, 1);
+            
+            state.currentSelection = { type: 'category', worldId: world.id, catName };
+            state.isEditMode = false;
+            
+            // 保存到 localStorage（不需要同步到数据库，因为已经通过 API 删除了）
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state.worldbooks));
+            
+            renderTree();
+            renderDetail();
+          } else {
+            console.error(`[删除] ❌ 失败：${response.status}`);
+            alert('删除失败，请检查网络连接或刷新页面后重试。');
+          }
+        })
+        .catch(error => {
+          console.error(`[删除] ❌ 错误：`, error);
+          alert('删除失败，无法连接到服务器。');
+        });
       }
     };
 
@@ -1188,7 +1491,7 @@
     };
 
     // 保存修改
-    els.btnSave.onclick = () => {
+    els.btnSave.onclick = async () => {
       if (!state.isEditMode || !state.currentSelection) return;
 
       const sel = state.currentSelection;
@@ -1220,13 +1523,16 @@
         entry.content = contentTextarea.value || '';
       }
 
-      saveData();
+      // 等待同步完成
+      await saveData();
+      console.log('[保存] 同步完成');
+      
       state.isEditMode = false;
       renderTree();
       renderDetail();
     };
 
-    // 右上角“导出”按钮：导出当前选中的 world/category/entry
+    // 右上角"导出"按钮：导出当前选中的 world/category/entry
     els.btnExportCurrent.onclick = handleExportCurrent;
   }
 

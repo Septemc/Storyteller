@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
+import json
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -62,6 +63,67 @@ class SessionSummaryResponse(BaseModel):
     dungeon: Optional[SessionSummaryDungeon] = None
     characters: List[SessionSummaryCharacter] = []
     variables: Optional[SessionSummaryVariables] = None
+
+
+class SessionContextUpdateRequest(BaseModel):
+    session_id: str
+    main_character_id: Optional[str] = None
+    current_dungeon_id: Optional[str] = None
+    current_node_id: Optional[str] = None
+
+
+class SessionContextUpdateResponse(BaseModel):
+    success: bool = True
+    session_id: str
+    main_character_id: Optional[str] = None
+    current_dungeon_id: Optional[str] = None
+    current_node_id: Optional[str] = None
+
+
+class SessionCharactersResponse(BaseModel):
+    main_character: Optional[Dict] = None
+    characters: List[SessionSummaryCharacter] = []
+
+
+def _parse_character_basic(ch: models.Character) -> Dict:
+    basic = {}
+    if ch.basic_json:
+        try:
+            basic = json.loads(ch.basic_json)
+        except Exception:
+            basic = {}
+
+    # 兼容 data_json 中的 tab_basic / basic
+    if ch.data_json:
+        try:
+            data = json.loads(ch.data_json)
+            if isinstance(data, dict):
+                basic = data.get("tab_basic") or data.get("basic") or basic
+        except Exception:
+            pass
+
+    return basic if isinstance(basic, dict) else {}
+
+
+def _to_character_summary(ch: models.Character) -> SessionSummaryCharacter:
+    basic = _parse_character_basic(ch)
+    return SessionSummaryCharacter(
+        character_id=ch.character_id,
+        name=basic.get("name") or basic.get("姓名") or basic.get("角色名"),
+        ability_tier=basic.get("ability_tier") or basic.get("能力评级") or basic.get("境界"),
+    )
+
+
+def _ensure_session_state(db: Session, session_id: str) -> models.SessionState:
+    st = db.query(models.SessionState).filter(models.SessionState.session_id == session_id).first()
+    if st:
+        return st
+
+    st = models.SessionState(session_id=session_id, total_word_count=0)
+    db.add(st)
+    db.commit()
+    db.refresh(st)
+    return st
 
 
 @router.post("/story/generate", response_model=StoryGenerateResponse)
@@ -222,64 +284,140 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
     return StreamingResponse(_gen(), media_type="text/event-stream")
 
 
+@router.post("/session/context", response_model=SessionContextUpdateResponse)
+def update_session_context(
+    req: SessionContextUpdateRequest,
+    db: Session = Depends(get_db),
+) -> SessionContextUpdateResponse:
+    """更新会话绑定的主角与当前剧本节点。"""
+    st = _ensure_session_state(db, req.session_id)
+
+    try:
+        global_state = json.loads(st.global_state_json) if st.global_state_json else {}
+    except Exception:
+        global_state = {}
+    if not isinstance(global_state, dict):
+        global_state = {}
+
+    fields_set = req.model_fields_set
+
+    # 主角绑定
+    if "main_character_id" in fields_set:
+        if req.main_character_id:
+            exists = (
+                db.query(models.Character)
+                .filter(models.Character.character_id == req.main_character_id)
+                .first()
+            )
+            if not exists:
+                raise HTTPException(status_code=404, detail="主角不存在")
+            global_state["main_character_id"] = req.main_character_id
+        else:
+            global_state.pop("main_character_id", None)
+
+    # 剧本绑定
+    if "current_dungeon_id" in fields_set:
+        if req.current_dungeon_id:
+            dungeon = (
+                db.query(models.Dungeon)
+                .filter(models.Dungeon.dungeon_id == req.current_dungeon_id)
+                .first()
+            )
+            if not dungeon:
+                raise HTTPException(status_code=404, detail="剧本不存在")
+            st.current_dungeon_id = req.current_dungeon_id
+
+            # 若切换了剧本且未显式传节点，则默认到首节点
+            if "current_node_id" not in fields_set:
+                st.current_node_id = dungeon.nodes[0].node_id if dungeon.nodes else None
+        else:
+            st.current_dungeon_id = None
+            st.current_node_id = None
+
+    # 节点绑定
+    if "current_node_id" in fields_set:
+        if req.current_node_id:
+            dungeon_id = req.current_dungeon_id if req.current_dungeon_id else st.current_dungeon_id
+            if not dungeon_id:
+                raise HTTPException(status_code=400, detail="设置节点前需先设置剧本")
+
+            node = (
+                db.query(models.DungeonNode)
+                .filter(
+                    models.DungeonNode.dungeon_id == dungeon_id,
+                    models.DungeonNode.node_id == req.current_node_id,
+                )
+                .first()
+            )
+            if not node:
+                raise HTTPException(status_code=404, detail="节点不存在")
+            st.current_node_id = req.current_node_id
+        else:
+            st.current_node_id = None
+
+    st.global_state_json = json.dumps(global_state, ensure_ascii=False)
+    db.commit()
+
+    return SessionContextUpdateResponse(
+        session_id=req.session_id,
+        main_character_id=global_state.get("main_character_id"),
+        current_dungeon_id=st.current_dungeon_id,
+        current_node_id=st.current_node_id,
+    )
+
+
+@router.get("/session/characters", response_model=SessionCharactersResponse)
+def get_session_characters(
+    session_id: str = Query(..., description="会话 ID"),
+    db: Session = Depends(get_db),
+) -> SessionCharactersResponse:
+    """返回会话主角和角色列表，供剧情侧栏与角色面板使用。"""
+    runtime = orchestrator.build_session_runtime_context(db, session_id)
+
+    rows = db.query(models.Character).limit(20).all()
+    characters = [_to_character_summary(ch) for ch in rows]
+
+    return SessionCharactersResponse(
+        main_character=runtime.get("main_character"),
+        characters=characters,
+    )
+
+
 @router.get("/session/summary", response_model=SessionSummaryResponse)
 def get_session_summary(
     session_id: str = Query(..., description="会话 ID"),
     db: Session = Depends(get_db),
 ) -> SessionSummaryResponse:
-    """会话摘要：供主剧情侧边栏刷新使用（最小可用）。"""
+    """会话摘要：供主剧情侧边栏刷新使用。"""
 
-    session_state = db.query(models.SessionState).filter(models.SessionState.session_id == session_id).first()
+    runtime = orchestrator.build_session_runtime_context(db, session_id)
+    dungeon_ctx = runtime.get("dungeon")
+    main_character = runtime.get("main_character")
 
     dungeon_block: Optional[SessionSummaryDungeon] = None
-    if session_state and session_state.current_dungeon_id:
-        dungeon = db.query(models.Dungeon).filter(models.Dungeon.dungeon_id == session_state.current_dungeon_id).first()
-        node_name = None
-        if session_state.current_node_id:
-            node = (
-                db.query(models.DungeonNode)
-                .filter(
-                    models.DungeonNode.dungeon_id == session_state.current_dungeon_id,
-                    models.DungeonNode.node_id == session_state.current_node_id,
-                )
-                .first()
-            )
-            if node:
-                node_name = node.name
-
+    if dungeon_ctx:
         dungeon_block = SessionSummaryDungeon(
-            name=dungeon.name if dungeon else None,
-            current_node_name=node_name,
-            progress_hint="最小骨架：未实现真实进度计算",
+            name=dungeon_ctx.get("name"),
+            current_node_name=dungeon_ctx.get("node_name"),
+            progress_hint=dungeon_ctx.get("progress_hint") or "未知",
         )
 
-    # 角色概览
     characters_rows = db.query(models.Character).limit(5).all()
-    characters: List[SessionSummaryCharacter] = []
+    characters = [_to_character_summary(ch) for ch in characters_rows]
 
-    import json
-
-    for ch in characters_rows:
-        name = None
-        ability_tier = None
-        if ch.basic_json:
-            try:
-                basic = json.loads(ch.basic_json)
-                name = basic.get("name") or basic.get("姓名")
-                ability_tier = basic.get("ability_tier") or basic.get("能力评级")
-            except Exception:
-                pass
-
-        characters.append(
-            SessionSummaryCharacter(
-                character_id=ch.character_id,
-                name=name,
-                ability_tier=ability_tier,
-            )
-        )
+    variable_main_character = None
+    if main_character:
+        variable_main_character = {
+            "character_id": main_character.get("character_id"),
+            "name": main_character.get("name"),
+            "economy_summary": main_character.get("economy_summary"),
+            "ability_tier": main_character.get("ability_tier"),
+            # 兼容前端旧字段名
+            "ability_summary": main_character.get("ability_tier"),
+        }
 
     variables = SessionSummaryVariables(
-        main_character=None,
+        main_character=variable_main_character,
         faction_summary=None,
     )
 

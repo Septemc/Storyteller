@@ -1742,10 +1742,28 @@ body[data-page="index"].input-half-screen .input-textarea {
   font-size: 13px;
   cursor: pointer;
   border-radius: 4px;
+  transition: all 0.2s ease;
 }
 
 .tree-item-3:hover {
   background: var(--accent-soft);
+}
+
+/* 语义搜索高亮样式 */
+.tree-item-3.search-highlight {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border-left: 3px solid var(--accent);
+  font-weight: 500;
+  animation: search-highlight-pulse 2s ease-in-out infinite;
+}
+
+@keyframes search-highlight-pulse {
+  0%, 100% {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+  }
+  50% {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.25) 0%, rgba(59, 130, 246, 0.1) 100%);
+  }
 }
 
 /* =========================================

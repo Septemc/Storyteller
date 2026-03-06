@@ -66,10 +66,15 @@
       <!-- 搜索 + 新建模块 / 条目 + 导入模块 / 条目 + 删除 -->
       <div class="settings-section">
         <div class="search-wrapper" style="position: relative;">
-          <input id="search-keyword" class="form-input" placeholder="搜索内容..." style="padding-right: 32px;">
+          <input id="search-keyword" class="form-input" placeholder="搜索内容..." style="padding-right: 80px;">
           <button id="btn-search" class="icon-button" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%);">
             🔍
           </button>
+          <!-- 语义搜索开关 -->
+          <label style="position: absolute; right: 80px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted);">
+            <input type="checkbox" id="semantic-search-toggle" style="margin: 0;">
+            <span>语义</span>
+          </label>
         </div>
         <div class="toolbar-actions"
              style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: nowrap;">
@@ -78,6 +83,10 @@
           <button id="btn-import-category" class="btn-secondary btn-small" style="flex:1 1 0;">导入模块</button>
           <button id="btn-import-entry"    class="btn-secondary btn-small" style="flex:1 1 0;">导入条目</button>
           <button id="btn-delete-node"     class="btn-secondary btn-small" style="color:var(--danger)">删除</button>
+        </div>
+        <!-- 语义搜索提示信息 -->
+        <div id="semantic-search-hint" class="small-text muted" style="margin-top: 6px; color: var(--accent); display: none;">
+          🌟 语义搜索已启用：根据含义而非关键词匹配
         </div>
       </div>
 

@@ -19,6 +19,31 @@
     let isEditingNewCharacter = false; // 标记当前是否在创建新角色
     let globalDefaultTemplateId = "system_default"; // 记录当前“应用”的全局默认模板
 
+    function getCurrentSessionId() {
+        return window.localStorage.getItem("storyteller_session_id");
+    }
+
+    async function applyCharacterToCurrentSession(characterId) {
+        const sessionId = getCurrentSessionId();
+        if (!sessionId) {
+            throw new Error("未检测到当前存档，请先在剧情页创建或加载存档");
+        }
+
+        const resp = await fetch('/api/session/context', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: sessionId,
+                main_character_id: characterId
+            })
+        });
+
+        if (!resp.ok) {
+            const txt = await resp.text();
+            throw new Error(`应用角色失败: HTTP ${resp.status} ${txt}`);
+        }
+    }
+
     async function init() {
         console.log("Characters Module Initializing...");
         try {
@@ -330,6 +355,20 @@
                 document.getElementById("character-renderer").innerHTML = "角色已删除";
             }
         };
+
+        const applyBtn = document.getElementById("character-apply-btn");
+        if (applyBtn) {
+            applyBtn.onclick = async () => {
+                const charId = currentCharacterData.character_id;
+                if (!charId) return alert("请先选择角色");
+                try {
+                    await applyCharacterToCurrentSession(charId);
+                    alert(`已将角色 [${charId}] 应用到当前存档`);
+                } catch (e) {
+                    alert(e.message || "应用失败");
+                }
+            };
+        }
 
         // 模板管理相关 (需求 4 & 5)
         // === 修改 setupEventListeners 中的 tpl-apply-btn 逻辑 ===

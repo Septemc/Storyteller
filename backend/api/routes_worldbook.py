@@ -15,6 +15,7 @@ class WorldbookListItem(BaseModel):
     entry_id: str
     category: Optional[str] = None
     title: str
+    content: Optional[str] = None
     importance: Optional[float] = None
 
 
@@ -45,6 +46,7 @@ def import_worldbook(
     - 支持直接传入列表，每个元素是一条世界书记录
     - 或传入 {\"entries\": [...]} 这种结构
     - entry_id 如果未提供，会自动生成
+    - 自动计算并保存向量缓存
     """
     import uuid
     import json
@@ -58,6 +60,9 @@ def import_worldbook(
         raise HTTPException(status_code=400, detail="世界书导入格式错误：应为列表或包含 entries 的对象。")
 
     created = 0
+    updated = 0
+    entries_to_embed = []
+    
     for raw in entries:
         if not isinstance(raw, dict):
             continue
@@ -91,6 +96,8 @@ def import_worldbook(
             existing.canonical = bool(raw.get("canonical", existing.canonical or False))
             existing.meta_json = meta_json
             existing.updated_at = datetime.utcnow()
+            entries_to_embed.append(existing)
+            updated += 1
         else:
             entry = models.WorldbookEntry(
                 entry_id=entry_id,
@@ -105,10 +112,26 @@ def import_worldbook(
                 updated_at=datetime.utcnow(),
             )
             db.add(entry)
-        created += 1
+            entries_to_embed.append(entry)
+            created += 1
 
     db.commit()
-    return {"created_or_updated": created}
+    
+    # 计算并保存向量缓存
+    if entries_to_embed:
+        try:
+            from ..core.rag import create_retriever
+            retriever = create_retriever(db)
+            
+            for entry in entries_to_embed:
+                try:
+                    retriever.compute_entry_embedding(entry, use_cache=False)
+                except Exception as e:
+                    print(f"[导入] 计算向量失败 {entry.entry_id}: {e}")
+        except Exception as e:
+            print(f"[导入] 向量计算失败：{e}")
+    
+    return {"created_or_updated": created + updated, "created": created, "updated": updated}
 
 
 @router.get("/worldbook/list", response_model=WorldbookListResponse)
@@ -147,6 +170,7 @@ def list_worldbook(
             entry_id=e.entry_id,
             category=e.category,
             title=e.title,
+            content=e.content,
             importance=e.importance,
         )
         for e in items_db

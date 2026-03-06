@@ -57,18 +57,7 @@ def _get_or_create_session_state(db: Session, session_id: str) -> models.Session
     return st
 
 
-def _pick_main_character(db: Session) -> Optional[Dict[str, Any]]:
-    """优先 type=pc/player，否则取第一条。"""
-    row = (
-        db.query(models.Character)
-        .filter(models.Character.type.in_(["pc", "player"]))
-        .first()
-    )
-    if not row:
-        row = db.query(models.Character).first()
-    if not row:
-        return None
-
+def _character_profile_from_row(row: models.Character) -> Dict[str, Any]:
     basic = _safe_json_loads(row.basic_json, {})
     data = _safe_json_loads(row.data_json, {})
     # 兼容：tab_basic 或 basic
@@ -82,7 +71,57 @@ def _pick_main_character(db: Session) -> Optional[Dict[str, Any]]:
     }
 
 
-def _worldbook_snippets(db: Session, limit: int = 8) -> List[Dict[str, Any]]:
+def _pick_main_character(
+    db: Session,
+    preferred_character_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """优先使用会话指定主角，其次 type=pc/player，最后取第一条。"""
+    row: Optional[models.Character] = None
+
+    if preferred_character_id:
+        row = (
+            db.query(models.Character)
+            .filter(models.Character.character_id == preferred_character_id)
+            .first()
+        )
+
+    if not row:
+        row = (
+            db.query(models.Character)
+            .filter(models.Character.type.in_(["pc", "player"]))
+            .first()
+        )
+    if not row:
+        row = db.query(models.Character).first()
+    if not row:
+        return None
+
+    return _character_profile_from_row(row)
+
+
+def _worldbook_snippets(db: Session, limit: int = 8, context_text: Optional[str] = None) -> List[Dict[str, Any]]:
+    """获取世界书片段（支持 RAG 语义检索）
+    
+    Args:
+        db: 数据库会话
+        limit: 返回数量
+        context_text: 可选的上下文文本，用于语义检索。如果为 None，则退化为按重要性排序
+    
+    Returns:
+        世界书片段列表
+    """
+    # 如果提供了上下文，使用 RAG 语义检索
+    if context_text:
+        try:
+            from .rag import create_retriever
+            retriever = create_retriever(db)
+            results = retriever.retrieve_for_story(context_text, top_k=limit, use_hybrid=True)
+            return results
+        except Exception as e:
+            # RAG 失败时降级到传统方式
+            print(f"[Orchestrator] RAG 检索失败，降级到传统方式：{e}")
+    
+    # 传统方式：按重要性和更新时间排序
     rows = (
         db.query(models.WorldbookEntry)
         .order_by(models.WorldbookEntry.importance.desc(), models.WorldbookEntry.updated_at.desc())
@@ -123,6 +162,50 @@ def _dungeon_context(db: Session, st: models.SessionState) -> Tuple[Optional[mod
             node = dungeon.nodes[0]
 
     return dungeon, node
+
+
+def _build_dungeon_progress_hint(
+    dungeon: Optional[models.Dungeon],
+    node: Optional[models.DungeonNode],
+) -> Optional[str]:
+    if not dungeon:
+        return None
+
+    if node and node.progress_percent is not None:
+        clamped = max(0, min(100, int(node.progress_percent)))
+        return f"节点进度 {clamped}%"
+
+    total_nodes = len(dungeon.nodes or [])
+    if not node or total_nodes <= 0:
+        return "未设置节点进度"
+
+    return f"节点 {int(node.index_in_dungeon) + 1}/{total_nodes}"
+
+
+def build_session_runtime_context(db: Session, session_id: str) -> Dict[str, Any]:
+    """统一构建会话上下文，供 story route 与生成器复用。"""
+    st = _get_or_create_session_state(db, session_id)
+    global_state = _safe_json_loads(st.global_state_json, {})
+    preferred_character_id = global_state.get("main_character_id")
+
+    main_character = _pick_main_character(db, preferred_character_id=preferred_character_id)
+    dungeon, node = _dungeon_context(db, st)
+
+    dungeon_ctx = None
+    if dungeon:
+        dungeon_ctx = {
+            "id": dungeon.dungeon_id,
+            "name": dungeon.name,
+            "node_name": node.name if node else None,
+            "progress_hint": _build_dungeon_progress_hint(dungeon, node),
+        }
+
+    return {
+        "session_state": st,
+        "global_state": global_state,
+        "main_character": main_character,
+        "dungeon": dungeon_ctx,
+    }
 
 
 def _recent_story(db: Session, session_id: str, limit: int = 6) -> List[str]:
@@ -200,7 +283,8 @@ def generate_story_text(
         "fullPrompt": ""
     }
 
-    st = _get_or_create_session_state(db, session_id)
+    runtime_context = build_session_runtime_context(db, session_id)
+    st = runtime_context["session_state"]
 
     preset = storage.get_active_preset(db)
     system_prompt = prompts.compile_system_prompt(preset)
@@ -208,20 +292,17 @@ def generate_story_text(
     llm_cfg = storage.get_active_llm_config(db)
     llm_active = storage.get_llm_active(db)
 
+    # 构建用于 RAG 检索的上下文文本（从最近剧情提取关键词）
+    recent_history = _recent_story(db, session_id, limit=4)
+    rag_context = " ".join([h[-500:] for h in recent_history])  # 取每条最近 500 字
+    if user_input:
+        rag_context += " " + user_input
+    
     context: Dict[str, Any] = {
-        "main_character": _pick_main_character(db),
-        "worldbook": _worldbook_snippets(db, limit=6),
-        "dungeon": None,
+        "main_character": runtime_context.get("main_character"),
+        "worldbook": _worldbook_snippets(db, limit=6, context_text=rag_context),
+        "dungeon": runtime_context.get("dungeon"),
     }
-
-    dungeon, node = _dungeon_context(db, st)
-    if dungeon:
-        context["dungeon"] = {
-            "id": dungeon.dungeon_id,
-            "name": dungeon.name,
-            "node_name": node.name if node else None,
-            "progress_hint": "最小实现：未计算" if node else "未知",
-        }
 
     history = _recent_story(db, session_id, limit=4)
     messages = _build_messages(system_prompt, context, history, user_input)
@@ -390,6 +471,8 @@ def persist_story_segment(
         order_index=order_index,
         user_input=user_input,
         text=story_text,
+        dungeon_id=st.current_dungeon_id,
+        dungeon_node_id=st.current_node_id,
         paragraph_word_count=paragraph_word_count,
         cumulative_word_count=cumulative_word_count,
         frontend_duration=frontend_duration,
