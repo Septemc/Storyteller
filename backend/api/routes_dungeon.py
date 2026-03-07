@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..db.base import get_db
 from ..db import models
+from ..core.auth import get_current_user, User as AuthUser
 
 router = APIRouter()
 
@@ -44,8 +45,12 @@ class DungeonListResponse(BaseModel):
 
 
 @router.get("/dungeon/list", response_model=DungeonListResponse)
-def list_dungeons(db: Session = Depends(get_db)) -> DungeonListResponse:
-    rows = db.query(models.Dungeon).order_by(models.Dungeon.dungeon_id).all()
+def list_dungeons(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)) -> DungeonListResponse:
+    user_id = current_user.user_id if current_user else None
+    query = db.query(models.Dungeon)
+    if user_id:
+        query = query.filter(models.Dungeon.user_id == user_id)
+    rows = query.order_by(models.Dungeon.dungeon_id).all()
     items = [
         DungeonListItem(
             dungeon_id=d.dungeon_id,
@@ -59,14 +64,17 @@ def list_dungeons(db: Session = Depends(get_db)) -> DungeonListResponse:
 
 
 @router.get("/dungeon/{dungeon_id}", response_model=DungeonPayload)
-def get_dungeon(dungeon_id: str, db: Session = Depends(get_db)) -> DungeonPayload:
+def get_dungeon(dungeon_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)) -> DungeonPayload:
     import json
+    user_id = current_user.user_id if current_user else None
 
-    d = (
-        db.query(models.Dungeon)
-        .filter(models.Dungeon.dungeon_id == dungeon_id)
-        .first()
+    query = db.query(models.Dungeon).filter(
+        models.Dungeon.dungeon_id == dungeon_id
     )
+    if user_id:
+        query = query.filter(models.Dungeon.user_id == user_id)
+    d = query.first()
+    
     if not d:
         raise HTTPException(status_code=404, detail="副本不存在。")
 
@@ -116,18 +124,23 @@ def upsert_dungeon(
     dungeon_id: str,
     payload: DungeonPayload,
     db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> DungeonPayload:
     import json
+    user_id = current_user.user_id if current_user else None
 
-    d = (
-        db.query(models.Dungeon)
-        .filter(models.Dungeon.dungeon_id == dungeon_id)
-        .first()
+    query = db.query(models.Dungeon).filter(
+        models.Dungeon.dungeon_id == dungeon_id
     )
+    if user_id:
+        query = query.filter(models.Dungeon.user_id == user_id)
+    d = query.first()
+    
     if not d:
         d = models.Dungeon(
             dungeon_id=dungeon_id,
             name=payload.name,
+            user_id=user_id,
         )
         db.add(d)
 
@@ -150,6 +163,7 @@ def upsert_dungeon(
             summary_requirements=node.summary_requirements,
             story_requirements_json=json.dumps(node.story_requirements, ensure_ascii=False),
             branching_json=json.dumps(node.branching, ensure_ascii=False),
+            user_id=user_id,
         )
         d.nodes.append(dn)
 
