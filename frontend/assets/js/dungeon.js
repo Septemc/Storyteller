@@ -75,12 +75,65 @@
     }
   }
 
+  let syncTimer = null;
+
   function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.scripts));
     if (state.appliedScriptId) {
       localStorage.setItem(APPLIED_KEY, state.appliedScriptId);
     } else {
       localStorage.removeItem(APPLIED_KEY);
+    }
+    
+    // 防抖同步到后端：编辑停止 2 秒后自动同步
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      syncSessionStateToBackend();
+    }, 2000);
+  }
+
+  async function syncSessionStateToBackend() {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId || !state.appliedScriptId) return;
+
+    const script = getScriptById(state.appliedScriptId);
+    if (!script) return;
+
+    try {
+      // 1. 同步脚本元数据到 /api/scripts/{script_id}
+      const scriptPayload = toDungeonPayload(script);
+      const dungeonIds = script.dungeons.map(d => d.dungeon_id);
+      
+      await fetch(`/api/scripts/${script.script_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script_id: script.script_id,
+          name: script.name || '',
+          description: script.description || '',
+          dungeon_ids: dungeonIds,
+          meta: {}
+        })
+      });
+
+      // 2. 同步所有副本到后端
+      await syncScriptToBackend(script);
+
+      // 3. 更新会话状态，包括 current_script_id
+      const target = getAppliedDungeonAndNode(script);
+      
+      await fetch('/api/session/context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          current_script_id: script.script_id,
+          current_dungeon_id: target.dungeonId,
+          current_node_id: target.nodeId
+        })
+      });
+    } catch (error) {
+      console.error('后端同步失败:', error);
     }
   }
 

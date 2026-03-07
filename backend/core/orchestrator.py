@@ -60,13 +60,49 @@ def _get_or_create_session_state(db: Session, session_id: str) -> models.Session
 def _character_profile_from_row(row: models.Character) -> Dict[str, Any]:
     basic = _safe_json_loads(row.basic_json, {})
     data = _safe_json_loads(row.data_json, {})
-    # 兼容：tab_basic 或 basic
-    basic = data.get("tab_basic") or data.get("basic") or basic
+
+    # 兼容 data_json 中的 tab_basic/basic，以及扁平结构（f_name 等）
+    if isinstance(data, dict):
+        data_basic = data.get("tab_basic") or data.get("basic")
+        if isinstance(data_basic, dict):
+            basic = data_basic
+
+        # 若 data_json 是扁平结构，把根字段并入 basic，避免姓名等丢失
+        flat_basic = {
+            k: v
+            for k, v in data.items()
+            if not k.startswith("tab_") and k not in {"character_id", "type", "template_id"}
+        }
+        if isinstance(flat_basic, dict) and flat_basic:
+            merged = dict(flat_basic)
+            merged.update(basic if isinstance(basic, dict) else {})
+            basic = merged
+
+    if not isinstance(basic, dict):
+        basic = {}
+
+    def _first_non_empty(keys: List[str]) -> Optional[Any]:
+        for key in keys:
+            value = basic.get(key)
+            if value is not None and str(value).strip() != "":
+                return value
+        return None
+
+    name = _first_non_empty([
+        "name", "姓名", "角色名", "f_name", "f_nickname", "昵称"
+    ])
+    ability_tier = _first_non_empty([
+        "ability_tier", "能力评级", "境界", "f_ability_tier", "f_level", "f_realm", "f_stage"
+    ])
+    economy_summary = _first_non_empty([
+        "economy_summary", "经济", "资源", "f_economy", "f_resources", "f_money", "f_wealth"
+    ])
+
     return {
         "character_id": row.character_id,
-        "name": basic.get("name") or basic.get("姓名") or basic.get("角色名"),
-        "ability_tier": basic.get("ability_tier") or basic.get("能力评级") or basic.get("境界"),
-        "economy_summary": basic.get("economy_summary") or basic.get("经济") or basic.get("资源"),
+        "name": name,
+        "ability_tier": ability_tier,
+        "economy_summary": economy_summary,
         "raw_basic": basic,
     }
 
@@ -88,7 +124,7 @@ def _pick_main_character(
     if not row:
         row = (
             db.query(models.Character)
-            .filter(models.Character.type.in_(["pc", "player"]))
+            .filter(models.Character.type.in_(["pc", "player", "protagonist", "main", "hero"]))
             .first()
         )
     if not row:
@@ -97,6 +133,82 @@ def _pick_main_character(
         return None
 
     return _character_profile_from_row(row)
+
+
+def _character_brief(profile: Dict[str, Any], max_len: int = 120) -> str:
+    raw = profile.get("raw_basic") if isinstance(profile, dict) else {}
+    if not isinstance(raw, dict):
+        raw = {}
+
+    parts: List[str] = []
+    occ = raw.get("f_occ") or raw.get("occupation") or raw.get("职业")
+    fac = raw.get("f_fac") or raw.get("f_faction") or raw.get("势力")
+    tags = raw.get("f_tags") or raw.get("tags")
+
+    if occ:
+        parts.append(f"职业:{occ}")
+    if fac:
+        parts.append(f"势力:{fac}")
+    if isinstance(tags, list) and tags:
+        parts.append("标签:" + ",".join(str(t) for t in tags[:3]))
+
+    text = "；".join(parts)
+    if len(text) > max_len:
+        return text[: max_len - 1] + "…"
+    return text
+
+
+def _character_roster_snippets(
+    db: Session,
+    limit: int = 5,
+    context_text: Optional[str] = None,
+    exclude_character_id: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """获取角色库摘要。
+
+    - 优先返回被用户输入命中的角色（按姓名或 ID）
+    - 其次返回其余角色，供“某某是谁”类问答使用
+    """
+    import re
+
+    rows = db.query(models.Character).all()
+    if not rows:
+        return []
+
+    query = (context_text or "").strip()
+    tokens = re.findall(r"[A-Za-z0-9_]{2,}|[\u4e00-\u9fff]{2,}", query)
+
+    scored: List[Tuple[int, Dict[str, Any]]] = []
+    for row in rows:
+        profile = _character_profile_from_row(row)
+        cid = str(profile.get("character_id") or "")
+        if exclude_character_id and cid == str(exclude_character_id):
+            continue
+
+        name = str(profile.get("name") or "")
+        raw_basic = profile.get("raw_basic") if isinstance(profile.get("raw_basic"), dict) else {}
+        search_blob = " ".join([
+            cid,
+            name,
+            json.dumps(raw_basic, ensure_ascii=False),
+        ])
+
+        score = 0
+        if query:
+            if name and name in query:
+                score += 100
+            if cid and cid in query:
+                score += 80
+            for tk in tokens:
+                if tk and tk in search_blob:
+                    score += 3
+
+        scored.append((score, profile))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    selected = [p for _, p in scored[:limit]]
+    return selected
 
 
 def _worldbook_snippets(db: Session, limit: int = 8, context_text: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -233,6 +345,18 @@ def _build_messages(system_prompt: str, context: Dict[str, Any], history: List[s
         if mc.get("economy_summary"):
             ctx_lines.append(f"- 资源: {mc.get('economy_summary')}")
 
+    roster = context.get("characters") or []
+    if roster:
+        ctx_lines.append("\n【角色库（节选）】")
+        for ch in roster:
+            brief = _character_brief(ch)
+            line = f"- id: {ch.get('character_id')}  名称: {ch.get('name') or '未知'}"
+            if ch.get("ability_tier"):
+                line += f"  境界: {ch.get('ability_tier')}"
+            if brief:
+                line += f"  信息: {brief}"
+            ctx_lines.append(line)
+
     wb = context.get("worldbook") or []
     if wb:
         ctx_lines.append("\n【世界书（节选）】")
@@ -300,6 +424,12 @@ def generate_story_text(
     
     context: Dict[str, Any] = {
         "main_character": runtime_context.get("main_character"),
+        "characters": _character_roster_snippets(
+            db,
+            limit=6,
+            context_text=user_input,
+            exclude_character_id=(runtime_context.get("main_character") or {}).get("character_id") if runtime_context.get("main_character") else None,
+        ),
         "worldbook": _worldbook_snippets(db, limit=6, context_text=rag_context),
         "dungeon": runtime_context.get("dungeon"),
     }
@@ -328,6 +458,18 @@ def generate_story_text(
         for it in wb:
             cat = f"[{it.get('category')}] " if it.get("category") else ""
             ctx_lines.append(f"- {cat}{it.get('title')}: {it.get('content')}")
+
+    roster = context.get("characters") or []
+    if roster:
+        ctx_lines.append("\n【角色库（节选）】")
+        for ch in roster:
+            brief = _character_brief(ch)
+            line = f"- id: {ch.get('character_id')}  名称: {ch.get('name') or '未知'}"
+            if ch.get("ability_tier"):
+                line += f"  境界: {ch.get('ability_tier')}"
+            if brief:
+                line += f"  信息: {brief}"
+            ctx_lines.append(line)
     
     dungeon_ctx = context.get("dungeon")
     if dungeon_ctx:

@@ -148,13 +148,42 @@ class StorySegment(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Script(Base):
+    """
+    [新增] 脚本/剧本主表
+    存储脚本的元数据和概览信息
+    """
+    __tablename__ = "scripts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    script_id = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    
+    # 脚本中包含的所有副本ID列表 (JSON存储，格式: ["dungeon_id_1", "dungeon_id_2"])
+    dungeon_ids_json = Column(Text, nullable=True, default="[]")
+    
+    # 元数据
+    meta_json = Column(Text, nullable=True)  # 额外的tag、category等
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class SessionState(Base):
     __tablename__ = "session_state"
 
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String, unique=True, index=True, nullable=False)
+    
+    # 当前应用的脚本
+    current_script_id = Column(String, nullable=True)
+    
+    # 当前选中的副本和节点
     current_dungeon_id = Column(String, nullable=True)
     current_node_id = Column(String, nullable=True)
+    
+    # 其他字段
     player_position_json = Column(Text, nullable=True)
     global_state_json = Column(Text, nullable=True)
     total_word_count = Column(Integer, default=0)

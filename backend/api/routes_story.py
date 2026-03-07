@@ -68,6 +68,7 @@ class SessionSummaryResponse(BaseModel):
 class SessionContextUpdateRequest(BaseModel):
     session_id: str
     main_character_id: Optional[str] = None
+    current_script_id: Optional[str] = None
     current_dungeon_id: Optional[str] = None
     current_node_id: Optional[str] = None
 
@@ -76,6 +77,7 @@ class SessionContextUpdateResponse(BaseModel):
     success: bool = True
     session_id: str
     main_character_id: Optional[str] = None
+    current_script_id: Optional[str] = None
     current_dungeon_id: Optional[str] = None
     current_node_id: Optional[str] = None
 
@@ -102,15 +104,46 @@ def _parse_character_basic(ch: models.Character) -> Dict:
         except Exception:
             pass
 
-    return basic if isinstance(basic, dict) else {}
+    if not isinstance(basic, dict):
+        basic = {}
+
+    # 兼容扁平结构（f_name 等）
+    if ch.data_json:
+        try:
+            data = json.loads(ch.data_json)
+            if isinstance(data, dict):
+                flat_basic = {
+                    k: v
+                    for k, v in data.items()
+                    if not k.startswith("tab_") and k not in {"character_id", "type", "template_id"}
+                }
+                if flat_basic:
+                    merged = dict(flat_basic)
+                    merged.update(basic)
+                    basic = merged
+        except Exception:
+            pass
+
+    return basic
+
+
+def _first_non_empty(data: Dict, keys: List[str]) -> Optional[str]:
+    for key in keys:
+        value = data.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return None
 
 
 def _to_character_summary(ch: models.Character) -> SessionSummaryCharacter:
     basic = _parse_character_basic(ch)
     return SessionSummaryCharacter(
         character_id=ch.character_id,
-        name=basic.get("name") or basic.get("姓名") or basic.get("角色名"),
-        ability_tier=basic.get("ability_tier") or basic.get("能力评级") or basic.get("境界"),
+        name=_first_non_empty(basic, ["name", "姓名", "角色名", "f_name", "f_nickname", "昵称"]),
+        ability_tier=_first_non_empty(basic, ["ability_tier", "能力评级", "境界", "f_ability_tier", "f_level", "f_realm", "f_stage"]),
     )
 
 
@@ -315,6 +348,20 @@ def update_session_context(
         else:
             global_state.pop("main_character_id", None)
 
+    # 脚本绑定
+    if "current_script_id" in fields_set:
+        if req.current_script_id:
+            script = (
+                db.query(models.Script)
+                .filter(models.Script.script_id == req.current_script_id)
+                .first()
+            )
+            if not script:
+                raise HTTPException(status_code=404, detail="脚本不存在")
+            st.current_script_id = req.current_script_id
+        else:
+            st.current_script_id = None
+
     # 剧本绑定
     if "current_dungeon_id" in fields_set:
         if req.current_dungeon_id:
@@ -361,6 +408,7 @@ def update_session_context(
     return SessionContextUpdateResponse(
         session_id=req.session_id,
         main_character_id=global_state.get("main_character_id"),
+        current_script_id=st.current_script_id,
         current_dungeon_id=st.current_dungeon_id,
         current_node_id=st.current_node_id,
     )
