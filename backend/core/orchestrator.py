@@ -119,6 +119,7 @@ def _character_profile_from_row(row: models.Character) -> Dict[str, Any]:
 def _pick_main_character(
     db: Session,
     preferred_character_id: Optional[str] = None,
+    user_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """优先使用会话指定主角，其次 type=pc/player，最后取第一条。"""
     row: Optional[models.Character] = None
@@ -452,7 +453,7 @@ def generate_story_text(
         "dungeon": runtime_context.get("dungeon"),
     }
 
-    history = _recent_story(db, session_id, user_id, limit=4)
+    history = _recent_story(db, session_id, limit=4)
     messages = _build_messages(system_prompt, context, history, user_input)
     
     # 构建发送给AI的完整文本用于开发者日志
