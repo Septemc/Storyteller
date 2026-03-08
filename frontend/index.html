@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -11,13 +11,13 @@
   <header class="top-nav">
     <div class="nav-left">
       <span class="app-title">Storyteller</span>
-      <span class="app-subtitle">说书人·叙事控制台</span>
+      <span class="app-subtitle">说书人·剧情控制台</span>
     </div>
     <div class="nav-center">
       <div class="current-save-info" id="current-save-info">
         <div class="save-name" id="current-save-name">未加载存档</div>
         <div class="save-id" id="current-save-id">--</div>
-        <button class="save-manager-toggle-btn" id="save-manager-toggle-btn" title="存档管理">
+        <button class="save-manager-toggle-btn" id="save-manager-toggle-btn" title="打开存档管理">
           <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
             <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -33,6 +33,17 @@
       <a href="worldbook.html" class="nav-link">世界书</a>
       <a href="dungeon.html" class="nav-link">剧本</a>
       <a href="settings.html" class="nav-link">设置</a>
+      <div class="nav-user-info">
+        <span class="nav-username" id="nav-username">游客</span>
+        <button class="nav-logout-btn" id="nav-logout-btn" title="退出登录" style="display: none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+        <a href="login.html" class="nav-login-link" id="nav-login-link">登录</a>
+      </div>
     </nav>
   </header>
 
@@ -42,7 +53,7 @@
       <section class="sidebar-section player-panel">
         <div class="sidebar-header">
           <div class="sidebar-title">主角与玩家视角</div>
-          <button class="panel-collapse-btn" data-panel="player" aria-label="收起/展开">
+          <button class="panel-collapse-btn" data-panel="player" aria-label="登录/展开">
             <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </button>
         </div>
@@ -50,7 +61,7 @@
           <!-- 1. 主观数值与状态 -->
           <div class="player-subsection">
             <div class="subsection-header" data-toggle="player-stats">
-              <span class="subsection-title">主观数值与状态</span>
+              <span class="subsection-title">主角数值与状态</span>
               <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </div>
             <div class="subsection-content" id="player-stats">
@@ -119,7 +130,7 @@
             <div class="subsection-content" id="player-abilities">
               <div class="ability-summary" id="var-ability">未知</div>
               <div class="ability-stars">
-                <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">☆</span>
+                <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
               </div>
             </div>
           </div>
@@ -316,7 +327,7 @@
       <section class="sidebar-section characters-panel">
         <div class="sidebar-header">
           <div class="sidebar-title">周围人物与势力</div>
-          <button class="panel-collapse-btn" data-panel="characters" aria-label="收起/展开">
+          <button class="panel-collapse-btn" data-panel="characters" aria-label="登录/展开">
             <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </button>
         </div>
@@ -405,7 +416,7 @@
       <section class="sidebar-section world-panel">
         <div class="sidebar-header">
           <div class="sidebar-title">地图与世界事件</div>
-          <button class="panel-collapse-btn" data-panel="world" aria-label="收起/展开">
+          <button class="panel-collapse-btn" data-panel="world" aria-label="登录/展开">
             <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </button>
         </div>
@@ -419,7 +430,7 @@
             <div class="subsection-content" id="area-map">
               <div class="map-container">
                 <div class="map-placeholder">
-                  <span class="map-icon">🗺️</span>
+                  <span class="map-icon">馃椇锔?/span>
                   <span class="map-text">点击展开地图</span>
                 </div>
               </div>
@@ -439,10 +450,10 @@
             </div>
           </div>
 
-          <!-- 3. 事件标记 -->
+          <!-- 3. 事件标记 -->
           <div class="world-subsection">
             <div class="subsection-header" data-toggle="event-markers">
-              <span class="subsection-title">事件标记</span>
+              <span class="subsection-title">事件标记</span>
               <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </div>
             <div class="subsection-content" id="event-markers">
@@ -454,7 +465,7 @@
 
           <!-- 4. 快速旅行 -->
           <div class="world-subsection">
-            <div class="subsection-header" data-toggle="fast-travel">
+            <div class="subsection-header" data-toggle="quick-travel">
               <span class="subsection-title">快速旅行</span>
               <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </div>
@@ -502,7 +513,7 @@
     </aside>
   </main>
 
-  <!-- 底部输入栏：可收起 + 下次行动建议 + 半屏书写 -->
+  <!-- 底部输入栏：可登录 + 下次行动建议 + 半屏书写 -->
   <footer class="input-bar" id="input-bar">
     <div class="input-container">
       <div class="input-header-row">
@@ -511,13 +522,16 @@
             type="button"
             class="icon-button input-collapse-btn"
             id="input-collapse-toggle"
-            aria-label="收起/展开"
+            aria-label="登录/展开"
           >
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </button>
           <div class="input-header-desc">
             Storyteller Console &nbsp;·&nbsp; <span id="session-label-inline">Ready</span>
           </div>
+        </div>
+        <div class="input-header-actions">
+          <button id="generate-btn-collapsed" class="btn-primary btn-small" style="display: none;">暂停</button>
         </div>
       </div>
 
@@ -530,15 +544,15 @@
             </button>
           </div>
           <div class="action-suggestions-body" id="action-suggestions-body">
-            <button type="button" class="suggestion-chip" data-suggest="我环顾四周，仔细观察当前场景里人物的表情与环境的细节。">
-              1. 我环顾四周，仔细观察当前场景里人物的表情与环境的细节。
+            <!-- <button type="button" class="suggestion-chip" data-suggest="暂停">
+              1. 暂停
             </button>
             <button type="button" class="suggestion-chip" data-suggest="我走上前去，尝试与看起来最关键的角色搭话，询问关于这里发生的事情。">
               2. 我走上前去，尝试与看起来最关键的角色搭话，询问关于这里发生的事情。
             </button>
-            <button type="button" class="suggestion-chip" data-suggest="我检查自己的随身物品，确认武器和补给品的状态，以防突发状况。">
-              3. 我检查自己的随身物品，确认武器和补给品的状态，以防突发状况。
-            </button>
+            <button type="button" class="suggestion-chip" data-suggest="我检查自己随身物品，确认武器和补给品的状态，以防突发状况。">
+              3. 我检查自己随身物品，确认武器和补给品的状态，以防突发状况。
+            </button> -->
           </div>
         </div>
 
@@ -548,7 +562,7 @@
               id="user-input"
               class="input-textarea"
               rows="1"
-              placeholder="输入你的行动或指令..."
+              placeholder="请输入行动"
             ></textarea>
 
             <button
@@ -579,7 +593,7 @@
     <div class="modal-window" style="max-width: 500px;">
       <div class="modal-header">
         <h3 class="modal-title">字体设置</h3>
-        <button id="font-modal-close" class="modal-close-btn" aria-label="关闭">&times;</button>
+        <button id="font-modal-close" class="modal-close-btn" aria-label="发送">&times;</button>
       </div>
       <div class="modal-body">
         <div class="typography-grid">
@@ -762,7 +776,7 @@
           <div class="save-list" id="save-list">
             <!-- 存档列表项将动态生成 -->
             <div class="save-list-empty">
-              <div class="empty-icon">📂</div>
+              <div class="empty-icon">📋</div>
               <div class="empty-text">暂无存档</div>
             </div>
           </div>
@@ -775,14 +789,14 @@
           </div>
           <div class="save-detail-content" id="save-detail-content">
             <div class="save-detail-empty">
-              <div class="empty-icon">📄</div>
+              <div class="empty-icon">📝</div>
               <div class="empty-text">选择一个存档查看详情</div>
             </div>
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button id="save-manager-cancel" class="btn-secondary">关闭</button>
+        <button id="save-manager-cancel" class="btn-secondary">取消</button>
         <button id="load-save-btn" class="btn-primary" disabled>加载存档</button>
       </div>
     </div>
@@ -797,7 +811,7 @@
       </div>
       <div class="modal-body">
         <div class="form-field-group">
-          <label class="form-field-label">存档名称</label>
+          <label class="form-field-label">加载存档</label>
           <input type="text" id="rename-input" class="form-field-input" placeholder="输入新的存档名称">
         </div>
       </div>
@@ -810,6 +824,8 @@
 
   <script src="assets/js/save-manager.js"></script>
   <script src="assets/js/dev-tools.js"></script>
+  <script src="assets/js/auth.js"></script>
   <script src="assets/js/main.js"></script>
 </body>
 </html>
+

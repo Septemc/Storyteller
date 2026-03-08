@@ -47,31 +47,44 @@ def _safe_json_loads(value: Optional[str], default: Any) -> Any:
         return default
 
 
-def _get_or_create_session_state(db: Session, session_id: str) -> models.SessionState:
-    st = db.query(models.SessionState).filter(models.SessionState.session_id == session_id).first()
+def _get_or_create_session_state(db: Session, session_id: str, user_id: Optional[int] = None) -> models.SessionState:
+    query = db.query(models.SessionState).filter(models.SessionState.session_id == session_id)
+    if user_id:
+        query = query.filter(models.SessionState.user_id == user_id)
+    st = query.first()
     if not st:
-        st = models.SessionState(session_id=session_id, current_dungeon_id=None, current_node_id=None, total_word_count=0)
+        st = models.SessionState(
+            session_id=session_id, 
+            current_dungeon_id=None, 
+            current_node_id=None, 
+            total_word_count=0,
+            user_id=user_id,
+        )
         db.add(st)
         db.commit()
         db.refresh(st)
     return st
 
 
-def _pick_main_character(db: Session) -> Optional[Dict[str, Any]]:
+def _pick_main_character(db: Session, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
     """优先 type=pc/player，否则取第一条。"""
-    row = (
-        db.query(models.Character)
-        .filter(models.Character.type.in_(["pc", "player"]))
-        .first()
+    query = db.query(models.Character).filter(
+        models.Character.type.in_(["pc", "player"])
     )
+    if user_id:
+        query = query.filter(models.Character.user_id == user_id)
+    row = query.first()
+    
     if not row:
-        row = db.query(models.Character).first()
+        query = db.query(models.Character)
+        if user_id:
+            query = query.filter(models.Character.user_id == user_id)
+        row = query.first()
     if not row:
         return None
 
     basic = _safe_json_loads(row.basic_json, {})
     data = _safe_json_loads(row.data_json, {})
-    # 兼容：tab_basic 或 basic
     basic = data.get("tab_basic") or data.get("basic") or basic
     return {
         "character_id": row.character_id,
@@ -82,13 +95,15 @@ def _pick_main_character(db: Session) -> Optional[Dict[str, Any]]:
     }
 
 
-def _worldbook_snippets(db: Session, limit: int = 8) -> List[Dict[str, Any]]:
-    rows = (
-        db.query(models.WorldbookEntry)
-        .order_by(models.WorldbookEntry.importance.desc(), models.WorldbookEntry.updated_at.desc())
-        .limit(limit)
-        .all()
-    )
+def _worldbook_snippets(db: Session, user_id: Optional[int] = None, limit: int = 8) -> List[Dict[str, Any]]:
+    query = db.query(models.WorldbookEntry)
+    if user_id:
+        query = query.filter(models.WorldbookEntry.user_id == user_id)
+    rows = query.order_by(
+        models.WorldbookEntry.importance.desc(), 
+        models.WorldbookEntry.updated_at.desc()
+    ).limit(limit).all()
+    
     out: List[Dict[str, Any]] = []
     for r in rows:
         out.append({
@@ -100,40 +115,43 @@ def _worldbook_snippets(db: Session, limit: int = 8) -> List[Dict[str, Any]]:
     return out
 
 
-def _dungeon_context(db: Session, st: models.SessionState) -> Tuple[Optional[models.Dungeon], Optional[models.DungeonNode]]:
+def _dungeon_context(db: Session, st: models.SessionState, user_id: Optional[int] = None) -> Tuple[Optional[models.Dungeon], Optional[models.DungeonNode]]:
     dungeon = None
     node = None
     if st.current_dungeon_id:
-        dungeon = db.query(models.Dungeon).filter(models.Dungeon.dungeon_id == st.current_dungeon_id).first()
+        query = db.query(models.Dungeon).filter(models.Dungeon.dungeon_id == st.current_dungeon_id)
+        if user_id:
+            query = query.filter(models.Dungeon.user_id == user_id)
+        dungeon = query.first()
 
     if not dungeon:
-        dungeon = db.query(models.Dungeon).first()
+        query = db.query(models.Dungeon)
+        if user_id:
+            query = query.filter(models.Dungeon.user_id == user_id)
+        dungeon = query.first()
 
     if dungeon:
         if st.current_node_id:
-            node = (
-                db.query(models.DungeonNode)
-                .filter(
-                    models.DungeonNode.dungeon_id == dungeon.dungeon_id,
-                    models.DungeonNode.node_id == st.current_node_id,
-                )
-                .first()
+            node_query = db.query(models.DungeonNode).filter(
+                models.DungeonNode.dungeon_id == dungeon.dungeon_id,
+                models.DungeonNode.node_id == st.current_node_id,
             )
+            if user_id:
+                node_query = node_query.filter(models.DungeonNode.user_id == user_id)
+            node = node_query.first()
         if not node and dungeon.nodes:
             node = dungeon.nodes[0]
 
     return dungeon, node
 
 
-def _recent_story(db: Session, session_id: str, limit: int = 6) -> List[str]:
-    rows = (
-        db.query(models.StorySegment)
-        .filter(models.StorySegment.session_id == session_id)
-        .order_by(models.StorySegment.order_index.desc())
-        .limit(limit)
-        .all()
+def _recent_story(db: Session, session_id: str, user_id: Optional[int] = None, limit: int = 6) -> List[str]:
+    query = db.query(models.StorySegment).filter(
+        models.StorySegment.session_id == session_id
     )
-    # 反转到正序
+    if user_id:
+        query = query.filter(models.StorySegment.user_id == user_id)
+    rows = query.order_by(models.StorySegment.order_index.desc()).limit(limit).all()
     return [r.text for r in reversed(rows)]
 
 
@@ -141,7 +159,7 @@ def _build_messages(system_prompt: str, context: Dict[str, Any], history: List[s
     # 将结构化 context 压缩成一段可读文本
     ctx_lines: List[str] = []
 
-    mc = context.get("main_character")
+    mc = context.get("main_character") if context else None
     if mc:
         ctx_lines.append("【主角】")
         ctx_lines.append(f"- id: {mc.get('character_id')}  名称: {mc.get('name') or '未知'}")
@@ -150,14 +168,14 @@ def _build_messages(system_prompt: str, context: Dict[str, Any], history: List[s
         if mc.get("economy_summary"):
             ctx_lines.append(f"- 资源: {mc.get('economy_summary')}")
 
-    wb = context.get("worldbook") or []
+    wb = context.get("worldbook") or [] if context else []
     if wb:
         ctx_lines.append("\n【世界书（节选）】")
         for it in wb:
             cat = f"[{it.get('category')}] " if it.get("category") else ""
             ctx_lines.append(f"- {cat}{it.get('title')}: {it.get('content')}")
 
-    dungeon = context.get("dungeon")
+    dungeon = context.get("dungeon") if context else None
     if dungeon:
         ctx_lines.append("\n【副本】")
         ctx_lines.append(f"- 副本: {dungeon.get('name') or '未命名'}")
@@ -187,6 +205,7 @@ def generate_story_text(
     session_id: str,
     user_input: str,
     force_stream: Optional[bool] = None,
+    user_id: Optional[int] = None,
 ) -> Tuple[str, GenerateMeta, Optional[Generator[str, None, None]], Dict[str, Any]]:
     """返回 (full_text, meta, stream_gen, dev_log_info)
 
@@ -200,21 +219,25 @@ def generate_story_text(
         "fullPrompt": ""
     }
 
-    st = _get_or_create_session_state(db, session_id)
+    st = _get_or_create_session_state(db, session_id, user_id)
 
-    preset = storage.get_active_preset(db)
+    preset = storage.get_active_preset(db, user_id)
     system_prompt = prompts.compile_system_prompt(preset)
 
-    llm_cfg = storage.get_active_llm_config(db)
-    llm_active = storage.get_llm_active(db)
+    llm_cfg = storage.get_active_llm_config(db, user_id)
+    llm_active = storage.get_llm_active(db, user_id)
 
+    # 确保 context 不是 None
     context: Dict[str, Any] = {
-        "main_character": _pick_main_character(db),
-        "worldbook": _worldbook_snippets(db, limit=6),
+        "main_character": _pick_main_character(db, user_id),
+        "worldbook": _worldbook_snippets(db, user_id, limit=6),
         "dungeon": None,
     }
+    if context is None:
+        context = {}
 
-    dungeon, node = _dungeon_context(db, st)
+
+    dungeon, node = _dungeon_context(db, st, user_id)
     if dungeon:
         context["dungeon"] = {
             "id": dungeon.dungeon_id,
@@ -223,7 +246,7 @@ def generate_story_text(
             "progress_hint": "最小实现：未计算" if node else "未知",
         }
 
-    history = _recent_story(db, session_id, limit=4)
+    history = _recent_story(db, session_id, user_id, limit=4)
     messages = _build_messages(system_prompt, context, history, user_input)
     
     # 构建发送给AI的完整文本用于开发者日志
@@ -233,22 +256,22 @@ def generate_story_text(
     
     # 添加上下文
     ctx_lines = []
-    mc = context.get("main_character")
+    mc = context.get("main_character") if context else None
     if mc:
         ctx_lines.append(f"【主角】\n- id: {mc.get('character_id')}  名称: {mc.get('name') or '未知'}")
         if mc.get("ability_tier"):
             ctx_lines.append(f"- 能力: {mc.get('ability_tier')}")
         if mc.get("economy_summary"):
             ctx_lines.append(f"- 资源: {mc.get('economy_summary')}")
-    
-    wb = context.get("worldbook") or []
+
+    wb = context.get("worldbook") or [] if context else []
     if wb:
         ctx_lines.append("\n【世界书（节选）】")
         for it in wb:
             cat = f"[{it.get('category')}] " if it.get("category") else ""
             ctx_lines.append(f"- {cat}{it.get('title')}: {it.get('content')}")
-    
-    dungeon_ctx = context.get("dungeon")
+
+    dungeon_ctx = context.get("dungeon") if context else None
     if dungeon_ctx:
         ctx_lines.append("\n【剧本】")
         ctx_lines.append(f"- 剧本: {dungeon_ctx.get('name') or '未命名'}")
@@ -279,10 +302,10 @@ def generate_story_text(
             tags=["no_model"],
             tone="中性",
             pacing="-",
-            dungeon_progress_hint=context.get("dungeon", {}).get("progress_hint"),
-            dungeon_name=context.get("dungeon", {}).get("name"),
-            dungeon_node_name=context.get("dungeon", {}).get("node_name"),
-            main_character=context.get("main_character"),
+            dungeon_progress_hint=context.get("dungeon", {}).get("progress_hint") if context and context.get("dungeon") else None,
+            dungeon_name=context.get("dungeon", {}).get("name") if context and context.get("dungeon") else None,
+            dungeon_node_name=context.get("dungeon", {}).get("node_name") if context and context.get("dungeon") else None,
+            main_character=context.get("main_character") if context else None,
             word_count=len(story_text),
             duration_ms=duration_ms,
         )
@@ -325,16 +348,19 @@ def generate_story_text(
         return story_text, meta, None, dev_log_info
 
     duration_ms = int((perf_counter() - t0) * 1000)
+    
+    print(f"[DEBUG] context value: {context}")
+    print(f"[DEBUG] context type: {type(context)}")
 
     meta = GenerateMeta(
         scene_title="新剧情",
         tags=["llm", preset.get("name") if preset else "preset"],
         tone="由预设决定",
         pacing="由预设决定",
-        dungeon_progress_hint=context.get("dungeon", {}).get("progress_hint"),
-        dungeon_name=context.get("dungeon", {}).get("name"),
-        dungeon_node_name=context.get("dungeon", {}).get("node_name"),
-        main_character=context.get("main_character"),
+        dungeon_progress_hint=context.get("dungeon", {}).get("progress_hint") if context and context.get("dungeon") else None,
+        dungeon_name=context.get("dungeon", {}).get("name") if context and context.get("dungeon") else None,
+        dungeon_node_name=context.get("dungeon", {}).get("node_name") if context and context.get("dungeon") else None,
+        main_character=context.get("main_character") if context else None,
         duration_ms=duration_ms,
     )
 

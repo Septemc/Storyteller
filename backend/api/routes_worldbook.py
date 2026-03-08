@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..db.base import get_db
 from ..db import models
+from ..core.auth import get_current_user, User as AuthUser
 
 router = APIRouter()
 
@@ -39,15 +40,17 @@ class WorldbookDetailResponse(BaseModel):
 def import_worldbook(
     payload: Any = Body(..., description="世界书 JSON，可以是列表或带 entries 字段的对象"),
     db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     最小导入实现：
     - 支持直接传入列表，每个元素是一条世界书记录
-    - 或传入 {\"entries\": [...]} 这种结构
+    - 或传入 {"entries": [...]} 这种结构
     - entry_id 如果未提供，会自动生成
     """
     import uuid
     import json
+    user_id = current_user.user_id if current_user else None
 
     if isinstance(payload, dict) and "entries" in payload:
         entries = payload["entries"]
@@ -77,11 +80,13 @@ def import_worldbook(
         meta = raw.get("meta") or {}
         meta_json = json.dumps(meta, ensure_ascii=False)
 
-        existing = (
-            db.query(models.WorldbookEntry)
-            .filter(models.WorldbookEntry.entry_id == entry_id)
-            .first()
+        existing_query = db.query(models.WorldbookEntry).filter(
+            models.WorldbookEntry.entry_id == entry_id
         )
+        if user_id:
+            existing_query = existing_query.filter(models.WorldbookEntry.user_id == user_id)
+        existing = existing_query.first()
+        
         if existing:
             existing.category = category
             existing.tags = tags_str
@@ -101,6 +106,7 @@ def import_worldbook(
                 importance=float(raw.get("importance", 0.5)),
                 canonical=bool(raw.get("canonical", False)),
                 meta_json=meta_json,
+                user_id=user_id,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
             )
@@ -118,8 +124,13 @@ def list_worldbook(
     keyword: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> WorldbookListResponse:
-    query = db.query(models.WorldbookEntry)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="需要登录才能访问世界书数据")
+    
+    user_id = current_user.user_id
+    query = db.query(models.WorldbookEntry).filter(models.WorldbookEntry.user_id == user_id)
 
     if keyword:
         like = f"%{keyword}%"
@@ -156,14 +167,18 @@ def list_worldbook(
 
 
 @router.get("/worldbook/{entry_id}", response_model=WorldbookDetailResponse)
-def get_worldbook_entry(entry_id: str, db: Session = Depends(get_db)) -> WorldbookDetailResponse:
+def get_worldbook_entry(entry_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)) -> WorldbookDetailResponse:
     import json
-
-    e = (
-        db.query(models.WorldbookEntry)
-        .filter(models.WorldbookEntry.entry_id == entry_id)
-        .first()
+    if not current_user:
+        raise HTTPException(status_code=401, detail="需要登录才能访问世界书数据")
+    
+    user_id = current_user.user_id
+    query = db.query(models.WorldbookEntry).filter(
+        models.WorldbookEntry.entry_id == entry_id,
+        models.WorldbookEntry.user_id == user_id
     )
+    e = query.first()
+    
     if not e:
         raise HTTPException(status_code=404, detail="世界书条目不存在。")
 

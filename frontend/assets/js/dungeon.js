@@ -48,9 +48,29 @@
 
   // ====== 初始化 ======
   function init() {
+    initAuthUI();
     loadData();
     bindEvents();
     refreshUI();
+  }
+  
+  function initAuthUI() {
+    const usernameEl = document.getElementById('nav-username');
+    const logoutBtn = document.getElementById('nav-logout-btn');
+    const loginLink = document.getElementById('nav-login-link');
+    
+    if (typeof Auth !== 'undefined') {
+      Auth.updateUserUI(usernameEl, logoutBtn);
+      
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => Auth.logout());
+      }
+      
+      const user = Auth.getUser();
+      if (user && loginLink) {
+        loginLink.style.display = 'none';
+      }
+    }
   }
 
   // ====== 数据持久化 ======

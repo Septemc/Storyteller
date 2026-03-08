@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..db.base import get_db
 from ..db import models
+from ..core.auth import get_current_user, User as AuthUser
 
 router = APIRouter()
 
@@ -25,16 +26,19 @@ class GlobalSettingsPayload(BaseModel):
 
 
 @router.get("/settings/global", response_model=GlobalSettingsPayload)
-def get_global_settings(db: Session = Depends(get_db)) -> GlobalSettingsPayload:
-    row = (
-        db.query(models.GlobalSetting)
-        .filter(models.GlobalSetting.key == "global")
-        .first()
+def get_global_settings(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)) -> GlobalSettingsPayload:
+    user_id = current_user.user_id if current_user else None
+    
+    query = db.query(models.GlobalSetting).filter(
+        models.GlobalSetting.key == "global"
     )
+    if user_id:
+        query = query.filter(models.GlobalSetting.user_id == user_id)
+    row = query.first()
+    
     import json
 
     if not row:
-        # 初次启动时给一个默认配置
         default = GlobalSettingsPayload()
         return default
 
@@ -50,18 +54,23 @@ def get_global_settings(db: Session = Depends(get_db)) -> GlobalSettingsPayload:
 def put_global_settings(
     payload: GlobalSettingsPayload,
     db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> GlobalSettingsPayload:
     import json
+    user_id = current_user.user_id if current_user else None
 
-    row = (
-        db.query(models.GlobalSetting)
-        .filter(models.GlobalSetting.key == "global")
-        .first()
+    query = db.query(models.GlobalSetting).filter(
+        models.GlobalSetting.key == "global"
     )
+    if user_id:
+        query = query.filter(models.GlobalSetting.user_id == user_id)
+    row = query.first()
+    
     if not row:
         row = models.GlobalSetting(
             key="global",
             value_json=json.dumps(payload.dict(), ensure_ascii=False),
+            user_id=user_id,
         )
         db.add(row)
     else:

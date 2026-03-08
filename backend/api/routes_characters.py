@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..db.base import get_db
 from ..db import models
+from ..core.auth import get_current_user, User as AuthUser
 
 router = APIRouter()
 
@@ -76,31 +77,36 @@ class CharacterListResponse(BaseModel):
 @router.post("/characters/import")
 def import_characters(
         payload: Any = Body(...),
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
+        current_user: Optional[AuthUser] = Depends(get_current_user)
 ):
     """
     [重构] 透明模式导入：不再拆分字段，原样保存
     """
+    if not current_user:
+        raise HTTPException(status_code=401, detail="需要登录才能导入角色数据")
+    
+    user_id = current_user.user_id
     items = payload if isinstance(payload, list) else [payload]
     imported_count = 0
 
     for item in items:
-        # 获取 ID，如果没有则生成
         char_id = item.get("character_id") or f"NPC_{int(time.time() * 1000)}"
-
-        # 提取用于列表快速预览的基础信息 (取 tab_basic 或 basic)
         basic_info = item.get("tab_basic", item.get("basic", {}))
 
         character_data = {
             "character_id": char_id,
             "type": item.get("type", "npc"),
             "template_id": item.get("template_id", "system_default"),
-            "data_json": json.dumps(item, ensure_ascii=False),  # 保存全量原始数据
-            "basic_json": json.dumps(basic_info, ensure_ascii=False)  # 仅用于列表搜索和快速显示
+            "data_json": json.dumps(item, ensure_ascii=False),
+            "basic_json": json.dumps(basic_info, ensure_ascii=False),
+            "user_id": user_id,
         }
 
-        # 执行保存
-        existing = db.query(models.Character).filter_by(character_id=char_id).first()
+        existing_query = db.query(models.Character).filter_by(character_id=char_id)
+        existing_query = existing_query.filter(models.Character.user_id == user_id)
+        existing = existing_query.first()
+        
         if existing:
             for k, v in character_data.items(): setattr(existing, k, v)
         else:
@@ -111,14 +117,18 @@ def import_characters(
     return {"message": f"成功按照原始结构导入 {imported_count} 个角色。"}
 
 @router.get("/characters/export/all")
-def export_all_characters(db: Session = Depends(get_db)):
+def export_all_characters(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """
     [新增] 导出所有角色的全量数据
     """
-    chars = db.query(models.Character).all()
+    if not current_user:
+        raise HTTPException(status_code=401, detail="需要登录才能导出角色数据")
+    
+    user_id = current_user.user_id
+    query = db.query(models.Character).filter(models.Character.user_id == user_id)
+    chars = query.all()
     results = []
     for ch in chars:
-        # 复用 get_character 的解析逻辑
         full_data = json.loads(ch.data_json) if ch.data_json else {}
         full_data["character_id"] = ch.character_id
         full_data["type"] = ch.type
@@ -128,32 +138,38 @@ def export_all_characters(db: Session = Depends(get_db)):
 
 
 @router.get("/characters/{character_id}")
-def get_character(character_id: str, db: Session = Depends(get_db)):
+def get_character(character_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """
     [重构] 获取角色：返回扁平化的原始数据对象
     """
-    ch = db.query(models.Character).filter_by(character_id=character_id).first()
+    if not current_user:
+        raise HTTPException(status_code=401, detail="需要登录才能访问角色数据")
+    
+    user_id = current_user.user_id
+    query = db.query(models.Character).filter_by(character_id=character_id).filter(models.Character.user_id == user_id)
+    ch = query.first()
+    
     if not ch:
         raise HTTPException(status_code=404, detail="角色不存在")
 
-    # 1. 解析原始全量数据
     try:
         full_data = json.loads(ch.data_json) if ch.data_json else {}
     except:
         full_data = {}
 
-    # 2. 确保元数据在根级别，供前端 UI 使用
     full_data["character_id"] = ch.character_id
     full_data["type"] = ch.type
     full_data["template_id"] = ch.template_id or "system_default"
 
-    # 直接返回 Dict，跳过 CharacterBase 的结构限制，实现路径完全对齐
     return full_data
 
 
 @router.get("/characters", response_model=CharacterListResponse)
-def list_characters(q: Optional[str] = Query(None), db: Session = Depends(get_db)):
+def list_characters(q: Optional[str] = Query(None), db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+    user_id = current_user.user_id if current_user else None
     query = db.query(models.Character)
+    if user_id:
+        query = query.filter(models.Character.user_id == user_id)
     if q:
         query = query.filter(models.Character.character_id.like(f"%{q}%") | models.Character.basic_json.like(f"%{q}%"))
     rows = query.all()
@@ -168,13 +184,16 @@ def list_characters(q: Optional[str] = Query(None), db: Session = Depends(get_db
 
 
 @router.delete("/characters/clear_all")
-def clear_all_characters(db: Session = Depends(get_db)):
+def clear_all_characters(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """
     [新增] 清空角色库中的所有数据
     """
+    user_id = current_user.user_id if current_user else None
     try:
-        # 使用 SQLAlchemy 的 delete 方法快速清空表
-        num_deleted = db.query(models.Character).delete(synchronize_session=False)
+        query = db.query(models.Character)
+        if user_id:
+            query = query.filter(models.Character.user_id == user_id)
+        num_deleted = query.delete(synchronize_session=False)
         db.commit()
         return {"message": f"成功清空角色库，共删除 {num_deleted} 个角色。", "count": num_deleted}
     except Exception as e:
@@ -183,8 +202,12 @@ def clear_all_characters(db: Session = Depends(get_db)):
 
 
 @router.put("/characters/{character_id}")
-def update_character(character_id: str, payload: CharacterBase, db: Session = Depends(get_db)):
-    ch = db.query(models.Character).filter_by(character_id=character_id).first()
+def update_character(character_id: str, payload: CharacterBase, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+    user_id = current_user.user_id if current_user else None
+    query = db.query(models.Character).filter_by(character_id=character_id)
+    if user_id:
+        query = query.filter(models.Character.user_id == user_id)
+    ch = query.first()
     if not ch: raise HTTPException(404)
 
     ch.type = payload.type
@@ -205,8 +228,12 @@ def update_character(character_id: str, payload: CharacterBase, db: Session = De
 
 
 @router.delete("/characters/{character_id}")
-def delete_character(character_id: str, db: Session = Depends(get_db)):
-    ch = db.query(models.Character).filter_by(character_id=character_id).first()
+def delete_character(character_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+    user_id = current_user.user_id if current_user else None
+    query = db.query(models.Character).filter_by(character_id=character_id)
+    if user_id:
+        query = query.filter(models.Character.user_id == user_id)
+    ch = query.first()
     if not ch: raise HTTPException(404)
     db.delete(ch)
     db.commit()

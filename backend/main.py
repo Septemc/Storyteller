@@ -16,6 +16,7 @@ from .api import (
     routes_presets,
     routes_llm,
     routes_regex,
+    routes_auth,
 )
 
 app = FastAPI(title="Storyteller-说书人", version="0.2.0")
@@ -46,6 +47,7 @@ app.include_router(routes_settings.router, prefix="/api", tags=["settings"])
 app.include_router(routes_presets.router, prefix="/api", tags=["presets"])
 app.include_router(routes_llm.router, prefix="/api", tags=["llm"])
 app.include_router(routes_regex.router, tags=["regex"])
+app.include_router(routes_auth.router, tags=["auth"])
 
 # 保持原有模板路由（如果为空也不会影响）
 app.include_router(routes_templates.router)

@@ -44,9 +44,29 @@
 
   // ====== 初始化入口 ======
   function init() {
+    initAuthUI();
     loadData();
     bindEvents();
     refreshUI();
+  }
+  
+  function initAuthUI() {
+    const usernameEl = document.getElementById('nav-username');
+    const logoutBtn = document.getElementById('nav-logout-btn');
+    const loginLink = document.getElementById('nav-login-link');
+    
+    if (typeof Auth !== 'undefined') {
+      Auth.updateUserUI(usernameEl, logoutBtn);
+      
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => Auth.logout());
+      }
+      
+      const user = Auth.getUser();
+      if (user && loginLink) {
+        loginLink.style.display = 'none';
+      }
+    }
   }
 
   // ====== 数据持久化 ======
@@ -80,6 +100,63 @@
       localStorage.setItem(APPLIED_KEY, state.appliedWorldId);
     } else {
       localStorage.removeItem(APPLIED_KEY);
+    }
+  }
+  
+  // 同步世界书数据到后端
+  async function syncWorldbookToBackend(worldbookData) {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('未登录，跳过后端同步');
+        return false;
+      }
+      
+      // 将世界书数据转换为后端期望的格式
+      const entries = [];
+      if (worldbookData.categories) {
+        Object.entries(worldbookData.categories).forEach(([category, items]) => {
+          if (Array.isArray(items)) {
+            items.forEach(item => {
+              entries.push({
+                entry_id: item.id || `WB_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                category: category,
+                title: item.title || '未命名条目',
+                content: item.content || '',
+                tags: item.tags || [],
+                importance: item.importance || 0.5,
+                canonical: item.canonical || false,
+                meta: item.raw || {}
+              });
+            });
+          }
+        });
+      }
+      
+      if (entries.length === 0) {
+        console.warn('世界书没有条目，跳过同步');
+        return false;
+      }
+      
+      const response = await fetch('/api/worldbook/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ entries })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('世界书同步成功:', result);
+      return true;
+    } catch (error) {
+      console.error('世界书同步失败:', error);
+      return false;
     }
   }
 
@@ -651,9 +728,9 @@
   }
 
   // 导入整本世界书
-  function handleImportWorld(file) {
+  async function handleImportWorld(file) {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const raw = JSON.parse(e.target.result);
         const worlds = normalizeImportedJson(raw, file.name);
@@ -665,6 +742,11 @@
 
         state.worldbooks.push(...worlds);
         saveData();
+
+        // 同步到后端
+        for (const world of worlds) {
+          await syncWorldbookToBackend(world);
+        }
 
         // 默认选中新导入的第一个世界
         state.currentWorldId = worlds[0].id;

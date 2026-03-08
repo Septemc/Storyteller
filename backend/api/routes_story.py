@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from ..db.base import get_db
 from ..db import models
 from ..core import orchestrator
+from ..core.auth import get_current_user, get_current_user_required, User as AuthUser
 
 router = APIRouter()
 
@@ -65,13 +66,16 @@ class SessionSummaryResponse(BaseModel):
 
 
 @router.post("/story/generate", response_model=StoryGenerateResponse)
-def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db)) -> StoryGenerateResponse:
+def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)) -> StoryGenerateResponse:
     """非流式生成（兼容原前端）。"""
+    user_id = current_user.user_id if current_user else None
+    
     story_text, meta_obj, gen, dev_log_info = orchestrator.generate_story_text(
         db=db,
         session_id=req.session_id,
         user_input=req.user_input,
         force_stream=False,
+        user_id=user_id,
     )
 
     if gen is not None:
@@ -123,16 +127,13 @@ def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db)) -> 
 
 
 @router.post("/story/generate_stream")
-def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_db)):
+def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """流式生成：SSE(text/event-stream)。
-
-    事件：
-    - event: meta  data: {json}
-    - event: delta data: {"text": "..."}
-    - event: done  data: {}
-    - event: error data: {"message": "..."}
-    - event: empty data: {"message": "..."}  # AI返回空内容
+    
+    用户过滤：仅返回当前用户的数据
     """
+
+    user_id = current_user.user_id if current_user else None
 
     def _sse(event: str, data_obj: Dict) -> str:
         import json
@@ -168,6 +169,7 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
                 session_id=req.session_id,
                 user_input=req.user_input,
                 force_stream=True,
+                user_id=user_id,
             )
 
             meta_dict = meta_obj.__dict__ if hasattr(meta_obj, "__dict__") else dict(meta_obj)
@@ -226,10 +228,15 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
 def get_session_summary(
     session_id: str = Query(..., description="会话 ID"),
     db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> SessionSummaryResponse:
     """会话摘要：供主剧情侧边栏刷新使用（最小可用）。"""
+    user_id = current_user.user_id if current_user else None
 
-    session_state = db.query(models.SessionState).filter(models.SessionState.session_id == session_id).first()
+    session_query = db.query(models.SessionState).filter(models.SessionState.session_id == session_id)
+    if user_id:
+        session_query = session_query.filter(models.SessionState.user_id == user_id)
+    session_state = session_query.first()
 
     dungeon_block: Optional[SessionSummaryDungeon] = None
     if session_state and session_state.current_dungeon_id:
@@ -254,7 +261,10 @@ def get_session_summary(
         )
 
     # 角色概览
-    characters_rows = db.query(models.Character).limit(5).all()
+    char_query = db.query(models.Character)
+    if user_id:
+        char_query = char_query.filter(models.Character.user_id == user_id)
+    characters_rows = char_query.limit(5).all()
     characters: List[SessionSummaryCharacter] = []
 
     import json
@@ -311,16 +321,16 @@ def get_recent_segments(
     session_id: str = Query(..., description="会话 ID"),
     limit: int = Query(5, description="返回的记录数量"),
     db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> RecentSegmentsResponse:
     """获取最近的故事片段记录（包含用户输入和AI回复）。"""
+    user_id = current_user.user_id if current_user else None
     
-    segments = (
-        db.query(models.StorySegment)
-        .filter(models.StorySegment.session_id == session_id)
-        .order_by(models.StorySegment.order_index.desc())
-        .limit(limit)
-        .all()
-    )
+    query = db.query(models.StorySegment).filter(models.StorySegment.session_id == session_id)
+    if user_id:
+        query = query.filter(models.StorySegment.user_id == user_id)
+    
+    segments = query.order_by(models.StorySegment.order_index.desc()).limit(limit).all()
     
     segments.reverse()
     
@@ -468,17 +478,23 @@ class SaveRenameRequest(BaseModel):
 
 
 @router.get("/story/saves/list", response_model=List[SaveInfo])
-def list_saves(db: Session = Depends(get_db)):
+def list_saves(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """获取所有存档列表"""
-    sessions = db.query(models.SessionState).order_by(
-        models.SessionState.updated_at.desc()
-    ).all()
+    user_id = current_user.user_id if current_user else None
+    
+    query = db.query(models.SessionState)
+    if user_id:
+        query = query.filter(models.SessionState.user_id == user_id)
+    sessions = query.order_by(models.SessionState.updated_at.desc()).all()
     
     saves = []
     for session in sessions:
-        segment_count = db.query(models.StorySegment).filter(
+        seg_query = db.query(models.StorySegment).filter(
             models.StorySegment.session_id == session.session_id
-        ).count()
+        )
+        if user_id:
+            seg_query = seg_query.filter(models.StorySegment.user_id == user_id)
+        segment_count = seg_query.count()
         
         display_name = session.session_id
         if session.global_state_json:
@@ -503,11 +519,16 @@ def list_saves(db: Session = Depends(get_db)):
 
 
 @router.get("/story/saves/detail", response_model=SaveDetail)
-def get_save_detail(session_id: str = Query(..., description="会话 ID"), db: Session = Depends(get_db)):
+def get_save_detail(session_id: str = Query(..., description="会话 ID"), db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """获取存档详情"""
-    session = db.query(models.SessionState).filter(
+    user_id = current_user.user_id if current_user else None
+    
+    session_query = db.query(models.SessionState).filter(
         models.SessionState.session_id == session_id
-    ).first()
+    )
+    if user_id:
+        session_query = session_query.filter(models.SessionState.user_id == user_id)
+    session = session_query.first()
     
     if not session:
         return SaveDetail(
@@ -518,9 +539,12 @@ def get_save_detail(session_id: str = Query(..., description="会话 ID"), db: S
             segments=[]
         )
     
-    segments = db.query(models.StorySegment).filter(
+    seg_query = db.query(models.StorySegment).filter(
         models.StorySegment.session_id == session_id
-    ).order_by(models.StorySegment.order_index).all()
+    )
+    if user_id:
+        seg_query = seg_query.filter(models.StorySegment.user_id == user_id)
+    segments = seg_query.order_by(models.StorySegment.order_index).all()
     
     segment_list = []
     for seg in segments:
@@ -575,11 +599,16 @@ def get_save_detail(session_id: str = Query(..., description="会话 ID"), db: S
 
 
 @router.post("/story/saves/rename")
-def rename_save(req: SaveRenameRequest, db: Session = Depends(get_db)):
+def rename_save(req: SaveRenameRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """重命名存档"""
-    session = db.query(models.SessionState).filter(
+    user_id = current_user.user_id if current_user else None
+    
+    session_query = db.query(models.SessionState).filter(
         models.SessionState.session_id == req.session_id
-    ).first()
+    )
+    if user_id:
+        session_query = session_query.filter(models.SessionState.user_id == user_id)
+    session = session_query.first()
     
     if not session:
         return {"success": False, "message": "存档不存在"}
@@ -598,8 +627,9 @@ def rename_save(req: SaveRenameRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/story/saves/create")
-def create_new_save(db: Session = Depends(get_db)):
+def create_new_save(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """创建新存档"""
+    user_id = current_user.user_id if current_user else None
     import time
     timestamp = int(time.time() * 1000)
     time_suffix = time.strftime("%H%M%S")
@@ -608,6 +638,7 @@ def create_new_save(db: Session = Depends(get_db)):
     session = models.SessionState(
         session_id=session_id,
         total_word_count=0,
+        user_id=user_id,
     )
     db.add(session)
     db.commit()
@@ -616,18 +647,26 @@ def create_new_save(db: Session = Depends(get_db)):
 
 
 @router.post("/story/saves/delete")
-def delete_save(session_id: str = Query(..., description="会话 ID"), db: Session = Depends(get_db)):
+def delete_save(session_id: str = Query(..., description="会话 ID"), db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """删除存档"""
-    session = db.query(models.SessionState).filter(
+    user_id = current_user.user_id if current_user else None
+    
+    session_query = db.query(models.SessionState).filter(
         models.SessionState.session_id == session_id
-    ).first()
+    )
+    if user_id:
+        session_query = session_query.filter(models.SessionState.user_id == user_id)
+    session = session_query.first()
     
     if not session:
         return {"success": False, "message": "存档不存在"}
     
-    db.query(models.StorySegment).filter(
+    seg_query = db.query(models.StorySegment).filter(
         models.StorySegment.session_id == session_id
-    ).delete()
+    )
+    if user_id:
+        seg_query = seg_query.filter(models.StorySegment.user_id == user_id)
+    seg_query.delete()
     
     db.delete(session)
     db.commit()
@@ -641,23 +680,34 @@ class DeleteSegmentCascadeRequest(BaseModel):
 
 
 @router.post("/story/segments/delete_cascade")
-def delete_segment_cascade(req: DeleteSegmentCascadeRequest, db: Session = Depends(get_db)):
+def delete_segment_cascade(req: DeleteSegmentCascadeRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """删除指定段及其后续所有段（链式删除）"""
-    session = db.query(models.SessionState).filter(
+    user_id = current_user.user_id if current_user else None
+    
+    session_query = db.query(models.SessionState).filter(
         models.SessionState.session_id == req.session_id
-    ).first()
+    )
+    if user_id:
+        session_query = session_query.filter(models.SessionState.user_id == user_id)
+    session = session_query.first()
     
     if not session:
         return {"success": False, "message": "存档不存在"}
     
-    deleted_count = db.query(models.StorySegment).filter(
+    del_query = db.query(models.StorySegment).filter(
         models.StorySegment.session_id == req.session_id,
         models.StorySegment.order_index >= req.from_order_index
-    ).delete()
+    )
+    if user_id:
+        del_query = del_query.filter(models.StorySegment.user_id == user_id)
+    deleted_count = del_query.delete()
     
-    remaining_segments = db.query(models.StorySegment).filter(
+    remain_query = db.query(models.StorySegment).filter(
         models.StorySegment.session_id == req.session_id
-    ).order_by(models.StorySegment.order_index).all()
+    )
+    if user_id:
+        remain_query = remain_query.filter(models.StorySegment.user_id == user_id)
+    remaining_segments = remain_query.order_by(models.StorySegment.order_index).all()
     
     total_words = sum(seg.paragraph_word_count or 0 for seg in remaining_segments)
     session.total_word_count = total_words
@@ -676,22 +726,29 @@ class CopySaveFromSegmentRequest(BaseModel):
 
 
 @router.post("/story/saves/copy_from_segment")
-def copy_save_from_segment(req: CopySaveFromSegmentRequest, db: Session = Depends(get_db)):
+def copy_save_from_segment(req: CopySaveFromSegmentRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """从指定段创建副本存档（包含从第1段到指定段的所有内容）"""
     import time
     import json
+    user_id = current_user.user_id if current_user else None
     
-    source_session = db.query(models.SessionState).filter(
+    source_query = db.query(models.SessionState).filter(
         models.SessionState.session_id == req.source_session_id
-    ).first()
+    )
+    if user_id:
+        source_query = source_query.filter(models.SessionState.user_id == user_id)
+    source_session = source_query.first()
     
     if not source_session:
         return {"success": False, "message": "源存档不存在"}
     
-    source_segments = db.query(models.StorySegment).filter(
+    seg_query = db.query(models.StorySegment).filter(
         models.StorySegment.session_id == req.source_session_id,
         models.StorySegment.order_index <= req.to_order_index
-    ).order_by(models.StorySegment.order_index).all()
+    )
+    if user_id:
+        seg_query = seg_query.filter(models.StorySegment.user_id == user_id)
+    source_segments = seg_query.order_by(models.StorySegment.order_index).all()
     
     if not source_segments:
         return {"success": False, "message": "没有可复制的段"}
@@ -703,6 +760,7 @@ def copy_save_from_segment(req: CopySaveFromSegmentRequest, db: Session = Depend
     new_session = models.SessionState(
         session_id=new_session_id,
         total_word_count=sum(seg.paragraph_word_count or 0 for seg in source_segments),
+        user_id=user_id,
     )
     
     try:
@@ -731,6 +789,7 @@ def copy_save_from_segment(req: CopySaveFromSegmentRequest, db: Session = Depend
             content_story=seg.content_story,
             content_summary=seg.content_summary,
             content_actions=seg.content_actions,
+            user_id=user_id,
         )
         db.add(new_segment)
     

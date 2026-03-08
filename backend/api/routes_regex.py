@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..db.base import get_db
 from ..db import models
+from ..core.auth import get_current_user, User as AuthUser
 
 router = APIRouter(prefix="/regex", tags=["regex"])
 
@@ -104,14 +105,20 @@ def create_minimal_regex() -> Dict[str, Any]:
     }
 
 
-def ensure_default_regex_in_db(db: Session) -> models.DBRegexProfile:
+def ensure_default_regex_in_db(db: Session, user_id: Optional[int] = None) -> models.DBRegexProfile:
     """确保默认正则配置存在于数据库中"""
-    default_regex = db.query(models.DBRegexProfile).filter(
+    query = db.query(models.DBRegexProfile).filter(
         models.DBRegexProfile.is_default == True
-    ).first()
+    )
+    if user_id:
+        query = query.filter(models.DBRegexProfile.user_id == user_id)
+    else:
+        # 未登录用户只能访问系统默认配置
+        query = query.filter(models.DBRegexProfile.user_id == None)
+    existing = query.first()
     
-    if default_regex:
-        return default_regex
+    if existing:
+        return existing
     
     file_regex = load_default_regex_from_file()
     if not file_regex:
@@ -119,9 +126,14 @@ def ensure_default_regex_in_db(db: Session) -> models.DBRegexProfile:
     
     preset_id = file_regex.get("id", DEFAULT_REGEX_ID)
     
-    existing = db.query(models.DBRegexProfile).filter(
+    existing_query = db.query(models.DBRegexProfile).filter(
         models.DBRegexProfile.id == preset_id
-    ).first()
+    )
+    if user_id:
+        existing_query = existing_query.filter(models.DBRegexProfile.user_id == user_id)
+    else:
+        existing_query = existing_query.filter(models.DBRegexProfile.user_id == None)
+    existing = existing_query.first()
     
     if existing:
         existing.is_default = True
@@ -134,7 +146,8 @@ def ensure_default_regex_in_db(db: Session) -> models.DBRegexProfile:
         version=file_regex.get("version", 1),
         is_default=True,
         is_active=True,
-        config_json=json.dumps(file_regex, ensure_ascii=False)
+        config_json=json.dumps(file_regex, ensure_ascii=False),
+        user_id=user_id,
     )
     db.add(default_regex)
     db.commit()
@@ -173,10 +186,14 @@ class RegexProfileListItem(BaseModel):
 
 
 @router.get("/profiles", response_model=List[RegexProfileListItem])
-def list_regex_profiles(db: Session = Depends(get_db)):
-    ensure_default_regex_in_db(db)
+def list_regex_profiles(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+    user_id = current_user.user_id if current_user else None
+    ensure_default_regex_in_db(db, user_id)
     
-    profiles = db.query(models.DBRegexProfile).order_by(
+    query = db.query(models.DBRegexProfile)
+    if user_id:
+        query = query.filter(models.DBRegexProfile.user_id == user_id)
+    profiles = query.order_by(
         models.DBRegexProfile.is_default.desc(),
         models.DBRegexProfile.created_at.asc()
     ).all()
@@ -197,12 +214,16 @@ def list_regex_profiles(db: Session = Depends(get_db)):
 
 
 @router.get("/profiles/{profile_id}", response_model=RegexProfileResponse)
-def get_regex_profile(profile_id: str, db: Session = Depends(get_db)):
-    ensure_default_regex_in_db(db)
+def get_regex_profile(profile_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+    user_id = current_user.user_id if current_user else None
+    ensure_default_regex_in_db(db, user_id)
     
-    profile = db.query(models.DBRegexProfile).filter(
+    query = db.query(models.DBRegexProfile).filter(
         models.DBRegexProfile.id == profile_id
-    ).first()
+    )
+    if user_id:
+        query = query.filter(models.DBRegexProfile.user_id == user_id)
+    profile = query.first()
     
     if not profile:
         raise HTTPException(status_code=404, detail="Regex profile not found")
@@ -220,17 +241,24 @@ def get_regex_profile(profile_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/active", response_model=RegexProfileResponse)
-def get_active_regex_profile(db: Session = Depends(get_db)):
-    ensure_default_regex_in_db(db)
+def get_active_regex_profile(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+    user_id = current_user.user_id if current_user else None
+    ensure_default_regex_in_db(db, user_id)
     
-    profile = db.query(models.DBRegexProfile).filter(
+    active_query = db.query(models.DBRegexProfile).filter(
         models.DBRegexProfile.is_active == True
-    ).first()
+    )
+    if user_id:
+        active_query = active_query.filter(models.DBRegexProfile.user_id == user_id)
+    profile = active_query.first()
     
     if not profile:
-        profile = db.query(models.DBRegexProfile).filter(
+        default_query = db.query(models.DBRegexProfile).filter(
             models.DBRegexProfile.is_default == True
-        ).first()
+        )
+        if user_id:
+            default_query = default_query.filter(models.DBRegexProfile.user_id == user_id)
+        profile = default_query.first()
     
     if not profile:
         raise HTTPException(status_code=404, detail="No regex profile found")
@@ -248,8 +276,9 @@ def get_active_regex_profile(db: Session = Depends(get_db)):
 
 
 @router.post("/profiles", response_model=RegexProfileResponse)
-def create_regex_profile(req: RegexProfileCreate, db: Session = Depends(get_db)):
-    ensure_default_regex_in_db(db)
+def create_regex_profile(req: RegexProfileCreate, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+    user_id = current_user.user_id if current_user else None
+    ensure_default_regex_in_db(db, user_id)
     
     profile_id = f"regex_{uuid.uuid4().hex[:10]}"
     
@@ -284,7 +313,8 @@ def create_regex_profile(req: RegexProfileCreate, db: Session = Depends(get_db))
         version=1,
         is_default=False,
         is_active=False,
-        config_json=json.dumps(config, ensure_ascii=False)
+        config_json=json.dumps(config, ensure_ascii=False),
+        user_id=user_id,
     )
     
     db.add(profile)
@@ -307,13 +337,18 @@ def create_regex_profile(req: RegexProfileCreate, db: Session = Depends(get_db))
 def update_regex_profile(
     profile_id: str,
     req: RegexProfileUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user)
 ):
-    ensure_default_regex_in_db(db)
+    user_id = current_user.user_id if current_user else None
+    ensure_default_regex_in_db(db, user_id)
     
-    profile = db.query(models.DBRegexProfile).filter(
+    query = db.query(models.DBRegexProfile).filter(
         models.DBRegexProfile.id == profile_id
-    ).first()
+    )
+    if user_id:
+        query = query.filter(models.DBRegexProfile.user_id == user_id)
+    profile = query.first()
     
     if not profile:
         raise HTTPException(status_code=404, detail="Regex profile not found")
@@ -346,18 +381,26 @@ def update_regex_profile(
 @router.put("/active")
 def set_active_regex_profile(
     profile_id: str = Query(..., description="正则化配置ID"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user)
 ):
-    ensure_default_regex_in_db(db)
+    user_id = current_user.user_id if current_user else None
+    ensure_default_regex_in_db(db, user_id)
     
-    profile = db.query(models.DBRegexProfile).filter(
+    query = db.query(models.DBRegexProfile).filter(
         models.DBRegexProfile.id == profile_id
-    ).first()
+    )
+    if user_id:
+        query = query.filter(models.DBRegexProfile.user_id == user_id)
+    profile = query.first()
     
     if not profile:
         raise HTTPException(status_code=404, detail="Regex profile not found")
     
-    db.query(models.DBRegexProfile).update({"is_active": False})
+    update_query = db.query(models.DBRegexProfile)
+    if user_id:
+        update_query = update_query.filter(models.DBRegexProfile.user_id == user_id)
+    update_query.update({"is_active": False})
     
     profile.is_active = True
     db.commit()
@@ -366,12 +409,16 @@ def set_active_regex_profile(
 
 
 @router.delete("/profiles/{profile_id}")
-def delete_regex_profile(profile_id: str, db: Session = Depends(get_db)):
-    ensure_default_regex_in_db(db)
+def delete_regex_profile(profile_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+    user_id = current_user.user_id if current_user else None
+    ensure_default_regex_in_db(db, user_id)
     
-    profile = db.query(models.DBRegexProfile).filter(
+    query = db.query(models.DBRegexProfile).filter(
         models.DBRegexProfile.id == profile_id
-    ).first()
+    )
+    if user_id:
+        query = query.filter(models.DBRegexProfile.user_id == user_id)
+    profile = query.first()
     
     if not profile:
         raise HTTPException(status_code=404, detail="Regex profile not found")
@@ -386,12 +433,16 @@ def delete_regex_profile(profile_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/profiles/{profile_id}/toggle")
-def toggle_regex_profile(profile_id: str, db: Session = Depends(get_db)):
-    ensure_default_regex_in_db(db)
+def toggle_regex_profile(profile_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+    user_id = current_user.user_id if current_user else None
+    ensure_default_regex_in_db(db, user_id)
     
-    profile = db.query(models.DBRegexProfile).filter(
+    query = db.query(models.DBRegexProfile).filter(
         models.DBRegexProfile.id == profile_id
-    ).first()
+    )
+    if user_id:
+        query = query.filter(models.DBRegexProfile.user_id == user_id)
+    profile = query.first()
     
     if not profile:
         raise HTTPException(status_code=404, detail="Regex profile not found")

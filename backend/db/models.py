@@ -8,18 +8,58 @@ from sqlalchemy import (
     Float,
     DateTime,
     ForeignKey,
+    Enum as SQLEnum,
 )
 from sqlalchemy.orm import relationship
 from .base import Base
+import enum
+import uuid
+
+
+class UserRole(enum.Enum):
+    ADMIN = "admin"
+    USER = "user"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, unique=True, index=True, nullable=False, default=lambda: f"{uuid.uuid4().hex[:12]}")
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=True)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(SQLEnum(UserRole), default=UserRole.USER, nullable=False)
+    nickname = Column(String(50), nullable=True)
+    avatar = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    last_login_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    relationships = relationship("UserRelationship", back_populates="user", foreign_keys="UserRelationship.user_id")
+
+
+class UserRelationship(Base):
+    __tablename__ = "user_relationships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
+    related_user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
+    relationship_type = Column(String(20), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="relationships", foreign_keys=[user_id])
 
 
 class WorldbookEntry(Base):
-    __tablename__ = "worldbook_entries"
+    __tablename__ = "worldbook"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
     entry_id = Column(String, unique=True, index=True, nullable=False)
     category = Column(String, index=True, nullable=True)
-    tags = Column(String, nullable=True)  # 逗号分隔存储
+    tags = Column(String, nullable=True)
     title = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     importance = Column(Float, default=0.5)
@@ -37,6 +77,7 @@ class Dungeon(Base):
     __tablename__ = "dungeons"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
     dungeon_id = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
@@ -72,16 +113,12 @@ class DungeonNode(Base):
 
 
 class CharacterTemplate(Base):
-    """
-    [新增] 角色模板表
-    存储自定义的 Tabs 和 Fields 结构
-    """
     __tablename__ = "character_templates"
 
-    id = Column(String, primary_key=True, index=True)  # 例如: "cultivation_v1"
-    name = Column(String, nullable=False)  # 例如: "修仙人物模板"
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
+    name = Column(String, nullable=False)
     description = Column(String, nullable=True)
-    # 核心配置：{ "tabs": [...], "fields": [...] }
     config_json = Column(Text, nullable=False, default="{}")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -91,18 +128,11 @@ class Character(Base):
     __tablename__ = "characters"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
     character_id = Column(String, unique=True, index=True, nullable=False)
-
-    # [新增] 绑定模板 ID，默认为 'system_default'
     template_id = Column(String, default="system_default", nullable=True)
-
     type = Column(String, nullable=False, default="npc")
-
-    # [新增] 动态数据存储：所有自定义字段的内容都存这里
-    # 未来可逐步废弃 basic_json, knowledge_json 等
     data_json = Column(Text, nullable=True)
-
-    # ... (为了兼容现有数据，保留旧字段，暂不删除) ...
     basic_json = Column(Text, nullable=True)
     knowledge_json = Column(Text, nullable=True)
     secrets_json = Column(Text, nullable=True)
@@ -122,6 +152,7 @@ class GlobalSetting(Base):
     __tablename__ = "global_settings"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
     key = Column(String, unique=True, nullable=False)
     value_json = Column(Text, nullable=False)
 
@@ -130,6 +161,7 @@ class StorySegment(Base):
     __tablename__ = "story_segments"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
     segment_id = Column(String, unique=True, nullable=False)
     session_id = Column(String, index=True, nullable=False)
     order_index = Column(Integer, nullable=False, default=0)
@@ -152,6 +184,7 @@ class SessionState(Base):
     __tablename__ = "session_state"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
     session_id = Column(String, unique=True, index=True, nullable=False)
     current_dungeon_id = Column(String, nullable=True)
     current_node_id = Column(String, nullable=True)
@@ -166,58 +199,43 @@ class SessionState(Base):
 
 
 class DBPreset(Base):
-    """
-    [新增] 预设表
-    存储完整的提示词树结构 (JSON)
-    """
     __tablename__ = "presets"
 
-    id = Column(String, primary_key=True, index=True)  # 使用 UUID 字符串
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
     name = Column(String, index=True, nullable=False)
     version = Column(Integer, default=1)
-    is_active = Column(Boolean, default=False)  # 标记是否为当前激活预设
-    is_default = Column(Boolean, default=False)  # 标记是否为默认预设（不可删除）
-
-    # 存储整个 root 节点树结构
+    is_active = Column(Boolean, default=False)
+    is_default = Column(Boolean, default=False)
     config_json = Column(Text, nullable=False)
-
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class DBLLMConfig(Base):
-    """
-    [新增] LLM API 配置表
-    """
     __tablename__ = "llm_configs"
 
     id = Column(String, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
     name = Column(String, nullable=False)
     base_url = Column(String, nullable=False)
     api_key = Column(String, nullable=False)
     stream = Column(Boolean, default=True)
     default_model = Column(String, nullable=True)
-
-    is_active = Column(Boolean, default=False)  # 标记是否为当前激活配置
-
+    is_active = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class DBRegexProfile(Base):
-    """
-    正则化配置表
-    存储完整的正则化树结构 (JSON)
-    """
-    __tablename__ = "regex_profiles"
+    __tablename__ = "regexs"
 
     id = Column(String, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
     name = Column(String, index=True, nullable=False)
     version = Column(Integer, default=1)
     is_default = Column(Boolean, default=False)
     is_active = Column(Boolean, default=False)
-
     config_json = Column(Text, nullable=False)
-
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

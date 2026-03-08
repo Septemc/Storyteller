@@ -1,4 +1,4 @@
-// assets/js/main.js
+﻿// assets/js/main.js
 (function () {
   // =========================================
   // 1. DOM 元素获取
@@ -7,11 +7,13 @@
   const generateBtn = document.getElementById("generate-btn");
   const userInputEl = document.getElementById("user-input");
   const inputStatusEl = document.getElementById("input-status");
+  const inputBarEl = document.getElementById("input-bar");
+  const inputActionsEl = document.querySelector(".input-actions");
+  const generateBtnCollapsedEl = document.getElementById("generate-btn-collapsed");
 
   const actionHistoryEl = document.getElementById("action-history");
 
   // 输入栏相关元素
-  const inputBarEl = document.getElementById("input-bar");
   const inputCollapseToggleEl = document.getElementById("input-collapse-toggle"); // 左上角收起按钮
   const inputSizeToggleEl = document.getElementById("input-size-toggle");         // 右下角半屏按钮
   const actionSuggestionsEl = document.getElementById("action-suggestions");
@@ -93,10 +95,11 @@
   // =========================================
   function setButtonState(generating) {
     isGenerating = generating;
+
     if (!generateBtn) return;
-    
+
     if (generating) {
-      generateBtn.innerHTML = stopIcon + '<span class="btn-stop-text">停止</span>';
+      generateBtn.innerHTML = stopIcon + '<span class="btn-stop-text">暂停</span>';
       generateBtn.classList.add('btn-stop');
       generateBtn.classList.remove('btn-primary');
       generateBtn.disabled = false;
@@ -105,6 +108,33 @@
       generateBtn.classList.remove('btn-stop');
       generateBtn.classList.add('btn-primary');
       generateBtn.disabled = false;
+    }
+
+    if (generateBtnCollapsedEl) {
+      if (generating) {
+        generateBtnCollapsedEl.innerHTML = stopIcon + '<span class="btn-stop-text">暂停</span>';
+        generateBtnCollapsedEl.classList.add('btn-stop');
+        generateBtnCollapsedEl.classList.remove('btn-primary');
+      } else {
+        generateBtnCollapsedEl.innerHTML = '生成下一段';
+        generateBtnCollapsedEl.classList.remove('btn-stop');
+        generateBtnCollapsedEl.classList.add('btn-primary');
+      }
+
+      const isCollapsed = inputBarEl && inputBarEl.classList.contains('input-bar--collapsed');
+      generateBtnCollapsedEl.style.display = generating && isCollapsed ? 'inline-flex' : 'none';
+    }
+
+    if (inputBarEl && inputActionsEl) {
+      const isCollapsed = inputBarEl.classList.contains('input-bar--collapsed');
+
+      if (isCollapsed && generating) {
+        inputActionsEl.style.display = 'flex';
+      } else if (isCollapsed && !generating) {
+        inputActionsEl.style.display = 'none';
+      } else {
+        inputActionsEl.style.display = '';
+      }
     }
   }
 
@@ -133,7 +163,7 @@
     setButtonState(false);
     
     if (inputStatusEl) {
-      inputStatusEl.textContent = "已停止生成";
+      inputStatusEl.textContent = "已停止生成。";
       inputStatusEl.style.color = "var(--accent)";
     }
     
@@ -192,7 +222,7 @@
       actionHistoryEl.innerHTML = "";
       const placeholder = document.createElement("div");
       placeholder.className = "muted";
-      placeholder.textContent = "暂无历史行动，等待你的第一次指令。";
+      placeholder.textContent = "暂无历史行动，等待你的第一条指令。";
       actionHistoryEl.appendChild(placeholder);
     }
   }
@@ -220,8 +250,8 @@
     } else {
       const tags =
         meta && meta.tags && meta.tags.length ? " · " + meta.tags.join(", ") : "";
-      const tone = meta && meta.tone ? "基调：" + meta.tone : "";
-      const pacing = meta && meta.pacing ? "节奏：" + meta.pacing : "";
+      const tone = meta && meta.tone ? "基调: " + meta.tone : "";
+      const pacing = meta && meta.pacing ? "节奏: " + meta.pacing : "";
       const infoParts = [];
       if (tone) infoParts.push(tone);
       if (pacing) infoParts.push(pacing);
@@ -271,7 +301,7 @@
     const textEl = document.createElement("div");
     textEl.className = "story-text";
     
-    // 按段落分割并创建p元素，使首行缩进对每段生效
+    // 按段落分割并创建 p 元素，使首行缩进对每段生效
     const paragraphs = processedText.split(/\n+/);
     paragraphs.forEach(function(para) {
       if (para.trim()) {
@@ -294,7 +324,7 @@
       const summaryEl = document.createElement("div");
       summaryEl.className = "story-summary";
       summaryEl.style.cssText = "margin-top: 8px; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px; color: var(--text-secondary); border-left: 3px solid var(--accent);";
-      summaryEl.textContent = "📝 " + summaryText;
+      summaryEl.textContent = "总结📝 " + summaryText;
       block.appendChild(summaryEl);
     }
 
@@ -324,13 +354,13 @@
         const backDuration = stats.backend_duration || 0;
 
         statsEl.innerHTML = 
-          '<span class="story-stats-item">本段字数：' + wordCount + '</span>' +
+          '<span class="story-stats-item">本段字数: ' + wordCount + '</span>' +
           '<span class="story-stats-divider">|</span>' +
-          '<span class="story-stats-item">累计字数：' + cumulativeCount + '</span>' +
+          '<span class="story-stats-item">累计字数: ' + cumulativeCount + '</span>' +
           '<span class="story-stats-divider">|</span>' +
-          '<span class="story-stats-item">前端耗时：' + formatDuration(frontDuration) + '</span>' +
+          '<span class="story-stats-item">前端耗时: ' + formatDuration(frontDuration) + '</span>' +
           '<span class="story-stats-divider">|</span>' +
-          '<span class="story-stats-item">后端耗时：' + formatDuration(backDuration) + '</span>';
+          '<span class="story-stats-item">后端耗时: ' + formatDuration(backDuration) + '</span>';
         
         footerEl.appendChild(statsEl);
       }
@@ -398,7 +428,7 @@
     headerRight.appendChild(cancelBtn);
 
     const closeBtn = document.createElement('button');
-    closeBtn.textContent = '×';
+    closeBtn.textContent = '脳';
     closeBtn.style.cssText = 'background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary); padding: 0; line-height: 1; margin-left: 8px;';
     headerRight.appendChild(closeBtn);
 
@@ -461,7 +491,7 @@
         return;
       }
       if (!segmentId) {
-        alert('无法保存：缺少片段ID');
+        alert('无法保存：缺少片段 ID');
         return;
       }
 
@@ -488,7 +518,7 @@
         toggleEditMode(false);
         await loadRecentSegments();
       } catch (err) {
-        alert('保存失败：' + err.message);
+        alert('保存失败: ' + err.message);
       } finally {
         loadingOverlay.style.display = 'none';
         confirmBtn.disabled = false;
@@ -770,10 +800,10 @@
       inputStatusEl.style.color = "";
     }
 
-    // 设置按钮为停止状态
+    // 设置鎸夐挳涓哄仠姝㈢姸鎬?
     setButtonState(true);
 
-    // 发送后自动最小化输入栏
+    // 鍙戦€佸悗鑷姩鏈€灏忓寲杈撳叆鏍?
     if (inputBarEl && !inputBarEl.classList.contains("input-bar--collapsed")) {
       inputBarEl.classList.add("input-bar--collapsed");
       if (inputCollapseToggleEl) {
@@ -782,7 +812,8 @@
       }
     }
 
-    // 创建AbortController
+      setButtonState(isGenerating);
+    // 创建 AbortController
     abortController = new AbortController();
 
     // 尝试使用流式生成，失败则回退到非流式
@@ -820,12 +851,12 @@
     let backendDuration = 0;
 
     try {
-      // 显示实时计时器
+      // 鏄剧ず瀹炴椂璁℃椂鍣?
       if (storyTimerEl) {
         storyTimerEl.style.display = 'flex';
       }
 
-      // 启动实时更新计时器
+      // 鍚姩瀹炴椂鏇存柊璁℃椂鍣?
       updateInterval = setInterval(() => {
         const currentTime = performance.now();
         const durationFrontMs = currentTime - frontStart;
@@ -835,7 +866,7 @@
         if (timerBackendEl && backendDuration > 0) {
           timerBackendEl.textContent = formatDuration(backendDuration);
         }
-      }, 100); // 每100ms更新一次
+      }, 100); // 姣?00ms鏇存柊涓€娆?
 
       const resp = await fetch("/api/story/generate_stream", {
         method: "POST",
@@ -849,7 +880,7 @@
 
       if (!resp.ok) {
         const text = await resp.text();
-        throw new Error("请求失败：" + text);
+        throw new Error("请求失败: " + text);
       }
 
       const reader = resp.body.getReader();
@@ -891,7 +922,7 @@
                 storyText += data.text || "";
                 appendStoryBlockIncremental(data.text || "");
               } else if (event === "empty") {
-                throw new Error(data.message || "AI返回内容为空，请重试");
+                throw new Error(data.message || "AI杩斿洖鍐呭涓虹┖锛岃閲嶈瘯");
               } else if (event === "done") {
                 streamDone = true;
                 break;
@@ -902,7 +933,7 @@
               if (parseErr.message && (parseErr.message.includes("空") || parseErr.message.includes("流式生成错误"))) {
                 throw parseErr;
               }
-              console.warn("解析SSE数据失败:", parseErr);
+              console.warn("瑙ｆ瀽SSE鏁版嵁澶辫触:", parseErr);
             }
           }
         }
@@ -924,7 +955,7 @@
       updateSidebarFromMeta(metaData);
       refreshSessionSummary();
       
-      // 流式输出完毕后，重新加载最近5条交互记录进行渲染
+      // 流式输出完毕后，重新加载最近 1 条交互记录进行渲染
       await loadRecentSegments();
 
       // 更新前端耗时到数据库
@@ -944,7 +975,7 @@
                 frontend_duration: durationFrontMs
               })
             });
-            // 更新完成后重新加载显示
+            // 鏇存柊瀹屾垚鍚庨噸鏂板姞杞芥樉绀?
             await loadRecentSegments();
           }
         }
@@ -952,7 +983,7 @@
         console.warn("更新前端耗时失败:", updateErr);
       }
 
-      // 隐藏实时计时器
+      // 闅愯棌瀹炴椂璁℃椂鍣?
       if (storyTimerEl) {
         storyTimerEl.style.display = 'none';
       }
@@ -971,25 +1002,25 @@
     }
   }
 
-  // 非流式生成实现（回退方案）
+  // 闈炴祦寮忕敓鎴愬疄鐜帮紙鍥為€€鏂规锛?
   async function generateStoryNonStream(userText) {
     const frontStart = performance.now();
     let updateInterval;
 
     try {
-      // 显示实时计时器
+      // 鏄剧ず瀹炴椂璁℃椂鍣?
       if (storyTimerEl) {
         storyTimerEl.style.display = 'flex';
       }
 
-      // 启动实时更新计时器
+      // 鍚姩瀹炴椂鏇存柊璁℃椂鍣?
       updateInterval = setInterval(() => {
         const currentTime = performance.now();
         const durationFrontMs = currentTime - frontStart;
         if (timerFrontendEl) {
           timerFrontendEl.textContent = formatDuration(durationFrontMs);
         }
-      }, 100); // 每100ms更新一次
+      }, 100); // 姣?00ms鏇存柊涓€娆?
 
       const resp = await fetch("/api/story/generate", {
         method: "POST",
@@ -1006,14 +1037,14 @@
 
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
-        const errMsg = errData.detail || "请求失败";
-        // 如果是空内容错误
+        const errMsg = errData.detail || "璇锋眰澶辫触";
+        // 濡傛灉鏄┖鍐呭閿欒
         if (errMsg.includes("空")) {
           if (inputStatusEl) {
             inputStatusEl.textContent = errMsg;
             inputStatusEl.style.color = "var(--accent)";
           }
-          // 移除最后添加的用户输入块
+          // 绉婚櫎鏈€鍚庢坊鍔犵殑鐢ㄦ埛杈撳叆鍧?
           if (currentUserBlock && currentUserBlock.parentNode) {
             currentUserBlock.remove();
           }
@@ -1031,7 +1062,7 @@
 
       const data = await resp.json();
 
-      // 记录开发者日志
+      // 璁板綍寮€鍙戣€呮棩蹇?
       if (data.dev_log_info && window.DevTools && typeof window.DevTools.logRequest === 'function') {
         window.DevTools.logRequest(data.dev_log_info);
       }
@@ -1061,14 +1092,14 @@
               frontend_duration: durationFrontMs
             })
           });
-          // 更新完成后重新加载显示
+          // 鏇存柊瀹屾垚鍚庨噸鏂板姞杞芥樉绀?
           await loadRecentSegments();
         } catch (updateErr) {
           console.warn("更新前端耗时失败:", updateErr);
         }
       }
 
-      // 隐藏实时计时器
+      // 闅愯棌瀹炴椂璁℃椂鍣?
       if (storyTimerEl) {
         storyTimerEl.style.display = 'none';
       }
@@ -1077,7 +1108,7 @@
       if (err.name === 'AbortError') {
         return;
       }
-      if (inputStatusEl) inputStatusEl.textContent = "请求出错：" + err.message;
+      if (inputStatusEl) inputStatusEl.textContent = "请求出错: " + err.message;
       throw err;
     } finally {
       if (updateInterval) {
@@ -1091,13 +1122,13 @@
     }
   }
 
-  // 增量添加故事内容（用于流式显示）
+  // 澧為噺娣诲姞鏁呬簨鍐呭锛堢敤浜庢祦寮忔樉绀猴級
   function appendStoryBlockIncremental(text) {
     if (!storyLogEl) return;
 
     let lastBlock = storyLogEl.lastElementChild;
     if (!lastBlock || !lastBlock.classList.contains("story-block")) {
-      // 创建新的故事块
+      // 鍒涘缓鏂扮殑鏁呬簨鍧?
       lastBlock = document.createElement("div");
       lastBlock.className = "story-block";
       
@@ -1113,18 +1144,18 @@
       lastBlock.appendChild(textEl);
       storyLogEl.appendChild(lastBlock);
     } else {
-      // 更新现有故事块
+      // 鏇存柊鐜版湁鏁呬簨鍧?
       const textEl = lastBlock.querySelector(".story-text");
       if (textEl) {
         textEl.textContent += text;
       }
     }
 
-    // 自动滚动到底部
+    // 鑷姩婊氬姩鍒板簳閮?
     storyLogEl.scrollTop = storyLogEl.scrollHeight;
   }
 
-  // 格式化时间为 XX.XXXs 格式
+  // 鏍煎紡鍖栨椂闂翠负 XX.XXXs 鏍煎紡
   function formatDuration(ms) {
     return (ms / 1000).toFixed(3) + "s";
   }
@@ -1195,7 +1226,7 @@
         variableSummaryFactionEl.textContent = data.variables.faction_summary;
       }
     } catch (err) {
-      console.warn("刷新会话摘要失败：", err);
+      console.warn("刷新会话摘要失败:", err);
     }
   }
 
@@ -1230,22 +1261,22 @@
         clearActionSuggestions();
       }
     } catch (err) {
-      console.warn("加载最近故事片段失败：", err);
+      console.warn("鍔犺浇鏈€杩戞晠浜嬬墖娈靛け璐ワ細", err);
     }
   }
 
   // =========================================
-  // 7. 交互事件绑定 (重点优化部分)
+  // 7. 浜や簰浜嬩欢缁戝畾 (閲嶇偣浼樺寲閮ㄥ垎)
   // =========================================
 
-  // (A) 绑定“下次行动建议”的展开/收起
+  // (A) 缁戝畾鈥滀笅娆¤鍔ㄥ缓璁€濈殑灞曞紑/鏀惰捣
   function bindActionSuggestionsToggle() {
     if (!actionSuggestionsEl || !actionSuggestionsToggleEl) return;
 
     actionSuggestionsToggleEl.addEventListener("click", function () {
       const isOpen = actionSuggestionsEl.classList.toggle("action-suggestions--open");
 
-      // 更新文字提示，保持 "✨" 前缀
+      // 鏇存柊鏂囧瓧鎻愮ず锛屼繚鎸?"鉁? 鍓嶇紑
       if (isOpen) {
         actionSuggestionsToggleEl.textContent = "✨ 下次行动建议 (点击收起)";
       } else {
@@ -1254,67 +1285,63 @@
     });
   }
 
-  // (B) 绑定点击建议 Chip 填入输入框
+  // (B) 缁戝畾鐐瑰嚮寤鸿 Chip 濉叆杈撳叆妗?
   function bindSuggestionChips() {
     if (!userInputEl) return;
 
-    // 使用事件委托，或者重新获取DOM（如果Chips是动态生成的，这里假设是静态的）
+    // 浣跨敤浜嬩欢濮旀墭锛屾垨鑰呴噸鏂拌幏鍙朌OM锛堝鏋淐hips鏄姩鎬佺敓鎴愮殑锛岃繖閲屽亣璁炬槸闈欐€佺殑锛?
     const chips = document.querySelectorAll(".suggestion-chip[data-suggest]");
     chips.forEach(function (chip) {
       chip.addEventListener("click", function () {
-        // 获取完整句子
+        // 鑾峰彇瀹屾暣鍙ュ瓙
         const suggest = this.getAttribute("data-suggest") || this.textContent.trim();
         if (!suggest) return;
 
-        // 简单的填入逻辑，如果输入框已有内容则换行追加
+        // 绠€鍗曠殑濉叆閫昏緫锛屽鏋滆緭鍏ユ宸叉湁鍐呭鍒欐崲琛岃拷鍔?
         if (!userInputEl.value) {
           userInputEl.value = suggest;
         } else {
-          // 避免多次重复换行
+          // 閬垮厤澶氭閲嶅鎹㈣
           const prefix = userInputEl.value.trim();
           userInputEl.value = prefix + "\n" + suggest;
         }
 
-        // 自动调整输入框高度并聚焦
+        // 鑷姩璋冩暣杈撳叆妗嗛珮搴﹀苟鑱氱劍
         userInputEl.scrollTop = userInputEl.scrollHeight;
         userInputEl.focus();
       });
     });
   }
 
-  // (C) 绑定底部输入栏的 折叠 与 半屏 逻辑
+  // (C) 缁戝畾搴曢儴杈撳叆鏍忕殑 鎶樺彔 涓?鍗婂睆 閫昏緫
   function bindInputPanelEvents() {
-    // 1. 左上角：折叠/展开 整个输入栏
     if (inputCollapseToggleEl && inputBarEl) {
       inputCollapseToggleEl.addEventListener("click", function () {
         const collapsed = inputBarEl.classList.toggle("input-bar--collapsed");
 
-        // 【关键修复】：使用 innerHTML 替换 SVG，而不是 textContent
         inputCollapseToggleEl.innerHTML = collapsed ? iconChevronUp : iconChevronDown;
         inputCollapseToggleEl.setAttribute(
           "aria-label",
           collapsed ? "展开输入栏" : "收起输入栏"
         );
 
-        // 如果在半屏模式下折叠，强制退出半屏，避免界面错乱
         if (collapsed && document.body.classList.contains("input-half-screen")) {
           document.body.classList.remove("input-half-screen");
           inputBarEl.classList.remove("input-bar--half-screen");
 
           if (inputSizeToggleEl) {
-            // 重置半屏按钮图标为“展开”
             inputSizeToggleEl.innerHTML = iconExpandFull;
             inputSizeToggleEl.setAttribute("aria-label", "切换半屏模式");
             inputSizeToggleEl.setAttribute("title", "切换半屏专注模式");
           }
         }
+
+        setButtonState(isGenerating);
       });
     }
 
-    // 2. 右下角：切换 半屏/专注 模式
     if (inputSizeToggleEl && inputBarEl) {
       inputSizeToggleEl.addEventListener("click", function () {
-        // 如果当前是折叠状态，先自动展开
         if (inputBarEl.classList.contains("input-bar--collapsed")) {
           inputBarEl.classList.remove("input-bar--collapsed");
           if (inputCollapseToggleEl) {
@@ -1323,21 +1350,21 @@
           }
         }
 
-        // 切换 Body 的 class
         const isHalf = document.body.classList.toggle("input-half-screen");
 
-        // 【关键修复】：根据状态切换 SVG 图标
         if (isHalf) {
           inputBarEl.classList.add("input-bar--half-screen");
-          inputSizeToggleEl.innerHTML = iconCollapseFull; // 显示“四角向内”
+          inputSizeToggleEl.innerHTML = iconCollapseFull;
           inputSizeToggleEl.setAttribute("aria-label", "退出半屏模式");
           inputSizeToggleEl.setAttribute("title", "退出半屏专注模式");
         } else {
           inputBarEl.classList.remove("input-bar--half-screen");
-          inputSizeToggleEl.innerHTML = iconExpandFull;   // 显示“四角向外”
+          inputSizeToggleEl.innerHTML = iconExpandFull;
           inputSizeToggleEl.setAttribute("aria-label", "切换半屏模式");
           inputSizeToggleEl.setAttribute("title", "切换半屏专注模式");
         }
+
+        setButtonState(isGenerating);
       });
     }
   }
@@ -1346,10 +1373,13 @@
     if (generateBtn) {
       generateBtn.addEventListener("click", generateStory);
     }
+    if (generateBtnCollapsedEl) {
+      generateBtnCollapsedEl.addEventListener("click", generateStory);
+    }
 
     if (userInputEl) {
       userInputEl.addEventListener("keydown", function (e) {
-        // Ctrl + Enter 快捷提交
+        // Ctrl + Enter 蹇嵎鎻愪氦
         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
           e.preventDefault();
           generateStory();
@@ -1373,7 +1403,7 @@
     };
   }
 
-  // 子区块折叠/展开功能
+  // 瀛愬尯鍧楁姌鍙?灞曞紑鍔熻兘
   function bindSubsectionToggles() {
     const subsectionHeaders = document.querySelectorAll('.subsection-header');
     
@@ -1395,7 +1425,7 @@
     });
   }
 
-  // 面板整体折叠功能
+  // 闈㈡澘鏁翠綋鎶樺彔鍔熻兘
   function bindPanelCollapse() {
     const collapseBtns = document.querySelectorAll('.panel-collapse-btn');
     
@@ -1414,7 +1444,7 @@
     });
   }
 
-  // 字体设置弹窗相关逻辑
+  // 瀛椾綋设置寮圭獥鐩稿叧閫昏緫
   function bindFontSettingsModal() {
     const fontSettingsBtn = document.getElementById('font-settings-btn');
     const fontSettingsModal = document.getElementById('font-settings-modal');
@@ -1424,7 +1454,7 @@
 
     if (!fontSettingsModal) return;
 
-    // 打开弹窗
+    // 鎵撳紑寮圭獥
     if (fontSettingsBtn) {
       fontSettingsBtn.addEventListener('click', function() {
         loadFontSettings();
@@ -1432,21 +1462,21 @@
       });
     }
 
-    // 关闭弹窗
+    // 关闭寮圭獥
     if (fontModalClose) {
       fontModalClose.addEventListener('click', function() {
         fontSettingsModal.style.display = 'none';
       });
     }
 
-    // 点击背景关闭
+    // 鐐瑰嚮鑳屾櫙关闭
     fontSettingsModal.addEventListener('click', function(e) {
       if (e.target === fontSettingsModal) {
         fontSettingsModal.style.display = 'none';
       }
     });
 
-    // 保存设置
+    // 淇濆瓨设置
     if (fontModalSave) {
       fontModalSave.addEventListener('click', function() {
         saveFontSettings();
@@ -1454,7 +1484,7 @@
       });
     }
 
-    // 重置默认
+    // 閲嶇疆榛樿
     if (fontModalReset) {
       fontModalReset.addEventListener('click', function() {
         resetFontSettings();
@@ -1462,7 +1492,7 @@
     }
   }
 
-  // 加载字体设置
+  // 鍔犺浇瀛椾綋设置
   function loadFontSettings() {
     const zones = ['thinking', 'body', 'summary', 'raw', 'stats'];
     zones.forEach(function(zone) {
@@ -1484,7 +1514,7 @@
       }
     });
 
-    // 加载缩进设置
+    // 鍔犺浇缂╄繘设置
     const indentEl = document.getElementById('font-body-indent');
     if (indentEl) {
       const savedIndent = localStorage.getItem('app_font_body_indent');
@@ -1492,7 +1522,7 @@
     }
   }
 
-  // 保存字体设置
+  // 淇濆瓨瀛椾綋设置
   function saveFontSettings() {
     const zones = {
       thinking: { familyVar: '--font-thinking-family', sizeVar: '--font-thinking-size', boldVar: '--font-thinking-weight' },
@@ -1522,7 +1552,7 @@
       }
     });
 
-    // 保存缩进设置
+    // 淇濆瓨缂╄繘设置
     const indentEl = document.getElementById('font-body-indent');
     if (indentEl) {
       const indent = indentEl.checked;
@@ -1530,11 +1560,11 @@
       document.documentElement.style.setProperty('--font-body-indent', indent ? '2em' : '0');
     }
 
-    // 同步到全局设置（如果存在）
+    // 鍚屾鍒板叏灞€设置锛堝鏋滃瓨鍦級
     syncToGlobalSettings();
   }
 
-  // 重置字体设置
+  // 閲嶇疆瀛椾綋设置
   function resetFontSettings() {
     const defaults = {
       thinking: { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: '12px', bold: false },
@@ -1554,20 +1584,20 @@
       if (boldEl) boldEl.checked = defaults[zone].bold;
     });
 
-    // 重置缩进设置
+    // 閲嶇疆缂╄繘设置
     const indentEl = document.getElementById('font-body-indent');
     if (indentEl) {
       indentEl.checked = false;
     }
   }
 
-  // 同步到全局设置
+  // 鍚屾鍒板叏灞€设置
   function syncToGlobalSettings() {
-    // 触发自定义事件，通知设置页面更新
+    // 瑙﹀彂鑷畾涔変簨浠讹紝閫氱煡设置椤甸潰鏇存柊
     window.dispatchEvent(new CustomEvent('fontSettingsChanged'));
   }
 
-  // 应用保存的字体设置
+  // 搴旂敤淇濆瓨鐨勫瓧浣撹缃?
   function applySavedFontSettings() {
     const zones = {
       thinking: { familyVar: '--font-thinking-family', sizeVar: '--font-thinking-size', boldVar: '--font-thinking-weight' },
@@ -1593,7 +1623,7 @@
       }
     });
 
-    // 应用缩进设置
+    // 搴旂敤缂╄繘设置
     const savedIndent = localStorage.getItem('app_font_body_indent');
     if (savedIndent) {
       document.documentElement.style.setProperty('--font-body-indent', savedIndent === 'true' ? '2em' : '0');
@@ -1601,6 +1631,7 @@
   }
 
   async function init() {
+    initAuthUI();
     ensureSession();
     bindEvents();
     applySavedFontSettings();
@@ -1608,8 +1639,29 @@
     refreshSessionSummary();
     await loadRecentSegments();
   }
+  
+  function initAuthUI() {
+    const usernameEl = document.getElementById('nav-username');
+    const logoutBtn = document.getElementById('nav-logout-btn');
+    const loginLink = document.getElementById('nav-login-link');
+    
+    if (typeof Auth !== 'undefined') {
+      Auth.updateUserUI(usernameEl, logoutBtn);
+      
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+          Auth.logout();
+        });
+      }
+      
+      const user = Auth.getUser();
+      if (user && loginLink) {
+        loginLink.style.display = 'none';
+      }
+    }
+  }
 
-  // 确保 DOM 加载完成后执行
+  // 纭繚 DOM 鍔犺浇瀹屾垚鍚庢墽琛?
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", async () => {
       await init();
@@ -1618,3 +1670,5 @@
     init();
   }
 })();
+
+

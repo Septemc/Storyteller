@@ -1,4 +1,4 @@
-/* =========================================
+﻿/* =========================================
    1. 核心变量与主题引擎 (Variables & Themes)
    ========================================= */
 :root {
@@ -427,7 +427,7 @@ body.bg-circuit {
 }
 
 /* =========================================
-   5. 顶部导航 (Top Nav)
+   5. 椤堕儴瀵艰埅 (Top Nav)
    ========================================= */
 .top-nav {
   display: flex;
@@ -466,9 +466,9 @@ body.bg-circuit {
   font-weight: 800;
   font-size: 22px;
   letter-spacing: 0.05em;
-  line-height: 1.2; /* 控制行高，防止文字自带的留白影响对齐 */
+  line-height: 1.2; /* 鎺у埗琛岄珮锛岄槻姝㈡枃瀛楄嚜甯︾殑鐣欑櫧褰卞搷瀵归綈 */
 
-  /* 渐变色效果 */
+  /* 娓愬彉鑹叉晥鏋?*/
   background: linear-gradient(135deg, var(--text-primary), var(--accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -476,17 +476,17 @@ body.bg-circuit {
 
 .app-subtitle {
   font-family: 'Montserrat', sans-serif;
-  font-weight: 500; /* 副标题建议稍微细一点，产生视觉层级感 */
+  font-weight: 500; /* 鍓爣棰樺缓璁◢寰粏涓€鐐癸紝浜х敓瑙嗚灞傜骇鎰?*/
   font-size: 11px;
   letter-spacing: 0.02em;
   line-height: 1;
 
-  /* 如果不需要副标题也用渐变色，可以改为 color: var(--text-secondary); */
+  /* 濡傛灉涓嶉渶瑕佸壇鏍囬涔熺敤娓愬彉鑹诧紝鍙互鏀逛负 color: var(--text-secondary); */
   background: linear-gradient(135deg, var(--text-secondary), var(--accent-soft));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 
-  opacity: 0.8; /* 稍微透明一点，突出主标题 */
+  opacity: 0.8; /* 绋嶅井閫忔槑涓€鐐癸紝绐佸嚭涓绘爣棰?*/
 }
 
 .nav-links {
@@ -515,6 +515,54 @@ body.bg-circuit {
   border-color: rgba(78, 140, 255, 0.3);
 }
 
+.nav-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border-color);
+}
+
+.nav-username {
+  color: var(--text-secondary);
+  font-size: 13px;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-logout-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+}
+
+.nav-logout-btn:hover {
+  color: var(--danger);
+  background: rgba(255, 95, 95, 0.1);
+}
+
+.nav-login-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.nav-login-link:hover {
+  background: var(--accent-soft);
+}
+
 /* =========================================
    6. 布局框架 (Layout Framework)
    ========================================= */
@@ -541,14 +589,14 @@ body.bg-circuit {
   padding: 14px;
 }
 
-/* 统一所有次级/详情面板样式 */
+/* 缁熶竴鎵€鏈夋绾?璇︽儏闈㈡澘鏍峰紡 */
 .story-log, .detail-panel, .sidebar-section, .story-block-user,
 .node-block, .visual-option, .input-textarea {
-  border-radius: var(--radius-xs); /* 圆角sm-8px */
+  border-radius: var(--radius-xs); /* 鍦嗚sm-8px */
   background: var(--bg-elevated-alt);
   border: 1px solid var(--border-soft);
   color: var(--text-secondary);
-  padding: 10px 12px; /* 控制文字与边框的距离 10px是上下距离 12px是左右距离 */
+  padding: 10px 12px; /* 鎺у埗鏂囧瓧涓庤竟妗嗙殑璺濈 10px鏄笂涓嬭窛绂?12px鏄乏鍙宠窛绂?*/
 }
 
 .panel-header {
@@ -575,14 +623,14 @@ body.bg-circuit {
   align-items: center;
 }
 
-/* --- 通用两栏布局 (用于 Characters, Worldbook, Dungeon) --- */
+/* --- 閫氱敤涓ゆ爮甯冨眬 (鐢ㄤ簬 Characters, Worldbook, Dungeon) --- */
 .two-column-layout {
   flex: 1;
   padding: 14px 16px 16px;
   display: grid;
   grid-template-columns: minmax(240px, 1.2fr) minmax(0, 2fr);
   gap: 14px;
-  height: calc(100vh - 60px); /* 减去头部高度 */
+  height: calc(100vh - 60px); /* 鍑忓幓澶撮儴楂樺害 */
   overflow: hidden;
 }
 
@@ -594,16 +642,16 @@ body.bg-circuit {
   overflow: hidden;
 }
 
-/* 右侧内容区：唯一滚动源 */
+/* 鍙充晶鍐呭鍖猴細鍞竴婊氬姩婧?*/
 #detail-panel {
   flex: 1;
   overflow-y: auto;
-  min-height: 0; /* 关键！否则 flex 子项无法滚动 */
+  min-height: 0; /* 鍏抽敭锛佸惁鍒?flex 瀛愰」鏃犳硶婊氬姩 */
 }
 
-/* 角色列表滚动区的平滑样式 */
+/* 角色鍒楄〃婊氬姩鍖虹殑骞虫粦鏍峰紡 */
 .character-list-scroll-area::-webkit-scrollbar {
-  width: 4px; /* 更细的滚动条 */
+  width: 4px; /* 鏇寸粏鐨勬粴鍔ㄦ潯 */
 }
 
 .character-list-scroll-area::-webkit-scrollbar-thumb {
@@ -612,31 +660,31 @@ body.bg-circuit {
 }
 
 /* =========================================
-   7. 页面特定样式 (Page Specifics)
+   7. 椤甸潰鐗瑰畾鏍峰紡 (Page Specifics)
    ========================================= */
 
-/* --- A. 首页/剧情页 (Index/Story Page) --- */
+/* --- A. 棣栭〉/剧情椤?(Index/Story Page) --- */
 
-/* 1. 剧情页的三栏布局 */
+/* 1. 剧情椤电殑涓夋爮甯冨眬 */
 body[data-page="index"] .main-layout {
-  /* 固定高度：屏幕总高 - 顶部导航(60px) */
+  /* 鍥哄畾楂樺害锛氬睆骞曟€婚珮 - 椤堕儴瀵艰埅(60px) */
   height: calc(100vh - 60px);
 
-  /* 三列宽度分配 */
+  /* 涓夊垪瀹藉害鍒嗛厤 */
   grid-template-columns: minmax(240px, 1.2fr) minmax(0, 3.5fr) minmax(240px, 1.2fr);
 
-  /* 关键：拉伸对齐，使三栏高度自动填满 */
+  /* 鍏抽敭锛氭媺浼稿榻愶紝浣夸笁鏍忛珮搴﹁嚜鍔ㄥ～婊?*/
   align-items: stretch;
 
-  /* 关键：底部 Padding 设为 10，让面板底部直达屏幕边缘，与输入栏底部齐平 */
+  /* 鍏抽敭锛氬簳閮?Padding 璁句负 10锛岃闈㈡澘搴曢儴鐩磋揪灞忓箷杈圭紭锛屼笌杈撳叆鏍忓簳閮ㄩ綈骞?*/
   padding: 14px 16px 10px 16px;
 
   border-radius: var(--radius-md);
 
-  overflow: hidden; /* 禁止外层滚动 */
+  overflow: hidden; /* 绂佹澶栧眰婊氬姩 */
 }
 
-/* 左/右侧边栏容器 */
+/* 宸?鍙充晶杈规爮瀹瑰櫒 */
 body[data-page="index"] .side-panel-left,
 body[data-page="index"] .side-panel-right {
   display: flex;
@@ -645,40 +693,40 @@ body[data-page="index"] .side-panel-right {
   height: 100%;
   max-height: 100%;
 
-  /* 底部圆角，制造“落地”感 */
+  /* 搴曢儴鍦嗚锛屽埗閫犫€滆惤鍦扳€濇劅 */
   border-bottom-left-radius: var(--radius-lg);
   border-bottom-right-radius: var(--radius-lg);
-  border-bottom: 1px solid var(--border-soft); /* 恢复底部边框 */
+  border-bottom: 1px solid var(--border-soft); /* 鎭㈠搴曢儴杈规 */
 
-  /* 内部滚动设置 */
+  /* 鍐呴儴婊氬姩设置 */
   overflow-y: auto;
-  /* 底部留白：防止最后的内容被悬浮输入框遮挡 */
+  /* 搴曢儴鐣欑櫧锛氶槻姝㈡渶鍚庣殑鍐呭琚偓娴緭鍏ユ閬尅 */
   padding-bottom: 40px;
 }
 
-/* 中间故事区域 */
+/* 涓棿鏁呬簨鍖哄煙 */
 body[data-page="index"] .story-panel {
   display: flex;
   flex-direction: column;
   height: 90%;
-  /* 80px 大约是收起状态下输入框的高度 + 一点空隙。你可以改这个数字来微调 */
+  /* 80px 澶х害鏄敹璧风姸鎬佷笅杈撳叆妗嗙殑楂樺害 + 涓€鐐圭┖闅欍€備綘鍙互鏀硅繖涓暟瀛楁潵寰皟 */
   margin-bottom: 80px;
   max-height: 90%;
 
-  /* 保持原有的圆角设置，或者根据需要修改 */
-  border-bottom-left-radius: var(--radius-lg); /* 建议恢复圆角，因为它现在悬空了 */
-  border-bottom-right-radius: var(--radius-lg); /* 建议恢复圆角 */
-  border-bottom: 1px solid var(--border-soft); /* 恢复底部边框 */
+  /* 淇濇寔鍘熸湁鐨勫渾瑙掕缃紝鎴栬€呮牴鎹渶瑕佷慨鏀?*/
+  border-bottom-left-radius: var(--radius-lg); /* 寤鸿鎭㈠鍦嗚锛屽洜涓哄畠鐜板湪鎮┖浜?*/
+  border-bottom-right-radius: var(--radius-lg); /* 寤鸿鎭㈠鍦嗚 */
+  border-bottom: 1px solid var(--border-soft); /* 鎭㈠搴曢儴杈规 */
   background: var(--bg-elevated);
 
-  /* 内部滚动设置 */
+  /* 鍐呴儴婊氬姩设置 */
   overflow-y: auto;
 }
 
 body[data-page="index"] .story-log {
   flex: 1;
   margin-top: 0;
-  /* 底部留白：给悬浮输入框留出空间，确保文字能滚上来 */
+  /* 搴曢儴鐣欑櫧锛氱粰鎮诞杈撳叆妗嗙暀鍑虹┖闂达紝纭繚鏂囧瓧鑳芥粴涓婃潵 */
   padding: 10px 20px 140px 20px;
   border-radius: var(--radius-md);
   height: 100%;
@@ -688,7 +736,7 @@ body[data-page="index"] .story-log {
   background: transparent;
 }
 
-/* 故事块分割线 */
+/* 鏁呬簨鍧楀垎鍓茬嚎 */
 body[data-page="index"] .story-log .story-block {
   position: relative;
   padding-top: 20px;
@@ -715,7 +763,7 @@ body[data-page="index"] .story-log .story-block:first-child::before {
   display: none;
 }
 
-/* 用户输入气泡样式 - 右对齐 */
+/* 鐢ㄦ埛杈撳叆姘旀场鏍峰紡 - 鍙冲榻?*/
 body[data-page="index"] .story-log .story-block-user {
   display: flex;
   flex-direction: column;
@@ -745,7 +793,7 @@ body[data-page="index"] .story-log .story-block-user .story-text {
   line-height: 1.6;
 }
 
-/* AI回复气泡样式 - 左对齐 */
+/* AI鍥炲姘旀场鏍峰紡 - 宸﹀榻?*/
 body[data-page="index"] .story-log .story-block-assistant {
   display: flex;
   flex-direction: column;
@@ -776,7 +824,7 @@ body[data-page="index"] .story-log .story-block-assistant .story-text {
   border: 1px solid var(--border-soft);
 }
 
-/* 默认story-block样式（非用户和AI） */
+/* 榛樿story-block鏍峰紡锛堥潪鐢ㄦ埛鍜孉I锛?*/
 body[data-page="index"] .story-log .story-block {
   display: flex;
   flex-direction: column;
@@ -807,7 +855,7 @@ body[data-page="index"] .story-log .story-block .story-text {
   border: 1px solid var(--border-soft);
 }
 
-/* 应用字体变量到剧情页面各区域 */
+/* 搴旂敤瀛椾綋鍙橀噺鍒板墽鎯呴〉闈㈠悇鍖哄煙 */
 body[data-page="index"] .story-thinking {
   font-family: var(--font-thinking-family);
   font-size: var(--font-thinking-size);
@@ -844,14 +892,14 @@ body[data-page="index"] .sidebar-section .small-text {
   font-weight: var(--font-stats-weight);
 }
 
-/* 原文弹窗字体 */
+/* 鍘熸枃寮圭獥瀛椾綋 */
 .raw-text-content {
   font-family: var(--font-raw-family);
   font-size: var(--font-raw-size);
   font-weight: var(--font-raw-weight);
 }
 
-/* 实时计时器样式 */
+/* 瀹炴椂璁℃椂鍣ㄦ牱寮?*/
 .story-timer {
   position: sticky;
   bottom: 0;
@@ -877,7 +925,7 @@ body[data-page="index"] .sidebar-section .small-text {
   color: var(--border-soft);
 }
 
-/* 故事块统计信息样式 */
+/* 鏁呬簨鍧楃粺璁′俊鎭牱寮?*/
 .story-stats {
   display: inline-flex;
   align-items: center;
@@ -897,32 +945,32 @@ body[data-page="index"] .sidebar-section .small-text {
   margin: 0 4px;
 }
 
-/* 2. 底部输入栏 (悬浮卡片式) */
+/* 2. 底部输入栏(鎮诞鍗＄墖寮? */
 body[data-page="index"] .input-bar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  /* 调整 padding，让它贴底但保持美观 */
+  /* 璋冩暣 padding锛岃瀹冭创搴曚絾淇濇寔缇庤 */
   padding: 0 10px 10px 10px;
   background: transparent;
   z-index: 100;
   display: flex;
   justify-content: center;
-  pointer-events: none; /* 点击穿透，不阻挡两侧内容 */
+  pointer-events: none; /* 鐐瑰嚮绌块€忥紝涓嶉樆鎸′袱渚у唴瀹?*/
 }
 
-/* 输入框容器外观 */
+/* 杈撳叆妗嗗鍣ㄥ瑙?*/
 body[data-page="index"] .input-container {
   pointer-events: auto;
   width: 100%;
   max-width: 900px;
 
-  /* 默认深色半透明背景 (适用于 Dark/Cyberpunk/Forest 等) */
+  /* 榛樿娣辫壊鍗婇€忔槑鑳屾櫙 (閫傜敤浜?Dark/Cyberpunk/Forest 绛? */
   background: rgba(16, 21, 32, 0.95);
   backdrop-filter: blur(10px);
 
-  /* 使用全局大圆角 */
+  /* 浣跨敤鍏ㄥ眬澶у渾瑙?*/
   border-radius: var(--radius-lg);
 
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--border-soft);
@@ -933,23 +981,23 @@ body[data-page="index"] .input-container {
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-/* [专用修复] 针对“羊皮卷 (scroll)”和“晨曦 (light)”主题的特化样式 */
-/* 解决背景太黑的问题 */
+/* [涓撶敤淇] 閽堝鈥滅緤鐨嵎 (scroll)鈥濆拰鈥滄櫒鏇?(light)鈥濅富棰樼殑鐗瑰寲鏍峰紡 */
+/* 瑙ｅ喅鑳屾櫙澶粦鐨勯棶棰?*/
 [data-theme="scroll"] body[data-page="index"] .input-container,
 [data-theme="light"] body[data-page="index"] .input-container {
-    background: rgba(244, 236, 224, 0.95); /* 羊皮卷风格的米色半透明 */
+    background: rgba(244, 236, 224, 0.95); /* 缇婄毊鍗烽鏍肩殑绫宠壊鍗婇€忔槑 */
     border-color: #c2b280;
     box-shadow: 0 -4px 20px rgba(75, 54, 33, 0.15);
 }
 
-/* 针对晨曦主题微调 */
+/* 閽堝鏅ㄦ洣涓婚寰皟 */
 [data-theme="light"] body[data-page="index"] .input-container {
-    background: rgba(255, 255, 255, 0.95); /* 纯白半透明 */
+    background: rgba(255, 255, 255, 0.95); /* 绾櫧鍗婇€忔槑 */
     border-color: #dbe4ef;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
 }
 
-/* 输入栏头部 */
+/* 杈撳叆鏍忓ご閮?*/
 .input-header-row {
   display: flex;
   align-items: center;
@@ -962,15 +1010,21 @@ body[data-page="index"] .input-container {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.input-header-actions {
+  display: none;
+  align-items: center;
 }
 
 .input-header-desc {
   font-size: 11px;
   color: var(--text-secondary);
   opacity: 0.7;
+  margin-right: auto;
 }
-
-/* 纵向行动建议 */
+/* 绾靛悜琛屽姩寤鸿 */
 .action-suggestions {
   background: transparent;
   border: none;
@@ -1033,7 +1087,7 @@ body[data-page="index"] .input-container {
   display: none;
 }
 
-/* 输入主区域 */
+/* 杈撳叆涓诲尯鍩?*/
 .input-main-inner {
   position: relative;
   display: flex;
@@ -1048,14 +1102,14 @@ body[data-page="index"] .input-textarea {
   max-height: 120px;
   padding: 10px 14px;
   padding-right: 40px;
-  border-radius: var(--radius-md); /* 使用中号圆角 */
+  border-radius: var(--radius-md); /* 浣跨敤涓彿鍦嗚 */
   resize: none;
   background: var(--bg-elevated-alt);
   border: 1px solid var(--border-soft);
   font-size: 14px;
   line-height: 1.5;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
-  color: var(--text-primary); /* 确保字体颜色跟随主题 */
+  color: var(--text-primary); /* 纭繚瀛椾綋棰滆壊璺熼殢涓婚 */
 }
 
 body[data-page="index"] .input-textarea:focus {
@@ -1063,7 +1117,7 @@ body[data-page="index"] .input-textarea:focus {
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
-/* 半屏/放大按钮 */
+/* 鍗婂睆/鏀惧ぇ鎸夐挳 */
 .input-size-toggle {
   position: absolute;
   bottom: 8px;
@@ -1088,7 +1142,7 @@ body[data-page="index"] .input-textarea:focus {
 .input-size-toggle svg {
   width: 18px;
   height: 18px;
-  fill: var(--text-secondary); /* 确保图标颜色跟随主题 */
+  fill: var(--text-secondary); /* 纭繚鍥炬爣棰滆壊璺熼殢涓婚 */
 }
 
 .input-actions {
@@ -1108,10 +1162,17 @@ body[data-page="index"] .input-textarea:focus {
 .input-bar--collapsed .input-body {
   display: none;
 }
+
 .input-bar--collapsed .input-container {
   width: auto;
   border-radius: 999px;
   padding: 6px 16px;
+}
+
+/* 收起状态下显示右侧按钮容器（按钮本身由 JS 控制） */
+.input-bar--collapsed .input-header-actions {
+  display: flex;
+  margin-left: auto; /* 右对齐 */
 }
 
 /* 半屏模式 */
@@ -1136,10 +1197,10 @@ body[data-page="index"].input-half-screen .input-textarea {
   max-height: none;
 }
 
-/* 响应式 */
+/* 鍝嶅簲寮?*/
 
 
-/* --- B. 设置页面 (Settings Page) --- */
+/* --- B. 设置椤甸潰 (Settings Page) --- */
 .settings-container {
   display: flex;
   gap: 20px;
@@ -1159,7 +1220,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 
 .settings-content-area {
   flex: 1;
-  padding: 0; /* 内部有 Header 和 TabPane */
+  padding: 0; /* 鍐呴儴鏈?Header 鍜?TabPane */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1187,7 +1248,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 }
 
 /* =========================================
-   11. 预设与正则化管理专用面板样式
+   11. 棰勮涓庢鍒欏寲绠＄悊涓撶敤闈㈡澘鏍峰紡
    ========================================= */
 
 .tab-pane-presets {
@@ -1195,21 +1256,21 @@ body[data-page="index"].input-half-screen .input-textarea {
   display: none;
   flex-direction: column;
 
-  /* 2. 强制占满父容器高度 */
+  /* 2. 寮哄埗鍗犳弧鐖跺鍣ㄩ珮搴?*/
   height: 100%;
   flex: 1;
 
-  /* 3. 禁止外层容器出现滚动条！ */
+  /* 3. 绂佹澶栧眰瀹瑰櫒鍑虹幇婊氬姩鏉★紒 */
   overflow: hidden !important;
 
-  /* 4. 【关键修改】这里设置您需要的边缘大小，例如 16px 或 20px */
+  /* 4. 銆愬叧閿慨鏀广€戣繖閲岃缃偍闇€瑕佺殑杈圭紭澶у皬锛屼緥濡?16px 鎴?20px */
   padding: 20px !important;
 
-  /* 5. 【重要】确保内边距包含在 height:100% 也就是总高度内，防止撑出滚动条 */
+  /* 5. 銆愰噸瑕併€戠‘淇濆唴杈硅窛鍖呭惈鍦?height:100% 涔熷氨鏄€婚珮搴﹀唴锛岄槻姝㈡拺鍑烘粴鍔ㄦ潯 */
   box-sizing: border-box;
 }
 
-/* 激活状态：覆盖默认的 display: block */
+/* 婵€娲荤姸鎬侊細瑕嗙洊榛樿鐨?display: block */
 .tab-pane-presets.active {
   display: flex !important;
 }
@@ -1241,7 +1302,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   font-weight: 500;
 }
 
-/* 主题预览网格 */
+/* 涓婚棰勮缃戞牸 */
 .visual-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -1280,7 +1341,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   gap: 12px;
 }
 
-/* 设置页：字体与字号区域布局 */
+/* 设置椤碉細瀛椾綋涓庡瓧鍙峰尯鍩熷竷灞€ */
 .typography-section {
   margin-bottom: 20px;
 }
@@ -1321,7 +1382,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   cursor: pointer;
 }
 
-/* 小屏幕下自动纵向堆叠，避免挤爆 */
+/* 灏忓睆骞曚笅鑷姩绾靛悜鍫嗗彔锛岄伩鍏嶆尋鐖?*/
 @media (max-width: 900px) {
   .typography-row {
     grid-template-columns: 1fr;
@@ -1330,7 +1391,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 }
 
 
-/* --- C. 角色页面 (Characters Page) --- */
+/* --- C. 角色椤甸潰 (Characters Page) --- */
 .rendered-view {
   padding: 16px;
   overflow-y: auto;
@@ -1430,7 +1491,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   color: var(--text-primary);
 }
 
-/* --- D. 副本与世界书 (Dungeon & Worldbook) --- */
+/* --- D. 鍓湰涓庝笘鐣屼功 (Dungeon & Worldbook) --- */
 .nodes-container {
   display: flex;
   flex-direction: column;
@@ -1513,7 +1574,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   to { opacity: 1; transform: scale(1); }
 }
 
-/* 模板设计器专用 */
+/* 妯℃澘璁捐鍣ㄤ笓鐢?*/
 .designer-row {
   display: flex;
   gap: 8px;
@@ -1530,7 +1591,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 }
 
 /* =========================================
-   9. 响应式调整 (Responsive)
+   9. 鍝嶅簲寮忚皟鏁?(Responsive)
    ========================================= */
 @media (max-width: 1200px) {
   body[data-page="index"] .main-layout {
@@ -1542,7 +1603,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 }
 
 @media (max-width: 900px) {
-  /* 全局单列 */
+  /* 鍏ㄥ眬鍗曞垪 */
   .main-layout, .two-column-layout, .settings-container {
     grid-template-columns: 1fr;
     display: flex;
@@ -1555,10 +1616,10 @@ body[data-page="index"].input-half-screen .input-textarea {
   .settings-sidebar { flex: none; max-width: 100%; height: auto;}
   .settings-content-area { overflow: visible; }
 
-  /* 剧情页 */
+  /* 剧情椤?*/
   body[data-page="index"] .main-layout {
     grid-template-columns: 1fr;
-    padding-bottom: 16px; /* 取消底部大留白 */
+    padding-bottom: 16px; /* 取消搴曢儴澶х暀鐧?*/
   }
 
   body[data-page="index"] .side-panel-right {
@@ -1570,7 +1631,7 @@ body[data-page="index"].input-half-screen .input-textarea {
     max-height: 50vh;
   }
 
-  /* 输入框移动端样式 */
+  /* 杈撳叆妗嗙Щ鍔ㄧ鏍峰紡 */
   body[data-page="index"] .input-bar {
     position: static;
     padding: 10px 16px;
@@ -1589,11 +1650,11 @@ body[data-page="index"].input-half-screen .input-textarea {
 }
 
 /* style.css - 添加到末尾或替换原有的 Worldbook 样式 */
-/* --- Worldbook 树状视图重构 --- */
+/* --- Worldbook 鏍戠姸瑙嗗浘閲嶆瀯 --- */
 .worldbook-tree-container {
   overflow-y: auto;
   padding: 4px;
-  /* 拖拽高亮样式 */
+  /* 鎷栨嫿楂樹寒鏍峰紡 */
   transition: background 0.2s;
 }
 .worldbook-tree-container.drag-active {
@@ -1602,7 +1663,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   border-radius: var(--radius-md);
 }
 
-/* 树节点通用样式 (World, Category, Entry) */
+/* 鏍戣妭鐐归€氱敤鏍峰紡 (World, Category, Entry) */
 .tree-node {
   cursor: pointer;
   border-radius: var(--radius-sm);
@@ -1610,21 +1671,21 @@ body[data-page="index"].input-half-screen .input-textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  user-select: none; /* 防止双击选中文本 */
+  user-select: none; /* 闃叉鍙屽嚮閫変腑鏂囨湰 */
 }
 
-/* 选中状态 (全局通用) */
+/* 閫変腑鐘舵€?(鍏ㄥ眬閫氱敤) */
 .tree-node.selected {
   background-color: var(--accent);
-  color: #fff !important; /* 强制选中文字变白 */
+  color: #fff !important; /* 寮哄埗閫変腑鏂囧瓧鍙樼櫧 */
 }
-/* 选中状态下的副文本颜色 */
+/* 閫変腑鐘舵€佷笅鐨勫壇鏂囨湰棰滆壊 */
 .tree-node.selected .muted,
 .tree-node.selected .icon-arrow {
   color: rgba(255,255,255,0.8) !important;
 }
 
-/* --- 层级 1: World --- */
+/* --- 灞傜骇 1: World --- */
 .tree-level-1-container {
   margin-bottom: 8px;
   border: 1px solid var(--border-soft);
@@ -1642,9 +1703,9 @@ body[data-page="index"].input-half-screen .input-textarea {
   background: rgba(0,0,0,0.05);
 }
 
-/* --- 层级 2: Category --- */
+/* --- 灞傜骇 2: Category --- */
 .tree-children-1 {
-  display: none; /* 默认折叠 */
+  display: none; /* 榛樿鎶樺彔 */
   border-top: 1px solid var(--border-soft);
 }
 .tree-level-1-container.expanded .tree-children-1 {
@@ -1652,7 +1713,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 }
 
 .tree-header-2 {
-  padding: 8px 10px 8px 20px; /* 左侧缩进 */
+  padding: 8px 10px 8px 20px; /* 宸︿晶缂╄繘 */
   font-size: 13px;
   color: var(--text-primary);
   border-bottom: 1px solid transparent;
@@ -1661,7 +1722,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   background: rgba(0,0,0,0.03);
 }
 
-/* --- 层级 3: Entry --- */
+/* --- 灞傜骇 3: Entry --- */
 .tree-children-2 {
   display: none;
 }
@@ -1670,7 +1731,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 }
 
 .tree-item-3 {
-  padding: 6px 10px 6px 36px; /* 更大的缩进 */
+  padding: 6px 10px 6px 36px; /* 鏇村ぇ鐨勭缉杩?*/
   font-size: 12px;
   color: var(--text-secondary);
 }
@@ -1679,13 +1740,13 @@ body[data-page="index"].input-half-screen .input-textarea {
   background: rgba(0,0,0,0.03);
 }
 
-/* 状态切换按钮激活样式 */
+/* 鐘舵€佸垏鎹㈡寜閽縺娲绘牱寮?*/
 .toggle-group .btn-small.active {
   background-color: var(--accent);
   color: white;
 }
 
-/* 树状结构层级样式 */
+/* 鏍戠姸缁撴瀯灞傜骇鏍峰紡 */
 .tree-header-2 {
   display: flex;
   justify-content: space-between;
@@ -1701,7 +1762,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   flex: 1;
 }
 
-/* Worldbook 分级目录箭头 */
+/* Worldbook 鍒嗙骇鐩綍绠ご */
 .arrow-toggle {
   width: 0;
   height: 0;
@@ -1715,12 +1776,12 @@ body[data-page="index"].input-half-screen .input-textarea {
   flex-shrink: 0;
 }
 
-/* 展开状态：箭头向下 */
+/* 灞曞紑鐘舵€侊細绠ご鍚戜笅 */
 .tree-level-2-container.expanded .arrow-toggle {
   transform: rotate(90deg);
 }
 
-/* 选中状态下箭头变亮 */
+/* 閫変腑鐘舵€佷笅绠ご鍙樹寒 */
 .tree-node.selected .arrow-toggle {
   border-left-color: rgba(255, 255, 255, 0.85);
 }
@@ -1749,15 +1810,15 @@ body[data-page="index"].input-half-screen .input-textarea {
 }
 
 /* =========================================
-   预设与正则化管理界面共用样式
+   棰勮涓庢鍒欏寲绠＄悊鐣岄潰鍏辩敤鏍峰紡
    ========================================= */
 
-/* Tab页面禁止滚动，只允许内部树状内容滚动 */
+/* Tab椤甸潰绂佹婊氬姩锛屽彧鍏佽鍐呴儴鏍戠姸鍐呭婊氬姩 */
 .tab-pane-presets {
   overflow: hidden !important;
 }
 
-/* 配置管理面板 */
+/* 閰嶇疆绠＄悊闈㈡澘 */
 .config-panel {
   display: flex;
   flex-direction: column;
@@ -1769,7 +1830,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   border: 1px solid var(--border-soft);
 }
 
-/* 配置文件选择器 */
+/* 閰嶇疆鏂囦欢閫夋嫨鍣?*/
 .config-select {
   width: 100%;
   cursor: pointer;
@@ -1792,7 +1853,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
-/* 当前激活提示框 */
+/* 褰撳墠婵€娲绘彁绀烘 */
 .active-hint-box {
   margin-top: 8px;
   background: linear-gradient(135deg, var(--accent-soft) 0%, rgba(78, 140, 255, 0.05) 100%);
@@ -1829,7 +1890,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   font-weight: 500;
 }
 
-/* 操作按钮组 */
+/* 操作鎸夐挳缁?*/
 .action-buttons {
   display: flex;
   flex-direction: column;
@@ -1841,14 +1902,14 @@ body[data-page="index"].input-half-screen .input-textarea {
   gap: 8px;
 }
 
-/* 分隔线 */
+/* 鍒嗛殧绾?*/
 .divider {
   height: 1px;
   background: linear-gradient(90deg, transparent 0%, var(--border-soft) 50%, transparent 100%);
   margin: 4px 0;
 }
 
-/* 树状结构容器 */
+/* 鏍戠姸缁撴瀯瀹瑰櫒 */
 .tree-container {
   flex: 1;
   overflow-y: auto;
@@ -1859,7 +1920,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   background: rgba(0, 0, 0, 0.15);
 }
 
-/* 树节点样式 - 预设和正则化专用 */
+/* 鏍戣妭鐐规牱寮?- 棰勮鍜屾鍒欏寲涓撶敤 */
 .config-tree-node {
   cursor: pointer;
   border-radius: var(--radius-sm);
@@ -1908,7 +1969,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   text-overflow: ellipsis;
 }
 
-/* 节点编辑器面板 */
+/* 鑺傜偣缂栬緫鍣ㄩ潰鏉?*/
 .node-editor-panel {
   display: flex;
   flex-direction: column;
@@ -1939,7 +2000,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   padding: 16px;
 }
 
-/* 空状态提示 */
+/* 绌虹姸鎬佹彁绀?*/
 .empty-hint {
   flex: 1;
   display: flex;
@@ -1968,7 +2029,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   opacity: 0.7;
 }
 
-/* 分组节点提示 - 预设和正则化共用 */
+/* 鍒嗙粍鑺傜偣鎻愮ず - 棰勮鍜屾鍒欏寲鍏辩敤 */
 .group-node-hint {
   display: none;
   flex: 1;
@@ -1996,7 +2057,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   margin-top: 6px;
 }
 
-/* 表单字段组 */
+/* 琛ㄥ崟瀛楁缁?*/
 .form-field-group {
   margin-bottom: 12px;
 }
@@ -2038,14 +2099,14 @@ body[data-page="index"].input-half-screen .input-textarea {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-/* 面板标题样式 */
+/* 闈㈡澘鏍囬鏍峰紡 */
 .panel-title {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-/* 图标按钮增强 */
+/* 鍥炬爣鎸夐挳澧炲己 */
 .icon-button {
   width: 28px;
   height: 28px;
@@ -2081,7 +2142,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   background: rgba(255, 95, 95, 0.15);
 }
 
-/* 按钮增强 */
+/* 鎸夐挳澧炲己 */
 .btn-primary {
   background: linear-gradient(135deg, var(--accent) 0%, rgba(78, 140, 255, 0.85) 100%);
   border: none;
@@ -2135,6 +2196,65 @@ body[data-page="index"].input-half-screen .input-textarea {
   font-size: 13px;
 }
 
+.stop-button-container {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 12px;
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border-soft);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.btn-stop-fixed {
+  width: 100%;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-stop-fixed:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+}
+
+.btn-stop-fixed:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.btn-stop-fixed svg {
+  animation: pulse-stop 1s ease-in-out infinite;
+}
+
+.btn-stop-fixed span {
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
 .btn-secondary {
   background: var(--bg-elevated-alt);
   border: 1px solid var(--border-soft);
@@ -2158,7 +2278,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   background: rgba(255, 95, 95, 0.2);
 }
 
-/* 开关样式增强 */
+/* 寮€鍏虫牱寮忓寮?*/
 .toggle-switch {
   position: relative;
   display: inline-block;
@@ -2204,7 +2324,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   transform: translateX(16px);
 }
 
-/* 滚动条美化 */
+/* 婊氬姩鏉＄編鍖?*/
 .tree-container::-webkit-scrollbar,
 .node-editor-content::-webkit-scrollbar {
   width: 6px;
@@ -2234,7 +2354,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   height: 100%;
   overflow-y: auto;
 }
-/* 上传/导入区域容器 */
+/* 涓婁紶/导入鍖哄煙瀹瑰櫒 */
 .import-card {
   border: 2px dashed var(--border-soft);
   border-radius: var(--radius-md);
@@ -2276,7 +2396,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   margin-top: 4px;
 }
 
-/* 状态反馈消息 */
+/* 鐘舵€佸弽棣堟秷鎭?*/
 .status-message {
   margin-top: 10px;
   padding: 8px 12px;
@@ -2285,10 +2405,10 @@ body[data-page="index"].input-half-screen .input-textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  opacity: 0; /* 默认隐藏 */
+  opacity: 0; /* 榛樿闅愯棌 */
   transform: translateY(-5px);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  pointer-events: none; /* 防止遮挡 */
+  pointer-events: none; /* 闃叉閬尅 */
 }
 
 .status-message.show {
@@ -2315,10 +2435,10 @@ body[data-page="index"].input-half-screen .input-textarea {
 }
 
 /* =========================================
-   Typography Zones (字体分区)
+   Typography Zones (瀛椾綋鍒嗗尯)
    ========================================= */
 
-/* 1) 系统界面字体：导航、按钮、表单、设置界面等 */
+/* 1) 绯荤粺鐣岄潰瀛椾綋锛氬鑸€佹寜閽€佽〃鍗曘€佽缃晫闈㈢瓑 */
 body,
 .top-nav,
 .nav-links,
@@ -2340,7 +2460,7 @@ body,
   font-size: var(--font-ui-size);
 }
 
-/* 2) 剧情正文（index 页面：故事区域 + 输入框） */
+/* 2) 剧情姝ｆ枃锛坕ndex 椤甸潰锛氭晠浜嬪尯鍩?+ 杈撳叆妗嗭級 */
 body[data-page="index"] .story-panel,
 body[data-page="index"] .story-log,
 body[data-page="index"] .story-log .story-block,
@@ -2352,7 +2472,7 @@ body[data-page="index"] .input-container {
   font-size: var(--font-story-size);
 }
 
-/* 3) 叙事控制台 / 统计面板（index 页面左右侧栏） */
+/* 3) 鍙欎簨鎺у埗鍙?/ 缁熻闈㈡澘锛坕ndex 椤甸潰宸﹀彸渚ф爮锛?*/
 body[data-page="index"] .side-panel-left,
 body[data-page="index"] .side-panel-right,
 body[data-page="index"] .sidebar-section,
@@ -2362,7 +2482,7 @@ body[data-page="index"] .sidebar-section .section-body {
   font-size: var(--font-console-size);
 }
 
-/* 4) 角色详情内容（characters 页面右侧内容预览） */
+/* 4) 角色璇︽儏鍐呭锛坈haracters 椤甸潰鍙充晶鍐呭棰勮锛?*/
 body[data-page="characters"] .rendered-view,
 body[data-page="characters"] .rendered-view .char-section,
 body[data-page="characters"] .char-card,
@@ -2372,7 +2492,7 @@ body[data-page="characters"] .char-card .tag-cloud {
   font-size: var(--font-char-size);
 }
 
-/* 5) 世界书内容预览（worldbook 页面右侧预览区） */
+/* 5) 世界书﹀唴瀹归瑙堬紙worldbook 椤甸潰鍙充晶棰勮鍖猴級 */
 body[data-page="worldbook"] .render-box,
 body[data-page="worldbook"] .detail-panel,
 body[data-page="worldbook"] .detail-panel .form-textarea {
@@ -2380,7 +2500,7 @@ body[data-page="worldbook"] .detail-panel .form-textarea {
   font-size: var(--font-world-size);
 }
 
-/* 6) 副本预览（dungeon 页面右侧预览区） */
+/* 6) 鍓湰棰勮锛坉ungeon 椤甸潰鍙充晶棰勮鍖猴級 */
 body[data-page="dungeon"] .render-box,
 body[data-page="dungeon"] .detail-panel {
   font-family: var(--font-dungeon-family);
@@ -2388,7 +2508,7 @@ body[data-page="dungeon"] .detail-panel {
 }
 
 /* =========================================
-   10. 新增组件：Toggle Switch (替代 Checkbox)
+   10. 鏂板缁勪欢锛歍oggle Switch (鏇夸唬 Checkbox)
    ========================================= */
 .toggle-switch {
   position: relative;
@@ -2411,7 +2531,7 @@ body[data-page="dungeon"] .detail-panel {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #3a3a3c; /* 未激活时的深灰色 */
+  background-color: #3a3a3c; /* 鏈縺娲绘椂鐨勬繁鐏拌壊 */
   transition: .3s;
   border-radius: 22px;
   border: 1px solid rgba(255,255,255,0.1);
@@ -2424,14 +2544,14 @@ body[data-page="dungeon"] .detail-panel {
   width: 18px;
   left: 2px;
   bottom: 1px;
-  background-color: #8e8e93; /* 按钮颜色 */
+  background-color: #8e8e93; /* 鎸夐挳棰滆壊 */
   transition: .3s;
   border-radius: 50%;
 }
 
-/* 激活状态 */
+/* 婵€娲荤姸鎬?*/
 input:checked + .slider {
-  background-color: var(--accent); /* 跟随主题色，或强制绿色 #34c759 */
+  background-color: var(--accent); /* 璺熼殢涓婚鑹诧紝鎴栧己鍒剁豢鑹?#34c759 */
 }
 
 input:checked + .slider:before {
@@ -2439,12 +2559,12 @@ input:checked + .slider:before {
   background-color: #ffffff;
 }
 
-/* 悬停微效 */
+/* 鎮仠寰晥 */
 .toggle-switch:hover .slider {
   filter: brightness(1.1);
 }
 
-/* 设置界面-预设管理-确保列表框样式与主题一致 */
+/* 设置鐣岄潰-棰勮绠＄悊-纭繚鍒楄〃妗嗘牱寮忎笌涓婚涓€鑷?*/
 #preset-select option {
   padding: 4px 8px;
   cursor: pointer;
@@ -2454,18 +2574,18 @@ input:checked + .slider:before {
   border-color: var(--accent);
 }
 
-/* 针对 Textarea 的优化 */
+/* 閽堝 Textarea 鐨勪紭鍖?*/
 #preset-node-content:focus {
   background: var(--bg-elevated);
-  box-shadow: none; /* 移除多余阴影，保持清爽 */
+  box-shadow: none; /* 绉婚櫎澶氫綑闃村奖锛屼繚鎸佹竻鐖?*/
   border-color: var(--accent);
 }
 
 /* =========================================
-   11. 四大核心模块视觉美化样式
+   11. 鍥涘ぇ鏍稿績妯″潡瑙嗚缇庡寲鏍峰紡
    ========================================= */
 
-/* --- 子区块通用样式 --- */
+/* --- 瀛愬尯鍧楅€氱敤鏍峰紡 --- */
 .player-subsection,
 .scene-subsection,
 .characters-subsection,
@@ -2519,7 +2639,7 @@ input:checked + .slider:before {
   display: none;
 }
 
-/* --- 面板折叠按钮 --- */
+/* --- 闈㈡澘鎶樺彔鎸夐挳 --- */
 .panel-collapse-btn {
   background: transparent;
   border: none;
@@ -2540,10 +2660,10 @@ input:checked + .slider:before {
 }
 
 /* =========================================
-   主角与玩家视角模块样式
+   涓昏涓庣帺瀹惰瑙掓ā鍧楁牱寮?
    ========================================= */
 
-/* 1. 主观数值与状态 */
+/* 1. 涓昏鏁板€间笌鐘舵€?*/
 .stats-grid {
   display: flex;
   flex-direction: column;
@@ -2629,7 +2749,7 @@ input:checked + .slider:before {
   border: 1px solid rgba(241, 196, 15, 0.3);
 }
 
-/* 2. 经济/资源系统 */
+/* 2. 经济/资源绯荤粺 */
 .resource-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2703,7 +2823,7 @@ input:checked + .slider:before {
   color: #f1c40f;
 }
 
-/* 4. 势力/阵营 */
+/* 4. 鍔垮姏/闃佃惀 */
 .faction-summary {
   font-size: 12px;
   color: var(--text-primary);
@@ -2730,7 +2850,7 @@ input:checked + .slider:before {
   color: var(--accent);
 }
 
-/* 5. 物品栏 */
+/* 5. 鐗╁搧鏍?*/
 .inventory-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -2808,10 +2928,10 @@ input:checked + .slider:before {
 }
 
 /* =========================================
-   当前场景与副本模块样式
+   褰撳墠鍦烘櫙涓庡壇鏈ā鍧楁牱寮?
    ========================================= */
 
-/* 1. 场景信息 */
+/* 1. 鍦烘櫙淇℃伅 */
 .scene-name {
   display: flex;
   align-items: center;
@@ -2845,7 +2965,7 @@ input:checked + .slider:before {
   line-height: 1.5;
 }
 
-/* 2. 任务目标 */
+/* 2. 浠诲姟鐩爣 */
 .quest-list {
   display: flex;
   flex-direction: column;
@@ -2894,7 +3014,7 @@ input:checked + .slider:before {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* 3. 环境状态 */
+/* 3. 鐜鐘舵€?*/
 .environment-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2919,7 +3039,7 @@ input:checked + .slider:before {
   color: var(--text-primary);
 }
 
-/* 4. 副本进度 */
+/* 4. 鍓湰杩涘害 */
 .progress-container {
   display: flex;
   align-items: center;
@@ -2958,7 +3078,7 @@ input:checked + .slider:before {
   border-radius: var(--radius-xs);
 }
 
-/* 5. 场景互动点 */
+/* 5. 鍦烘櫙浜掑姩鐐?*/
 .interact-list {
   display: flex;
   flex-direction: column;
@@ -2996,7 +3116,7 @@ input:checked + .slider:before {
   color: var(--text-secondary);
 }
 
-/* 6. 挑战信息 */
+/* 6. 鎸戞垬淇℃伅 */
 .challenge-info {
   display: flex;
   flex-direction: column;
@@ -3035,10 +3155,10 @@ input:checked + .slider:before {
 }
 
 /* =========================================
-   周围人物与势力模块样式
+   鍛ㄥ洿浜虹墿涓庡娍鍔涙ā鍧楁牱寮?
    ========================================= */
 
-/* 1. NPC列表 */
+/* 1. NPC鍒楄〃 */
 .npc-grid {
   display: flex;
   flex-direction: column;
@@ -3097,7 +3217,7 @@ input:checked + .slider:before {
   border-radius: 4px;
 }
 
-/* 2. 敌对目标 */
+/* 2. 鏁屽鐩爣 */
 .enemy-grid {
   display: flex;
   flex-direction: column;
@@ -3155,7 +3275,7 @@ input:checked + .slider:before {
   color: #e74c3c;
 }
 
-/* 3. 势力分布 */
+/* 3. 鍔垮姏鍒嗗竷 */
 .faction-list {
   display: flex;
   flex-direction: column;
@@ -3198,7 +3318,7 @@ input:checked + .slider:before {
   border-radius: 2px;
 }
 
-/* 4. 社交关系 */
+/* 4. 绀句氦鍏崇郴 */
 .relation-list {
   display: flex;
   flex-direction: column;
@@ -3254,7 +3374,7 @@ input:checked + .slider:before {
   color: #e74c3c;
 }
 
-/* 5. 队伍信息 */
+/* 5. 闃熶紞淇℃伅 */
 .party-status {
   padding: 8px;
   background: rgba(0, 0, 0, 0.2);
@@ -3309,7 +3429,7 @@ input:checked + .slider:before {
   border-radius: 2px;
 }
 
-/* 6. 势力任务 */
+/* 6. 鍔垮姏浠诲姟 */
 .faction-quest-list {
   display: flex;
   flex-direction: column;
@@ -3352,10 +3472,10 @@ input:checked + .slider:before {
 }
 
 /* =========================================
-   地图与世界事件模块样式
+   鍦板浘涓庝笘鐣屼簨浠舵ā鍧楁牱寮?
    ========================================= */
 
-/* 1. 区域地图 */
+/* 1. 鍖哄煙鍦板浘 */
 .map-container {
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -3388,7 +3508,7 @@ input:checked + .slider:before {
   color: var(--text-secondary);
 }
 
-/* 2. 世界地图 */
+/* 2. 涓栫晫鍦板浘 */
 .world-map-btn {
   text-align: center;
 }
@@ -3398,7 +3518,7 @@ input:checked + .slider:before {
   font-size: 12px;
 }
 
-/* 3. 事件标记 */
+/* 3. 浜嬩欢鏍囪 */
 .event-list {
   display: flex;
   flex-direction: column;
@@ -3458,7 +3578,7 @@ input:checked + .slider:before {
   color: #e74c3c;
 }
 
-/* 4. 快速旅行 */
+/* 4. 蹇€熸梾琛?*/
 .travel-list {
   display: flex;
   flex-direction: column;
@@ -3495,7 +3615,7 @@ input:checked + .slider:before {
   color: #f1c40f;
 }
 
-/* 5. 探索进度 */
+/* 5. 鎺㈢储杩涘害 */
 .exploration-stats {
   display: flex;
   flex-direction: column;
@@ -3522,7 +3642,7 @@ input:checked + .slider:before {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* 6. 事件日历 */
+/* 6. 浜嬩欢鏃ュ巻 */
 .calendar-list {
   display: flex;
   flex-direction: column;
@@ -3571,7 +3691,7 @@ input:checked + .slider:before {
 }
 
 /* =========================================
-   动画效果
+   鍔ㄧ敾鏁堟灉
    ========================================= */
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -3597,7 +3717,7 @@ input:checked + .slider:before {
   animation: slideIn 0.3s ease;
 }
 
-/* 响应式调整 */
+/* 鍝嶅簲寮忚皟鏁?*/
 @media (max-width: 1400px) {
   .inventory-grid {
     grid-template-columns: repeat(3, 1fr);
@@ -3615,7 +3735,7 @@ input:checked + .slider:before {
 }
 
 /* =========================================
-   12. 导航栏存档信息样式
+   12. 瀵艰埅鏍忓瓨妗ｄ俊鎭牱寮?
    ========================================= */
 .current-save-info {
   text-align: center;
@@ -3688,7 +3808,7 @@ input:checked + .slider:before {
   z-index: 1;
 }
 
-/* 存档管理按钮弹出容器 */
+/* 存档管理鎸夐挳寮瑰嚭瀹瑰櫒 */
 .save-manager-toggle-btn {
   position: absolute;
   left: 100%;
@@ -3745,7 +3865,7 @@ input:checked + .slider:before {
 }
 
 /* =========================================
-   13. 存档管理弹窗样式
+   13. 存档管理寮圭獥鏍峰紡
    ========================================= */
 .save-manager-window {
   max-width: 900px;
@@ -3762,7 +3882,7 @@ input:checked + .slider:before {
   overflow: hidden;
 }
 
-/* 左侧存档列表 */
+/* 宸︿晶瀛樻。鍒楄〃 */
 .save-list-panel {
   width: 320px;
   flex-shrink: 0;
@@ -3815,7 +3935,7 @@ input:checked + .slider:before {
   font-size: 13px;
 }
 
-/* 存档列表项 */
+/* 瀛樻。鍒楄〃椤?*/
 .save-item {
   display: flex;
   flex-direction: column;
@@ -3898,7 +4018,7 @@ input:checked + .slider:before {
   gap: 4px;
 }
 
-/* 右侧存档详情 */
+/* 鍙充晶瀛樻。璇︽儏 */
 .save-detail-panel {
   flex: 1;
   display: flex;
@@ -3940,7 +4060,7 @@ input:checked + .slider:before {
   padding: 16px;
 }
 
-/* 存档详情信息 */
+/* 瀛樻。璇︽儏淇℃伅 */
 .save-detail-info {
   display: flex;
   flex-direction: column;
@@ -3981,7 +4101,7 @@ input:checked + .slider:before {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* 存档分段列表 */
+/* 瀛樻。鍒嗘鍒楄〃 */
 .segment-list {
   max-height: 300px;
   overflow-y: auto;
@@ -4075,7 +4195,7 @@ input:checked + .slider:before {
   color: #fff;
 }
 
-/* 按钮样式 */
+/* 鎸夐挳鏍峰紡 */
 .btn-small {
   padding: 4px 10px;
   font-size: 12px;
@@ -4085,7 +4205,7 @@ input:checked + .slider:before {
   vertical-align: middle;
 }
 
-/* 表单样式 */
+/* 琛ㄥ崟鏍峰紡 */
 .form-field-group {
   margin-bottom: 16px;
 }
