@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from ..db.base import get_db
 from ..db import models
 from ..core import orchestrator
-from ..core.auth import get_current_user, get_current_user_required, User as AuthUser
+from ..core.auth import get_current_user, get_current_user_sync, get_current_user_required, User as AuthUser
 
 router = APIRouter()
 
@@ -148,12 +148,12 @@ def _to_character_summary(ch: models.Character) -> SessionSummaryCharacter:
     )
 
 
-def _ensure_session_state(db: Session, session_id: str) -> models.SessionState:
+def _ensure_session_state(db: Session, session_id: str, user_id: Optional[str] = None) -> models.SessionState:
     st = db.query(models.SessionState).filter(models.SessionState.session_id == session_id).first()
     if st:
         return st
 
-    st = models.SessionState(session_id=session_id, total_word_count=0)
+    st = models.SessionState(session_id=session_id, total_word_count=0, user_id=user_id)
     db.add(st)
     db.commit()
     db.refresh(st)
@@ -161,9 +161,10 @@ def _ensure_session_state(db: Session, session_id: str) -> models.SessionState:
 
 
 @router.post("/story/generate", response_model=StoryGenerateResponse)
-def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)) -> StoryGenerateResponse:
+def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)) -> StoryGenerateResponse:
     """非流式生成（兼容原前端）。"""
     user_id = current_user.user_id if current_user else None
+    print(f"[DEBUG] /story/generate - current_user: {current_user}, user_id: {user_id}")
     
     story_text, meta_obj, gen, dev_log_info = orchestrator.generate_story_text(
         db=db,
@@ -211,6 +212,7 @@ def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db), cur
         paragraph_word_count=paragraph_word_count,
         frontend_duration=req.frontend_duration or 0.0,
         backend_duration=float(backend_duration),
+        user_id=user_id,
     )
 
     segment_id = f"{req.session_id}_{order_index}"
@@ -222,13 +224,14 @@ def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db), cur
 
 
 @router.post("/story/generate_stream")
-def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     """流式生成：SSE(text/event-stream)。
     
     用户过滤：仅返回当前用户的数据
     """
 
     user_id = current_user.user_id if current_user else None
+    print(f"[DEBUG] /story/generate_stream - current_user: {current_user}, user_id: {user_id}")
 
     def _sse(event: str, data_obj: Dict) -> str:
         import json
@@ -310,6 +313,7 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
                 paragraph_word_count=paragraph_word_count,
                 frontend_duration=req.frontend_duration or 0.0,
                 backend_duration=float(backend_duration),
+                user_id=user_id,
             )
 
             yield _sse("done", {})
@@ -323,7 +327,7 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
 def update_session_context(
     req: SessionContextUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: Optional[AuthUser] = Depends(get_current_user),
+    current_user: Optional[AuthUser] = Depends(get_current_user_sync),
 ) -> SessionSummaryResponse:
     """会话摘要：供主剧情侧边栏刷新使用（最小可用）。"""
     user_id = current_user.user_id if current_user else None
@@ -416,7 +420,7 @@ def get_recent_segments(
     session_id: str = Query(..., description="会话 ID"),
     limit: int = Query(5, description="返回的记录数量"),
     db: Session = Depends(get_db),
-    current_user: Optional[AuthUser] = Depends(get_current_user),
+    current_user: Optional[AuthUser] = Depends(get_current_user_sync),
 ) -> RecentSegmentsResponse:
     """获取最近的故事片段记录（包含用户输入和AI回复）。"""
     user_id = current_user.user_id if current_user else None
@@ -573,8 +577,10 @@ class SaveRenameRequest(BaseModel):
 
 
 @router.get("/story/saves/list", response_model=List[SaveInfo])
-def list_saves(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def list_saves(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     """获取所有存档列表"""
+    if not current_user:
+        print(f"[DEBUG] list_saves - current_user: {current_user}")
     user_id = current_user.user_id if current_user else None
     
     query = db.query(models.SessionState)
@@ -614,8 +620,10 @@ def list_saves(db: Session = Depends(get_db), current_user: Optional[AuthUser] =
 
 
 @router.get("/story/saves/detail", response_model=SaveDetail)
-def get_save_detail(session_id: str = Query(..., description="会话 ID"), db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def get_save_detail(session_id: str = Query(..., description="会话 ID"), db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     """获取存档详情"""
+    if not current_user:
+        print(f"[DEBUG] get_save_detail - current_user: {current_user}")
     user_id = current_user.user_id if current_user else None
     
     session_query = db.query(models.SessionState).filter(
@@ -694,8 +702,10 @@ def get_save_detail(session_id: str = Query(..., description="会话 ID"), db: S
 
 
 @router.post("/story/saves/rename")
-def rename_save(req: SaveRenameRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def rename_save(req: SaveRenameRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     """重命名存档"""
+    if not current_user:
+        print(f"[DEBUG] rename_save - current_user: {current_user}")
     user_id = current_user.user_id if current_user else None
     
     session_query = db.query(models.SessionState).filter(
@@ -722,8 +732,10 @@ def rename_save(req: SaveRenameRequest, db: Session = Depends(get_db), current_u
 
 
 @router.post("/story/saves/create")
-def create_new_save(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def create_new_save(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     """创建新存档"""
+    if not current_user:
+        print(f"[DEBUG] create_new_save - current_user: {current_user}")
     user_id = current_user.user_id if current_user else None
     import time
     timestamp = int(time.time() * 1000)
@@ -742,8 +754,10 @@ def create_new_save(db: Session = Depends(get_db), current_user: Optional[AuthUs
 
 
 @router.post("/story/saves/delete")
-def delete_save(session_id: str = Query(..., description="会话 ID"), db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def delete_save(session_id: str = Query(..., description="会话 ID"), db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     """删除存档"""
+    if not current_user:
+        print(f"[DEBUG] delete_save - current_user: {current_user}")
     user_id = current_user.user_id if current_user else None
     
     session_query = db.query(models.SessionState).filter(
@@ -775,8 +789,10 @@ class DeleteSegmentCascadeRequest(BaseModel):
 
 
 @router.post("/story/segments/delete_cascade")
-def delete_segment_cascade(req: DeleteSegmentCascadeRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def delete_segment_cascade(req: DeleteSegmentCascadeRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     """删除指定段及其后续所有段（链式删除）"""
+    if not current_user:
+        print(f"[DEBUG] delete_segment_cascade - current_user: {current_user}")
     user_id = current_user.user_id if current_user else None
     
     session_query = db.query(models.SessionState).filter(
@@ -821,10 +837,12 @@ class CopySaveFromSegmentRequest(BaseModel):
 
 
 @router.post("/story/saves/copy_from_segment")
-def copy_save_from_segment(req: CopySaveFromSegmentRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def copy_save_from_segment(req: CopySaveFromSegmentRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     """从指定段创建副本存档（包含从第1段到指定段的所有内容）"""
     import time
     import json
+    if not current_user:
+        print(f"[DEBUG] copy_save_from_segment - current_user: {current_user}")
     user_id = current_user.user_id if current_user else None
     
     source_query = db.query(models.SessionState).filter(

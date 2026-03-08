@@ -85,9 +85,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def decode_token(token: str) -> Optional[dict]:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # 使用 options 允许 sub 为整数类型
+        payload = jwt.decode(
+            token, 
+            SECRET_KEY, 
+            algorithms=[ALGORITHM],
+            options={"verify_sub": False}  # 不验证 sub 字段类型
+        )
         return payload
-    except JWTError:
+    except JWTError as e:
+        print(f"[DEBUG] Token decode error: {e}")
         return None
 
 
@@ -100,7 +107,13 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
 
 
 def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
+    """通过整数主键 ID 查找用户"""
     return db.query(User).filter(User.id == user_id).first()
+
+
+def get_user_by_user_id(db: Session, user_id: str) -> Optional[User]:
+    """通过字符串 user_id 字段查找用户"""
+    return db.query(User).filter(User.user_id == user_id).first()
 
 
 def create_user(db: Session, user_data: UserCreate) -> User:
@@ -182,10 +195,54 @@ async def get_current_user(
     payload = decode_token(token)
     if not payload:
         return None
-    user_id: int = payload.get("sub")
+    user_id = payload.get("sub")
     if user_id is None:
         return None
-    user = get_user_by_id(db, user_id)
+    # 根据类型选择查找方式
+    if isinstance(user_id, str):
+        user = get_user_by_user_id(db, user_id)
+    else:
+        user = get_user_by_id(db, user_id)
+    return user
+
+
+def get_current_user_sync(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """同步版本的 get_current_user，用于同步路由函数"""
+    print(f"[DEBUG] get_current_user_sync - token: {token[:30] if token else 'None'}...")
+    
+    if not token:
+        print("[DEBUG] get_current_user_sync - No token provided")
+        return None
+    
+    payload = decode_token(token)
+    print(f"[DEBUG] get_current_user_sync - payload: {payload}")
+    
+    if not payload:
+        print("[DEBUG] get_current_user_sync - Token decode failed")
+        return None
+    
+    user_id = payload.get("sub")
+    print(f"[DEBUG] get_current_user_sync - user_id from token: {user_id} (type: {type(user_id).__name__})")
+    
+    if user_id is None:
+        print("[DEBUG] get_current_user_sync - No user_id in payload")
+        return None
+    
+    # 根据类型选择查找方式
+    if isinstance(user_id, str):
+        # 字符串 user_id（如 "a00000000001"）
+        user = get_user_by_user_id(db, user_id)
+        print(f"[DEBUG] get_current_user_sync - lookup by user_id (string): {user_id}")
+    else:
+        # 整数 ID（主键）
+        user = get_user_by_id(db, user_id)
+        print(f"[DEBUG] get_current_user_sync - lookup by id (int): {user_id}")
+    
+    print(f"[DEBUG] get_current_user_sync - user found: {user.username if user else 'None'}")
+    
     return user
 
 

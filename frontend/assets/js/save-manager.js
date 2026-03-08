@@ -3,6 +3,22 @@
   let currentSaveData = null;
   let isToggleBtnVisible = false;
 
+  function getAuthToken() {
+    return typeof Auth !== 'undefined' ? Auth.getToken() : localStorage.getItem('auth_token');
+  }
+  
+  function authFetch(url, options = {}) {
+    const token = getAuthToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return fetch(url, { ...options, headers });
+  }
+
   function init() {
     bindSaveInfoToggle();
     bindSaveManagerModal();
@@ -173,7 +189,7 @@
     }
 
     try {
-      const response = await fetch('/api/story/saves/detail?session_id=' + encodeURIComponent(sessionId));
+      const response = await authFetch('/api/story/saves/detail?session_id=' + encodeURIComponent(sessionId));
       const data = await response.json();
       if (data.display_name && data.display_name !== sessionId) {
         updateCurrentSaveDisplay(data.display_name, sessionId);
@@ -190,7 +206,7 @@
     if (!saveList) return;
 
     try {
-      const response = await fetch('/api/story/saves/list');
+      const response = await authFetch('/api/story/saves/list');
       const saves = await response.json();
 
       if (saves.length === 0) {
@@ -264,7 +280,7 @@
     `;
 
     try {
-      const response = await fetch(`/api/story/saves/detail?session_id=${encodeURIComponent(sessionId)}`);
+      const response = await authFetch(`/api/story/saves/detail?session_id=${encodeURIComponent(sessionId)}`);
       
       if (!response.ok) {
         throw new Error(`HTTP错误: ${response.status}`);
@@ -417,9 +433,8 @@
 
   async function renameSave(sessionId, newName) {
     try {
-      const response = await fetch('/api/story/saves/rename', {
+      const response = await authFetch('/api/story/saves/rename', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessionId, display_name: newName })
       });
 
@@ -439,7 +454,7 @@
 
   async function createNewSave() {
     try {
-      const response = await fetch('/api/story/saves/create', { method: 'POST' });
+      const response = await authFetch('/api/story/saves/create', { method: 'POST' });
       const result = await response.json();
       
       if (result.success) {
@@ -453,7 +468,7 @@
 
   async function deleteSave(sessionId) {
     try {
-      const response = await fetch(`/api/story/saves/delete?session_id=${encodeURIComponent(sessionId)}`, {
+      const response = await authFetch(`/api/story/saves/delete?session_id=${encodeURIComponent(sessionId)}`, {
         method: 'POST'
       });
 
@@ -489,9 +504,8 @@
 
   async function deleteSegmentCascade(sessionId, orderIndex) {
     try {
-      const response = await fetch('/api/story/segments/delete_cascade', {
+      const response = await authFetch('/api/story/segments/delete_cascade', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           session_id: sessionId, 
           from_order_index: orderIndex 
@@ -516,9 +530,8 @@
 
   async function copySaveFromSegment(sessionId, orderIndex) {
     try {
-      const response = await fetch('/api/story/saves/copy_from_segment', {
+      const response = await authFetch('/api/story/saves/copy_from_segment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           source_session_id: sessionId, 
           to_order_index: orderIndex 

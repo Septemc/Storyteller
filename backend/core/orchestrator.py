@@ -47,7 +47,7 @@ def _safe_json_loads(value: Optional[str], default: Any) -> Any:
         return default
 
 
-def _get_or_create_session_state(db: Session, session_id: str, user_id: Optional[int] = None) -> models.SessionState:
+def _get_or_create_session_state(db: Session, session_id: str, user_id: Optional[str] = None) -> models.SessionState:
     query = db.query(models.SessionState).filter(models.SessionState.session_id == session_id)
     if user_id:
         query = query.filter(models.SessionState.user_id == user_id)
@@ -412,7 +412,7 @@ def generate_story_text(
     session_id: str,
     user_input: str,
     force_stream: Optional[bool] = None,
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
 ) -> Tuple[str, GenerateMeta, Optional[Generator[str, None, None]], Dict[str, Any]]:
     """返回 (full_text, meta, stream_gen, dev_log_info)
 
@@ -599,11 +599,18 @@ def persist_story_segment(
     paragraph_word_count: int = 0,
     frontend_duration: float = 0.0,
     backend_duration: float = 0.0,
+    user_id: Optional[str] = None,
 ) -> int:
     """写入 StorySegment 并返回 order_index。"""
     import re
     
-    st = _get_or_create_session_state(db, session_id)
+    st = _get_or_create_session_state(db, session_id, user_id=user_id)
+    print(f"[DEBUG] persist_story_segment 调用，user_id: {user_id}, st: {st}, session_id: {session_id}")
+    # 如果 session_state 已存在但没有 user_id，更新它
+    if st and not st.user_id and user_id:
+        st.user_id = user_id
+        db.commit()
+    
     existing_count = db.query(models.StorySegment).filter(models.StorySegment.session_id == session_id).count()
     order_index = existing_count + 1
 
@@ -629,9 +636,12 @@ def persist_story_segment(
     content_summary = extract_tag_content(story_text, '内容总结')
     content_actions = extract_tag_content(story_text, '行动选项')
 
+    print(f"[DEBUG] 目前已执行orchestrator.persist_story_segment:其中user_id={user_id}")
+
     seg = models.StorySegment(
         segment_id=f"{session_id}_{order_index}",
         session_id=session_id,
+        user_id=user_id,
         order_index=order_index,
         user_input=user_input,
         text=story_text,

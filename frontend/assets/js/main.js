@@ -1,6 +1,25 @@
 ﻿// assets/js/main.js
 (function () {
   // =========================================
+  // 0. 认证请求辅助函数
+  // =========================================
+  function getAuthToken() {
+    return typeof Auth !== 'undefined' ? Auth.getToken() : localStorage.getItem('auth_token');
+  }
+  
+  function authFetch(url, options = {}) {
+    const token = getAuthToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return fetch(url, { ...options, headers });
+  }
+
+  // =========================================
   // 1. DOM 元素获取
   // =========================================
   const storyLogEl = document.getElementById("story-log");
@@ -196,7 +215,7 @@
 
   async function ensureSessionInDB(sessionId) {
     try {
-      const response = await fetch('/api/story/saves/detail?session_id=' + encodeURIComponent(sessionId));
+      const response = await authFetch('/api/story/saves/detail?session_id=' + encodeURIComponent(sessionId));
       const data = await response.json();
       if (data.display_name && data.display_name !== sessionId) {
         updateCurrentSaveDisplay(data.display_name, sessionId);
@@ -500,9 +519,8 @@
       cancelBtn.disabled = true;
 
       try {
-        const response = await fetch('/api/story/update_segment', {
+        const response = await authFetch('/api/story/update_segment', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             segment_id: segmentId,
             text: newText
@@ -851,12 +869,12 @@
     let backendDuration = 0;
 
     try {
-      // 鏄剧ず瀹炴椂璁℃椂鍣?
+      // 显示实时计时器
       if (storyTimerEl) {
         storyTimerEl.style.display = 'flex';
       }
 
-      // 鍚姩瀹炴椂鏇存柊璁℃椂鍣?
+      // 启动实时更新计时器
       updateInterval = setInterval(() => {
         const currentTime = performance.now();
         const durationFrontMs = currentTime - frontStart;
@@ -866,11 +884,10 @@
         if (timerBackendEl && backendDuration > 0) {
           timerBackendEl.textContent = formatDuration(backendDuration);
         }
-      }, 100); // 姣?00ms鏇存柊涓€娆?
+      }, 100); // 每100ms更新一次
 
-      const resp = await fetch("/api/story/generate_stream", {
+      const resp = await authFetch("/api/story/generate_stream", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           session_id: currentSessionId,
           user_input: userText
@@ -922,7 +939,7 @@
                 storyText += data.text || "";
                 appendStoryBlockIncremental(data.text || "");
               } else if (event === "empty") {
-                throw new Error(data.message || "AI杩斿洖鍐呭涓虹┖锛岃閲嶈瘯");
+                throw new Error(data.message || "AI返回内容为空，请重试");
               } else if (event === "done") {
                 streamDone = true;
                 break;
@@ -933,7 +950,7 @@
               if (parseErr.message && (parseErr.message.includes("空") || parseErr.message.includes("流式生成错误"))) {
                 throw parseErr;
               }
-              console.warn("瑙ｆ瀽SSE鏁版嵁澶辫触:", parseErr);
+              console.warn("解析SSE数据失败:", parseErr);
             }
           }
         }
@@ -960,22 +977,21 @@
 
       // 更新前端耗时到数据库
       try {
-        const recentResp = await fetch(
+        const recentResp = await authFetch(
           "/api/story/recent?session_id=" + encodeURIComponent(currentSessionId) + "&limit=1"
         );
         if (recentResp.ok) {
           const recentData = await recentResp.json();
           if (recentData.segments && recentData.segments.length > 0) {
             const latestSegment = recentData.segments[0];
-            await fetch("/api/story/update_frontend_duration", {
+            await authFetch("/api/story/update_frontend_duration", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 segment_id: latestSegment.segment_id,
                 frontend_duration: durationFrontMs
               })
             });
-            // 鏇存柊瀹屾垚鍚庨噸鏂板姞杞芥樉绀?
+            // 更新完成后重新加载显示
             await loadRecentSegments();
           }
         }
@@ -983,7 +999,7 @@
         console.warn("更新前端耗时失败:", updateErr);
       }
 
-      // 闅愯棌瀹炴椂璁℃椂鍣?
+      // 隐藏实时计时器
       if (storyTimerEl) {
         storyTimerEl.style.display = 'none';
       }
@@ -1002,29 +1018,28 @@
     }
   }
 
-  // 闈炴祦寮忕敓鎴愬疄鐜帮紙鍥為€€鏂规锛?
+  // 非流式生成实现（回退方案）
   async function generateStoryNonStream(userText) {
     const frontStart = performance.now();
     let updateInterval;
 
     try {
-      // 鏄剧ず瀹炴椂璁℃椂鍣?
+      // 显示实时计时器
       if (storyTimerEl) {
         storyTimerEl.style.display = 'flex';
       }
 
-      // 鍚姩瀹炴椂鏇存柊璁℃椂鍣?
+      // 启动实时更新计时器
       updateInterval = setInterval(() => {
         const currentTime = performance.now();
         const durationFrontMs = currentTime - frontStart;
         if (timerFrontendEl) {
           timerFrontendEl.textContent = formatDuration(durationFrontMs);
         }
-      }, 100); // 姣?00ms鏇存柊涓€娆?
+      }, 100); // 每100ms更新一次
 
-      const resp = await fetch("/api/story/generate", {
+      const resp = await authFetch("/api/story/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           session_id: currentSessionId,
           user_input: userText
@@ -1037,14 +1052,14 @@
 
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
-        const errMsg = errData.detail || "璇锋眰澶辫触";
-        // 濡傛灉鏄┖鍐呭閿欒
+        const errMsg = errData.detail || "请求失败";
+        // 如果是空内容错误
         if (errMsg.includes("空")) {
           if (inputStatusEl) {
             inputStatusEl.textContent = errMsg;
             inputStatusEl.style.color = "var(--accent)";
           }
-          // 绉婚櫎鏈€鍚庢坊鍔犵殑鐢ㄦ埛杈撳叆鍧?
+          // 移除最后添加的用户输入块
           if (currentUserBlock && currentUserBlock.parentNode) {
             currentUserBlock.remove();
           }
@@ -1062,7 +1077,7 @@
 
       const data = await resp.json();
 
-      // 璁板綍寮€鍙戣€呮棩蹇?
+      // 记录开发者日志
       if (data.dev_log_info && window.DevTools && typeof window.DevTools.logRequest === 'function') {
         window.DevTools.logRequest(data.dev_log_info);
       }
@@ -1084,22 +1099,21 @@
       // 更新前端耗时到数据库
       if (data.segment_id) {
         try {
-          await fetch("/api/story/update_frontend_duration", {
+          await authFetch("/api/story/update_frontend_duration", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               segment_id: data.segment_id,
               frontend_duration: durationFrontMs
             })
           });
-          // 鏇存柊瀹屾垚鍚庨噸鏂板姞杞芥樉绀?
+          // 更新完成后重新加载显示
           await loadRecentSegments();
         } catch (updateErr) {
           console.warn("更新前端耗时失败:", updateErr);
         }
       }
 
-      // 闅愯棌瀹炴椂璁℃椂鍣?
+      // 隐藏实时计时器
       if (storyTimerEl) {
         storyTimerEl.style.display = 'none';
       }
@@ -1122,13 +1136,13 @@
     }
   }
 
-  // 澧為噺娣诲姞鏁呬簨鍐呭锛堢敤浜庢祦寮忔樉绀猴級
+  // 增量添加故事内容（用于流式显示）
   function appendStoryBlockIncremental(text) {
     if (!storyLogEl) return;
 
     let lastBlock = storyLogEl.lastElementChild;
     if (!lastBlock || !lastBlock.classList.contains("story-block")) {
-      // 鍒涘缓鏂扮殑鏁呬簨鍧?
+      // 创建新的故事块
       lastBlock = document.createElement("div");
       lastBlock.className = "story-block";
       
@@ -1144,18 +1158,18 @@
       lastBlock.appendChild(textEl);
       storyLogEl.appendChild(lastBlock);
     } else {
-      // 鏇存柊鐜版湁鏁呬簨鍧?
+      // 更新现有故事块
       const textEl = lastBlock.querySelector(".story-text");
       if (textEl) {
         textEl.textContent += text;
       }
     }
 
-    // 鑷姩婊氬姩鍒板簳閮?
+    // 自动滚动到底部
     storyLogEl.scrollTop = storyLogEl.scrollHeight;
   }
 
-  // 鏍煎紡鍖栨椂闂翠负 XX.XXXs 鏍煎紡
+  // 格式化时间为 XX.XXXs 格式
   function formatDuration(ms) {
     return (ms / 1000).toFixed(3) + "s";
   }
@@ -1186,7 +1200,7 @@
   async function refreshSessionSummary() {
     if (!currentSessionId) return;
     try {
-      const resp = await fetch(
+      const resp = await authFetch(
         "/api/session/summary?session_id=" + encodeURIComponent(currentSessionId)
       );
       if (!resp.ok) return;
@@ -1233,7 +1247,7 @@
   async function loadRecentSegments() {
     if (!currentSessionId || !storyLogEl) return;
     try {
-      const resp = await fetch(
+      const resp = await authFetch(
         "/api/story/recent?session_id=" + encodeURIComponent(currentSessionId) + "&limit=5"
       );
       if (!resp.ok) return;
@@ -1261,22 +1275,22 @@
         clearActionSuggestions();
       }
     } catch (err) {
-      console.warn("鍔犺浇鏈€杩戞晠浜嬬墖娈靛け璐ワ細", err);
+      console.warn("加载最近故事片段失败：", err);
     }
   }
 
   // =========================================
-  // 7. 浜や簰浜嬩欢缁戝畾 (閲嶇偣浼樺寲閮ㄥ垎)
+  // 7. 交互事件绑定 (重点优化部分)
   // =========================================
 
-  // (A) 缁戝畾鈥滀笅娆¤鍔ㄥ缓璁€濈殑灞曞紑/鏀惰捣
+  // (A) 绑定“下次行动建议”的展开/收起
   function bindActionSuggestionsToggle() {
     if (!actionSuggestionsEl || !actionSuggestionsToggleEl) return;
 
     actionSuggestionsToggleEl.addEventListener("click", function () {
       const isOpen = actionSuggestionsEl.classList.toggle("action-suggestions--open");
 
-      // 鏇存柊鏂囧瓧鎻愮ず锛屼繚鎸?"鉁? 鍓嶇紑
+      // 更新文字提示，保持 "✨" 前缀
       if (isOpen) {
         actionSuggestionsToggleEl.textContent = "✨ 下次行动建议 (点击收起)";
       } else {
@@ -1285,35 +1299,35 @@
     });
   }
 
-  // (B) 缁戝畾鐐瑰嚮寤鸿 Chip 濉叆杈撳叆妗?
+  // (B) 绑定点击建议 Chip 填入输入框
   function bindSuggestionChips() {
     if (!userInputEl) return;
 
-    // 浣跨敤浜嬩欢濮旀墭锛屾垨鑰呴噸鏂拌幏鍙朌OM锛堝鏋淐hips鏄姩鎬佺敓鎴愮殑锛岃繖閲屽亣璁炬槸闈欐€佺殑锛?
+    // 使用事件委托，或者重新获取DOM（如果Chips是动态生成的，这里假设是静态的）
     const chips = document.querySelectorAll(".suggestion-chip[data-suggest]");
     chips.forEach(function (chip) {
       chip.addEventListener("click", function () {
-        // 鑾峰彇瀹屾暣鍙ュ瓙
+        // 获取完整句子
         const suggest = this.getAttribute("data-suggest") || this.textContent.trim();
         if (!suggest) return;
 
-        // 绠€鍗曠殑濉叆閫昏緫锛屽鏋滆緭鍏ユ宸叉湁鍐呭鍒欐崲琛岃拷鍔?
+        // 简单的填入逻辑，如果输入框已有内容则换行追加
         if (!userInputEl.value) {
           userInputEl.value = suggest;
         } else {
-          // 閬垮厤澶氭閲嶅鎹㈣
+          // 避免多次重复换行
           const prefix = userInputEl.value.trim();
           userInputEl.value = prefix + "\n" + suggest;
         }
 
-        // 鑷姩璋冩暣杈撳叆妗嗛珮搴﹀苟鑱氱劍
+        // 自动调整输入框高度并聚焦
         userInputEl.scrollTop = userInputEl.scrollHeight;
         userInputEl.focus();
       });
     });
   }
 
-  // (C) 缁戝畾搴曢儴杈撳叆鏍忕殑 鎶樺彔 涓?鍗婂睆 閫昏緫
+  // (C) 绑定底部输入栏的 折叠 与 半屏 逻辑
   function bindInputPanelEvents() {
     if (inputCollapseToggleEl && inputBarEl) {
       inputCollapseToggleEl.addEventListener("click", function () {
@@ -1379,7 +1393,7 @@
 
     if (userInputEl) {
       userInputEl.addEventListener("keydown", function (e) {
-        // Ctrl + Enter 蹇嵎鎻愪氦
+        // Ctrl + Enter 快捷提交
         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
           e.preventDefault();
           generateStory();
@@ -1403,7 +1417,7 @@
     };
   }
 
-  // 瀛愬尯鍧楁姌鍙?灞曞紑鍔熻兘
+  // 子区块折叠/展开功能
   function bindSubsectionToggles() {
     const subsectionHeaders = document.querySelectorAll('.subsection-header');
     
@@ -1425,7 +1439,7 @@
     });
   }
 
-  // 闈㈡澘鏁翠綋鎶樺彔鍔熻兘
+  // 面板整体折叠功能
   function bindPanelCollapse() {
     const collapseBtns = document.querySelectorAll('.panel-collapse-btn');
     
@@ -1444,7 +1458,7 @@
     });
   }
 
-  // 瀛椾綋设置寮圭獥鐩稿叧閫昏緫
+  // 字体设置弹窗相关逻辑
   function bindFontSettingsModal() {
     const fontSettingsBtn = document.getElementById('font-settings-btn');
     const fontSettingsModal = document.getElementById('font-settings-modal');
@@ -1454,7 +1468,7 @@
 
     if (!fontSettingsModal) return;
 
-    // 鎵撳紑寮圭獥
+    // 打开弹窗
     if (fontSettingsBtn) {
       fontSettingsBtn.addEventListener('click', function() {
         loadFontSettings();
@@ -1462,21 +1476,21 @@
       });
     }
 
-    // 关闭寮圭獥
+    // 关闭弹窗
     if (fontModalClose) {
       fontModalClose.addEventListener('click', function() {
         fontSettingsModal.style.display = 'none';
       });
     }
 
-    // 鐐瑰嚮鑳屾櫙关闭
+    // 点击背景关闭
     fontSettingsModal.addEventListener('click', function(e) {
       if (e.target === fontSettingsModal) {
         fontSettingsModal.style.display = 'none';
       }
     });
 
-    // 淇濆瓨设置
+    // 保存设置
     if (fontModalSave) {
       fontModalSave.addEventListener('click', function() {
         saveFontSettings();
@@ -1484,7 +1498,7 @@
       });
     }
 
-    // 閲嶇疆榛樿
+    // 重置默认
     if (fontModalReset) {
       fontModalReset.addEventListener('click', function() {
         resetFontSettings();
@@ -1492,7 +1506,7 @@
     }
   }
 
-  // 鍔犺浇瀛椾綋设置
+  // 加载字体设置
   function loadFontSettings() {
     const zones = ['thinking', 'body', 'summary', 'raw', 'stats'];
     zones.forEach(function(zone) {
@@ -1514,7 +1528,7 @@
       }
     });
 
-    // 鍔犺浇缂╄繘设置
+    // 加载缩进设置
     const indentEl = document.getElementById('font-body-indent');
     if (indentEl) {
       const savedIndent = localStorage.getItem('app_font_body_indent');
@@ -1522,7 +1536,7 @@
     }
   }
 
-  // 淇濆瓨瀛椾綋设置
+  // 保存字体设置
   function saveFontSettings() {
     const zones = {
       thinking: { familyVar: '--font-thinking-family', sizeVar: '--font-thinking-size', boldVar: '--font-thinking-weight' },
@@ -1552,7 +1566,7 @@
       }
     });
 
-    // 淇濆瓨缂╄繘设置
+    // 保存缩进设置
     const indentEl = document.getElementById('font-body-indent');
     if (indentEl) {
       const indent = indentEl.checked;
@@ -1560,11 +1574,11 @@
       document.documentElement.style.setProperty('--font-body-indent', indent ? '2em' : '0');
     }
 
-    // 鍚屾鍒板叏灞€设置锛堝鏋滃瓨鍦級
+    // 同步到全局设置（如果存在）
     syncToGlobalSettings();
   }
 
-  // 閲嶇疆瀛椾綋设置
+  // 重置字体设置
   function resetFontSettings() {
     const defaults = {
       thinking: { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: '12px', bold: false },
@@ -1584,20 +1598,20 @@
       if (boldEl) boldEl.checked = defaults[zone].bold;
     });
 
-    // 閲嶇疆缂╄繘设置
+    // 重置缩进设置
     const indentEl = document.getElementById('font-body-indent');
     if (indentEl) {
       indentEl.checked = false;
     }
   }
 
-  // 鍚屾鍒板叏灞€设置
+  // 同步到全局设置
   function syncToGlobalSettings() {
-    // 瑙﹀彂鑷畾涔変簨浠讹紝閫氱煡设置椤甸潰鏇存柊
+    // 触发自定义事件，通知设置页面更新
     window.dispatchEvent(new CustomEvent('fontSettingsChanged'));
   }
 
-  // 搴旂敤淇濆瓨鐨勫瓧浣撹缃?
+  // 应用保存的字体设置
   function applySavedFontSettings() {
     const zones = {
       thinking: { familyVar: '--font-thinking-family', sizeVar: '--font-thinking-size', boldVar: '--font-thinking-weight' },
@@ -1623,7 +1637,7 @@
       }
     });
 
-    // 搴旂敤缂╄繘设置
+    // 应用缩进设置
     const savedIndent = localStorage.getItem('app_font_body_indent');
     if (savedIndent) {
       document.documentElement.style.setProperty('--font-body-indent', savedIndent === 'true' ? '2em' : '0');
@@ -1661,7 +1675,7 @@
     }
   }
 
-  // 纭繚 DOM 鍔犺浇瀹屾垚鍚庢墽琛?
+  // 确保 DOM 加载完成后执行
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", async () => {
       await init();

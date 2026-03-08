@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .db.base import Base, engine
 from .api import (
@@ -19,7 +20,23 @@ from .api import (
     routes_auth,
 )
 
+
+class DebugHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        # 只打印 API 请求
+        if request.url.path.startswith("/api"):
+            print(f"\n[REQUEST] {request.method} {request.url.path}")
+            auth_header = request.headers.get("authorization", "None")
+            print(f"[AUTH HEADER] {auth_header[:60] if auth_header != 'None' else 'None'}...")
+        
+        response = await call_next(request)
+        return response
+
+
 app = FastAPI(title="Storyteller-说书人", version="0.2.0")
+
+# 添加调试中间件
+app.add_middleware(DebugHeadersMiddleware)
 
 # 开发阶段先放开 CORS；如果你只用同一个域名访问，可以收紧策略
 app.add_middleware(
