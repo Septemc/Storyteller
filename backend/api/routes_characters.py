@@ -148,12 +148,6 @@ def import_characters(
         }
 
         # 执行保存
-        existing = db.query(models.Character).filter_by(character_id=char_id).first()
-            "data_json": json.dumps(item, ensure_ascii=False),
-            "basic_json": json.dumps(basic_info, ensure_ascii=False),
-            "user_id": user_id,
-        }
-
         existing_query = db.query(models.Character).filter_by(character_id=char_id)
         existing_query = existing_query.filter(models.Character.user_id == user_id)
         existing = existing_query.first()
