@@ -1,4 +1,5 @@
 from typing import List, Optional, Any, Dict
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -42,6 +43,38 @@ class DungeonListItem(BaseModel):
 
 class DungeonListResponse(BaseModel):
     items: List[DungeonListItem]
+
+
+# ========== Script 相关模型 ==========
+
+class ScriptPayload(BaseModel):
+    """脚本/剧本数据结构（前端发送）"""
+    script_id: str
+    name: str
+    description: str = ""
+    dungeon_ids: List[str] = []  # 脚本包含的所有副本ID
+    meta: Dict[str, Any] = {}
+
+
+class ScriptResponse(BaseModel):
+    """脚本响应结构"""
+    script_id: str
+    name: str
+    description: str
+    dungeon_ids: List[str]
+    meta: Dict[str, Any]
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ScriptListItem(BaseModel):
+    script_id: str
+    name: str
+    description: str
+
+
+class ScriptListResponse(BaseModel):
+    items: List[ScriptListItem]
 
 
 @router.get("/dungeon/list", response_model=DungeonListResponse)
@@ -169,3 +202,102 @@ def upsert_dungeon(
 
     db.commit()
     return payload
+
+
+# ========== Script API Routes ==========
+
+@router.get("/scripts", response_model=ScriptListResponse)
+def list_scripts(db: Session = Depends(get_db)) -> ScriptListResponse:
+    """列出所有脚本"""
+    rows = db.query(models.Script).order_by(models.Script.script_id).all()
+    items = [
+        ScriptListItem(
+            script_id=s.script_id,
+            name=s.name,
+            description=s.description or "",
+        )
+        for s in rows
+    ]
+    return ScriptListResponse(items=items)
+
+
+@router.get("/scripts/{script_id}", response_model=ScriptResponse)
+def get_script(script_id: str, db: Session = Depends(get_db)) -> ScriptResponse:
+    """获取脚本详情"""
+    s = (
+        db.query(models.Script)
+        .filter(models.Script.script_id == script_id)
+        .first()
+    )
+    if not s:
+        raise HTTPException(status_code=404, detail="脚本不存在。")
+
+    try:
+        dungeon_ids = json.loads(s.dungeon_ids_json or "[]")
+    except Exception:
+        dungeon_ids = []
+
+    try:
+        meta = json.loads(s.meta_json or "{}")
+    except Exception:
+        meta = {}
+
+    return ScriptResponse(
+        script_id=s.script_id,
+        name=s.name,
+        description=s.description or "",
+        dungeon_ids=dungeon_ids,
+        meta=meta,
+        created_at=s.created_at.isoformat() if s.created_at else None,
+        updated_at=s.updated_at.isoformat() if s.updated_at else None,
+    )
+
+
+@router.put("/scripts/{script_id}", response_model=ScriptResponse)
+def upsert_script(
+    script_id: str,
+    payload: ScriptPayload,
+    db: Session = Depends(get_db),
+) -> ScriptResponse:
+    """创建或更新脚本"""
+    s = (
+        db.query(models.Script)
+        .filter(models.Script.script_id == script_id)
+        .first()
+    )
+    if not s:
+        s = models.Script(script_id=script_id)
+        db.add(s)
+
+    s.name = payload.name
+    s.description = payload.description
+    s.dungeon_ids_json = json.dumps(payload.dungeon_ids, ensure_ascii=False)
+    s.meta_json = json.dumps(payload.meta, ensure_ascii=False)
+
+    db.commit()
+
+    return ScriptResponse(
+        script_id=s.script_id,
+        name=s.name,
+        description=s.description or "",
+        dungeon_ids=payload.dungeon_ids,
+        meta=payload.meta,
+        created_at=s.created_at.isoformat() if s.created_at else None,
+        updated_at=s.updated_at.isoformat() if s.updated_at else None,
+    )
+
+
+@router.delete("/scripts/{script_id}")
+def delete_script(script_id: str, db: Session = Depends(get_db)):
+    """删除脚本"""
+    s = (
+        db.query(models.Script)
+        .filter(models.Script.script_id == script_id)
+        .first()
+    )
+    if not s:
+        raise HTTPException(status_code=404, detail="脚本不存在。")
+
+    db.delete(s)
+    db.commit()
+    return {"message": "脚本已删除。"}

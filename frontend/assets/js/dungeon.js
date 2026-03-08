@@ -95,6 +95,8 @@
     }
   }
 
+  let syncTimer = null;
+
   function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.scripts));
     if (state.appliedScriptId) {
@@ -102,11 +104,66 @@
     } else {
       localStorage.removeItem(APPLIED_KEY);
     }
+    
+    // 防抖同步到后端：编辑停止 2 秒后自动同步
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      syncSessionStateToBackend();
+    }, 2000);
+  }
+
+  async function syncSessionStateToBackend() {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId || !state.appliedScriptId) return;
+
+    const script = getScriptById(state.appliedScriptId);
+    if (!script) return;
+
+    try {
+      // 1. 同步脚本元数据到 /api/scripts/{script_id}
+      const scriptPayload = toDungeonPayload(script);
+      const dungeonIds = script.dungeons.map(d => d.dungeon_id);
+      
+      await fetch(`/api/scripts/${script.script_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          script_id: script.script_id,
+          name: script.name || '',
+          description: script.description || '',
+          dungeon_ids: dungeonIds,
+          meta: {}
+        })
+      });
+
+      // 2. 同步所有副本到后端
+      await syncScriptToBackend(script);
+
+      // 3. 更新会话状态，包括 current_script_id
+      const target = getAppliedDungeonAndNode(script);
+      
+      await fetch('/api/session/context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          current_script_id: script.script_id,
+          current_dungeon_id: target.dungeonId,
+          current_node_id: target.nodeId
+        })
+      });
+    } catch (error) {
+      console.error('后端同步失败:', error);
+    }
   }
 
   // ====== 工具函数 ======
   function getScriptById(id) {
     return state.scripts.find(s => String(s.script_id) === String(id));
+  }
+
+  function getCurrentSessionId() {
+    return localStorage.getItem('storyteller_session_id');
   }
 
   function generateId(prefix = 'ID_') {
@@ -117,6 +174,95 @@
     const div = document.createElement('div');
     div.textContent = text == null ? '' : String(text);
     return div.innerHTML;
+  }
+
+  function toDungeonPayload(dungeon) {
+    return {
+      dungeon_id: dungeon.dungeon_id,
+      name: dungeon.name || '未命名副本',
+      description: dungeon.description || '',
+      level_min: 1,
+      level_max: 5,
+      global_rules: dungeon.global_rules || {},
+      nodes: (dungeon.nodes || []).map((node, idx) => ({
+        node_id: node.node_id,
+        name: node.name || `节点${idx + 1}`,
+        index: Number.isFinite(node.index) ? node.index : (idx + 1),
+        progress_percent: Number.isFinite(node.progress_percent) ? node.progress_percent : 0,
+        entry_conditions: node.entry_conditions || [],
+        exit_conditions: node.exit_conditions || [],
+        summary_requirements: node.summary_requirements || '',
+        story_requirements: node.story_requirements || {},
+        branching: node.branching || {}
+      }))
+    };
+  }
+
+  async function syncScriptToBackend(script) {
+    const dungeons = script.dungeons || [];
+    for (const dungeon of dungeons) {
+      const payload = toDungeonPayload(dungeon);
+      const resp = await fetch(`/api/dungeon/${encodeURIComponent(dungeon.dungeon_id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(`同步剧本失败(${dungeon.name || dungeon.dungeon_id}): HTTP ${resp.status} ${txt}`);
+      }
+    }
+  }
+
+  function getAppliedDungeonAndNode(script) {
+    const sel = state.currentSelection;
+    const dungeons = script.dungeons || [];
+    if (!dungeons.length) {
+      return { dungeonId: null, nodeId: null };
+    }
+
+    let dungeon = null;
+    if (sel && (sel.type === 'dungeon' || sel.type === 'node') && sel.dungeonId) {
+      dungeon = dungeons.find(d => d.dungeon_id === sel.dungeonId) || null;
+    }
+    if (!dungeon) {
+      dungeon = dungeons[0];
+    }
+
+    let nodeId = null;
+    if (sel && sel.type === 'node' && sel.nodeId) {
+      const hit = (dungeon.nodes || []).find(n => n.node_id === sel.nodeId);
+      nodeId = hit ? hit.node_id : null;
+    }
+    if (!nodeId && dungeon.nodes && dungeon.nodes.length) {
+      nodeId = dungeon.nodes[0].node_id;
+    }
+
+    return { dungeonId: dungeon.dungeon_id, nodeId };
+  }
+
+  async function applyScriptToCurrentSession(script) {
+    const sessionId = getCurrentSessionId();
+    if (!sessionId) {
+      throw new Error('未检测到当前存档，请先在剧情页创建或加载存档');
+    }
+
+    await syncScriptToBackend(script);
+    const target = getAppliedDungeonAndNode(script);
+
+    const resp = await fetch('/api/session/context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: sessionId,
+        current_dungeon_id: target.dungeonId,
+        current_node_id: target.nodeId
+      })
+    });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error(`写入会话上下文失败: HTTP ${resp.status} ${txt}`);
+    }
   }
 
   // ====== UI 渲染 ======
@@ -379,12 +525,21 @@
     };
 
     // 2. 应用当前剧本
-    els.btnApply.onclick = () => {
+    els.btnApply.onclick = async () => {
       if (!state.currentScriptId) return alert('请先选择一个剧本。');
-      state.appliedScriptId = state.currentScriptId;
-      saveData();
-      updateAppliedText();
-      alert(`已将剧本「${getScriptById(state.currentScriptId).name}」设为当前应用剧本。`);
+      const script = getScriptById(state.currentScriptId);
+      if (!script) return alert('当前剧本不存在。');
+
+      try {
+        await applyScriptToCurrentSession(script);
+        state.appliedScriptId = state.currentScriptId;
+        saveData();
+        updateAppliedText();
+        alert(`已应用剧本「${script.name}」到当前存档。`);
+      } catch (err) {
+        console.error('[剧本应用失败]:', err);
+        alert(`应用失败：${err.message}`);
+      }
     };
 
     // 3. 新建剧本

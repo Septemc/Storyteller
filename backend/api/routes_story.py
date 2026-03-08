@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
+import json
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -63,6 +64,100 @@ class SessionSummaryResponse(BaseModel):
     dungeon: Optional[SessionSummaryDungeon] = None
     characters: List[SessionSummaryCharacter] = []
     variables: Optional[SessionSummaryVariables] = None
+
+
+class SessionContextUpdateRequest(BaseModel):
+    session_id: str
+    main_character_id: Optional[str] = None
+    current_script_id: Optional[str] = None
+    current_dungeon_id: Optional[str] = None
+    current_node_id: Optional[str] = None
+
+
+class SessionContextUpdateResponse(BaseModel):
+    success: bool = True
+    session_id: str
+    main_character_id: Optional[str] = None
+    current_script_id: Optional[str] = None
+    current_dungeon_id: Optional[str] = None
+    current_node_id: Optional[str] = None
+
+
+class SessionCharactersResponse(BaseModel):
+    main_character: Optional[Dict] = None
+    characters: List[SessionSummaryCharacter] = []
+
+
+def _parse_character_basic(ch: models.Character) -> Dict:
+    basic = {}
+    if ch.basic_json:
+        try:
+            basic = json.loads(ch.basic_json)
+        except Exception:
+            basic = {}
+
+    # 兼容 data_json 中的 tab_basic / basic
+    if ch.data_json:
+        try:
+            data = json.loads(ch.data_json)
+            if isinstance(data, dict):
+                basic = data.get("tab_basic") or data.get("basic") or basic
+        except Exception:
+            pass
+
+    if not isinstance(basic, dict):
+        basic = {}
+
+    # 兼容扁平结构（f_name 等）
+    if ch.data_json:
+        try:
+            data = json.loads(ch.data_json)
+            if isinstance(data, dict):
+                flat_basic = {
+                    k: v
+                    for k, v in data.items()
+                    if not k.startswith("tab_") and k not in {"character_id", "type", "template_id"}
+                }
+                if flat_basic:
+                    merged = dict(flat_basic)
+                    merged.update(basic)
+                    basic = merged
+        except Exception:
+            pass
+
+    return basic
+
+
+def _first_non_empty(data: Dict, keys: List[str]) -> Optional[str]:
+    for key in keys:
+        value = data.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return None
+
+
+def _to_character_summary(ch: models.Character) -> SessionSummaryCharacter:
+    basic = _parse_character_basic(ch)
+    return SessionSummaryCharacter(
+        character_id=ch.character_id,
+        name=_first_non_empty(basic, ["name", "姓名", "角色名", "f_name", "f_nickname", "昵称"]),
+        ability_tier=_first_non_empty(basic, ["ability_tier", "能力评级", "境界", "f_ability_tier", "f_level", "f_realm", "f_stage"]),
+    )
+
+
+def _ensure_session_state(db: Session, session_id: str) -> models.SessionState:
+    st = db.query(models.SessionState).filter(models.SessionState.session_id == session_id).first()
+    if st:
+        return st
+
+    st = models.SessionState(session_id=session_id, total_word_count=0)
+    db.add(st)
+    db.commit()
+    db.refresh(st)
+    return st
 
 
 @router.post("/story/generate", response_model=StoryGenerateResponse)
@@ -224,9 +319,9 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
     return StreamingResponse(_gen(), media_type="text/event-stream")
 
 
-@router.get("/session/summary", response_model=SessionSummaryResponse)
-def get_session_summary(
-    session_id: str = Query(..., description="会话 ID"),
+@router.post("/session/context", response_model=SessionContextUpdateResponse)
+def update_session_context(
+    req: SessionContextUpdateRequest,
     db: Session = Depends(get_db),
     current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> SessionSummaryResponse:
@@ -255,9 +350,9 @@ def get_session_summary(
                 node_name = node.name
 
         dungeon_block = SessionSummaryDungeon(
-            name=dungeon.name if dungeon else None,
-            current_node_name=node_name,
-            progress_hint="最小骨架：未实现真实进度计算",
+            name=dungeon_ctx.get("name"),
+            current_node_name=dungeon_ctx.get("node_name"),
+            progress_hint=dungeon_ctx.get("progress_hint") or "未知",
         )
 
     # 角色概览
@@ -289,7 +384,7 @@ def get_session_summary(
         )
 
     variables = SessionSummaryVariables(
-        main_character=None,
+        main_character=variable_main_character,
         faction_summary=None,
     )
 

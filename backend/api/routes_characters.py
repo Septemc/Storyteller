@@ -42,6 +42,48 @@ def get_value_by_path(obj: Any, path: str) -> Any:
     return current
 
 
+def extract_categorized_data(item: Dict[str, Any]) -> Dict[str, str]:
+    """
+    从角色数据中提取各个分类字段，并转换为 JSON 字符串
+    支持 tab_xxx 和 xxx 两种命名格式
+    """
+    field_mapping = {
+        "basic_json": ["tab_basic", "basic"],
+        "knowledge_json": ["tab_knowledge", "knowledge"],
+        "secrets_json": ["tab_secrets", "secrets"],
+        "attributes_json": ["tab_attributes", "attributes"],
+        "relations_json": ["tab_relations", "relations"],
+        "equipment_json": ["tab_equipment", "equipment"],
+        "items_json": ["tab_items", "items"],
+        "skills_json": ["tab_skills", "skills"],
+        "fortune_json": ["tab_fortune", "fortune"],
+    }
+    
+    result = {}
+    meta_keys = {"character_id", "type", "template_id"}
+    for db_field, source_fields in field_mapping.items():
+        data = None
+        for source in source_fields:
+            if source in item:
+                data = item[source]
+                break
+        if data is None and db_field == "basic_json":
+            # 兼容旧结构：角色字段直接平铺在根对象（如 f_name, f_age）
+            flat_fields = {
+                k: v
+                for k, v in item.items()
+                if k not in meta_keys and not k.startswith("tab_")
+            }
+            if flat_fields:
+                data = flat_fields
+
+        if data is None:
+            data = {}
+
+        result[db_field] = json.dumps(data, ensure_ascii=False)
+    return result
+
+
 # --- Pydantic Models ---
 class CharacterBase(BaseModel):
     character_id: str
@@ -92,12 +134,21 @@ def import_characters(
 
     for item in items:
         char_id = item.get("character_id") or f"NPC_{int(time.time() * 1000)}"
+
+        # 提取各个分类字段的数据
+        categorized = extract_categorized_data(item)
         basic_info = item.get("tab_basic", item.get("basic", {}))
 
         character_data = {
             "character_id": char_id,
             "type": item.get("type", "npc"),
             "template_id": item.get("template_id", "system_default"),
+            "data_json": json.dumps(item, ensure_ascii=False),
+            **categorized
+        }
+
+        # 执行保存
+        existing = db.query(models.Character).filter_by(character_id=char_id).first()
             "data_json": json.dumps(item, ensure_ascii=False),
             "basic_json": json.dumps(basic_info, ensure_ascii=False),
             "user_id": user_id,
@@ -140,7 +191,7 @@ def export_all_characters(db: Session = Depends(get_db), current_user: Optional[
 @router.get("/characters/{character_id}")
 def get_character(character_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """
-    [重构] 获取角色：返回扁平化的原始数据对象
+    [重构] 获取角色：自动重构完整数据，包括所有 tab 字段
     """
     if not current_user:
         raise HTTPException(status_code=401, detail="需要登录才能访问角色数据")
@@ -152,9 +203,41 @@ def get_character(character_id: str, db: Session = Depends(get_db), current_user
     if not ch:
         raise HTTPException(status_code=404, detail="角色不存在")
 
+    # 从各个分类字段重构完整数据（优先用分类字段，备选 data_json）
+    full_data = {}
+    
+    # 尝试从 data_json 读取基础结构
     try:
-        full_data = json.loads(ch.data_json) if ch.data_json else {}
+        if ch.data_json:
+            full_data = json.loads(ch.data_json)
     except:
+        pass
+    
+    # 补充各个分类字段的数据，优先级高于 data_json
+    field_mapping = {
+        "tab_basic": ch.basic_json,
+        "tab_knowledge": ch.knowledge_json,
+        "tab_secrets": ch.secrets_json,
+        "tab_attributes": ch.attributes_json,
+        "tab_relations": ch.relations_json,
+        "tab_equipment": ch.equipment_json,
+        "tab_items": ch.items_json,
+        "tab_skills": ch.skills_json,
+        "tab_fortune": ch.fortune_json,
+    }
+    
+    for field_name, field_data in field_mapping.items():
+        # 如果分类字段有数据，就用它（覆盖 data_json 中的同名字段）
+        if field_data:
+            try:
+                full_data[field_name] = json.loads(field_data)
+            except:
+                pass
+        # 如果分类字段为 NULL 但 data_json 中也没有对应字段，添加空对象
+        elif field_name not in full_data:
+            full_data[field_name] = {}
+
+    # 添加元数据
         full_data = {}
 
     full_data["character_id"] = ch.character_id
@@ -202,6 +285,14 @@ def clear_all_characters(db: Session = Depends(get_db), current_user: Optional[A
 
 
 @router.put("/characters/{character_id}")
+def update_character(character_id: str, payload: Any = Body(...), db: Session = Depends(get_db)):
+    """
+    [重构] 更新角色：使用透明模式，接收原始扁平数据并原样保存
+    前端发送的数据格式: { character_id, type, template_id, tab_basic, tab_stats, ... }
+    """
+    ch = db.query(models.Character).filter_by(character_id=character_id).first()
+    if not ch:
+        raise HTTPException(404, detail="角色不存在")
 def update_character(character_id: str, payload: CharacterBase, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     user_id = current_user.user_id if current_user else None
     query = db.query(models.Character).filter_by(character_id=character_id)
@@ -210,21 +301,28 @@ def update_character(character_id: str, payload: CharacterBase, db: Session = De
     ch = query.first()
     if not ch: raise HTTPException(404)
 
-    ch.type = payload.type
-    ch.template_id = payload.template_id
-    ch.data_json = json.dumps(payload.data, ensure_ascii=False)
-    ch.basic_json = json.dumps(payload.basic, ensure_ascii=False)
-    ch.knowledge_json = json.dumps(payload.knowledge, ensure_ascii=False)
-    ch.secrets_json = json.dumps(payload.secrets, ensure_ascii=False)
-    ch.attributes_json = json.dumps(payload.attributes, ensure_ascii=False)
-    ch.relations_json = json.dumps(payload.relations, ensure_ascii=False)
-    ch.equipment_json = json.dumps(payload.equipment, ensure_ascii=False)
-    ch.items_json = json.dumps(payload.items, ensure_ascii=False)
-    ch.skills_json = json.dumps(payload.skills, ensure_ascii=False)
-    ch.fortune_json = json.dumps(payload.fortune, ensure_ascii=False)
-
+    # 提取各个分类字段的数据
+    categorized = extract_categorized_data(payload)
+    
+    # 更新全量原始数据
+    ch.data_json = json.dumps(payload, ensure_ascii=False)
+    
+    # 更新各个分类字段
+    for field, value in categorized.items():
+        setattr(ch, field, value)
+    
+    # 更新元数据
+    ch.type = payload.get("type", ch.type)
+    ch.template_id = payload.get("template_id", ch.template_id)
+    
     db.commit()
-    return payload
+    
+    # 返回完整的角色数据（包含元数据）
+    result = json.loads(ch.data_json) if ch.data_json else {}
+    result["character_id"] = ch.character_id
+    result["type"] = ch.type
+    result["template_id"] = ch.template_id
+    return result
 
 
 @router.delete("/characters/{character_id}")
