@@ -907,8 +907,8 @@
   }
 
   // 导入模块：把文件中的所有模块合并到当前世界书中
-  // 约定：如果模块名已存在，则“附加条目”；如果不存在则新增模块
-  function handleImportCategory(file) {
+  // 约定：如果模块名已存在，则"附加条目"；如果不存在则新增模块
+  async function handleImportCategory(file) {
     const world = getWorldById(state.currentWorldId);
     if (!world) {
       alert('请先选择一个世界书，再导入模块。');
@@ -916,7 +916,7 @@
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const raw = JSON.parse(e.target.result);
         const importedWorlds = normalizeImportedJson(raw, file.name);
@@ -964,6 +964,10 @@
 
         saveData();
         renderTree();
+        
+        // 同步到后端
+        await syncWorldbookToBackend(world);
+        
         alert('导入模块成功。');
       } catch (err) {
         console.error(err);
@@ -974,8 +978,9 @@
   }
 
   // 导入条目：把文件中的条目合并到当前世界书的对应模块中
-  // 若条目带有 category/module 字段或 key[0]，按其归类，否则归类到“未分类”
-  function handleImportEntry(file) {
+  // 若条目带有 category/module 字段或 key[0]，按其归类，否则归类到"未分类"
+  async function handleImportEntry(file) {
+
     const world = getWorldById(state.currentWorldId);
     if (!world) {
       alert('请先选择一个世界书，再导入条目。');
@@ -983,7 +988,7 @@
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const raw = JSON.parse(e.target.result);
         const importedWorlds = normalizeImportedJson(raw, file.name);
@@ -1023,6 +1028,10 @@
 
         saveData();
         renderTree();
+        
+        // 同步到后端
+        await syncWorldbookToBackend(world);
+        
         alert('导入条目成功。');
       } catch (err) {
         console.error(err);
@@ -1511,3 +1520,4 @@
   // ====== 启动 ======
   init();
 })();
+
