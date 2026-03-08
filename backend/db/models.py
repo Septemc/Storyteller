@@ -278,7 +278,7 @@ class WorldbookEmbedding(Base):
     __tablename__ = "worldbook_embeddings"
 
     id = Column(Integer, primary_key=True, index=True)
-    entry_id = Column(String, ForeignKey("worldbook_entries.entry_id"), nullable=False, index=True)
+    entry_id = Column(String, ForeignKey("worldbook.entry_id"), nullable=False, index=True)
     
     # 向量数据 (SQLite 使用 JSON 存储数组)
     embedding_json = Column(Text, nullable=False)  # 存储为 JSON 数组字符串
