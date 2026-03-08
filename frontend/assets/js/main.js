@@ -428,7 +428,7 @@
     headerRight.appendChild(cancelBtn);
 
     const closeBtn = document.createElement('button');
-    closeBtn.textContent = '脳';
+    closeBtn.textContent = '×';
     closeBtn.style.cssText = 'background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary); padding: 0; line-height: 1; margin-left: 8px;';
     headerRight.appendChild(closeBtn);
 
