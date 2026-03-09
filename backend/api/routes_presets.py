@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from ..db.base import get_db
 from ..db.models import DBPreset
 from ..core import prompts
-from ..core.auth import get_current_user, User as AuthUser
+from ..core.auth import get_current_user_sync, User as AuthUser
 
 router = APIRouter()
 
@@ -84,7 +84,7 @@ class PresetListItem(BaseModel):
 
 
 @router.get("/presets")
-def list_presets(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def list_presets(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_preset_in_db(db, user_id)
     
@@ -115,7 +115,7 @@ def list_presets(db: Session = Depends(get_db), current_user: Optional[AuthUser]
 
 
 @router.get("/presets/{preset_id}", response_model=PresetIn)
-def get_preset(preset_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def get_preset(preset_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_preset_in_db(db, user_id)
     
@@ -137,7 +137,7 @@ def get_preset(preset_id: str, db: Session = Depends(get_db), current_user: Opti
 
 
 @router.post("/presets", response_model=PresetIn)
-def create_preset(name: str = "新预设", db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def create_preset(name: str = "新预设", db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_preset_in_db(db, user_id)
     
@@ -160,7 +160,7 @@ def create_preset(name: str = "新预设", db: Session = Depends(get_db), curren
 
 
 @router.put("/presets/active")
-def set_active(body: Dict[str, str] = Body(...), db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def set_active(body: Dict[str, str] = Body(...), db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_preset_in_db(db, user_id)
     
@@ -184,7 +184,7 @@ def set_active(body: Dict[str, str] = Body(...), db: Session = Depends(get_db), 
 
 
 @router.put("/presets/{preset_id}")
-def update_preset(preset_id: str, body: PresetIn, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def update_preset(preset_id: str, body: PresetIn, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_preset_in_db(db, user_id)
     
@@ -207,7 +207,7 @@ def update_preset(preset_id: str, body: PresetIn, db: Session = Depends(get_db),
 
 
 @router.delete("/presets/{preset_id}")
-def delete_preset(preset_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def delete_preset(preset_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_preset_in_db(db, user_id)
     
@@ -227,7 +227,7 @@ def delete_preset(preset_id: str, db: Session = Depends(get_db), current_user: O
 
 
 @router.post("/presets/import")
-def import_any(body: Dict[str, Any], db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def import_any(body: Dict[str, Any], db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_preset_in_db(db, user_id)
     
@@ -236,6 +236,8 @@ def import_any(body: Dict[str, Any], db: Session = Depends(get_db), current_user
 
     data = prompts.import_preset(payload, name_hint)
     pid = data["id"]
+
+    print(f"[DEBUG] routes_presets.py 中 import_any 被执行 user_id={user_id} preset_id={pid} name_hint={name_hint}")
 
     db_obj = DBPreset(
         id=pid,

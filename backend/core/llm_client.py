@@ -47,24 +47,57 @@ class LLMError(RuntimeError):
 
 
 def list_models(base_url: str, api_key: str, timeout_s: float = 20.0) -> List[str]:
-    url = _normalize_base_url(base_url) + "/models"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    with httpx.Client(timeout=timeout_s) as client:
-        r = client.get(url, headers=headers)
-        if r.status_code >= 400:
-            raise LLMError(f"模型列表请求失败: HTTP {r.status_code}: {r.text}")
-        data = r.json()
+    """获取可用模型列表，包含完整的异常处理"""
+    try:
+        # 验证输入参数
+        if not base_url or not base_url.strip():
+            raise LLMError("base_url 不能为空")
+        
+        if not api_key or not api_key.strip():
+            raise LLMError("api_key 不能为空")
+        
+        url = _normalize_base_url(base_url) + "/models"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        
+        # 添加详细的调试信息
+        print(f"[LLM_DEBUG] 请求模型列表: {url}")
+        
+        with httpx.Client(timeout=timeout_s) as client:
+            r = client.get(url, headers=headers)
+            
+            if r.status_code >= 400:
+                error_detail = f"模型列表请求失败: HTTP {r.status_code}"
+                if r.text:
+                    error_detail += f": {r.text[:200]}"  # 限制错误信息长度
+                raise LLMError(error_detail)
+            
+            # 验证响应格式
+            try:
+                data = r.json()
+            except json.JSONDecodeError as e:
+                raise LLMError(f"响应不是有效的JSON格式: {str(e)}")
 
-    items = data.get("data") or []
-    out: List[str] = []
-    for it in items:
-        if isinstance(it, dict) and it.get("id"):
-            out.append(str(it["id"]))
-    # 保持稳定顺序
-    return sorted(set(out))
+        items = data.get("data") or []
+        out: List[str] = []
+        for it in items:
+            if isinstance(it, dict) and it.get("id"):
+                out.append(str(it["id"]))
+        
+        # 保持稳定顺序
+        return sorted(set(out))
+        
+    except httpx.TimeoutException:
+        raise LLMError(f"请求超时 ({timeout_s}秒)")
+    except httpx.ConnectError as e:
+        raise LLMError(f"连接失败: {str(e)}")
+    except httpx.RequestError as e:
+        raise LLMError(f"请求错误: {str(e)}")
+    except Exception as e:
+        # 捕获所有其他异常，避免500错误
+        raise LLMError(f"获取模型列表时发生未知错误: {str(e)}")
 
 
 def chat_completion(

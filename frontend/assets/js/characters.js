@@ -29,9 +29,8 @@
             throw new Error("未检测到当前存档，请先在剧情页创建或加载存档");
         }
 
-        const resp = await fetch('/api/session/context', {
+        const resp = await window.authFetch('/api/session/context', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 session_id: sessionId,
                 main_character_id: characterId
@@ -94,7 +93,7 @@
         if (!listEl) return;
 
         try {
-            const res = await fetch('/api/characters');
+            const res = await window.authFetch('/api/characters');
             const data = await res.json();
             listEl.innerHTML = "";
 
@@ -114,7 +113,7 @@
 
     async function selectCharacter(id) {
         try {
-            const res = await fetch(`/api/characters/${id}`);
+            const res = await window.authFetch(`/api/characters/${id}`);
             if (!res.ok) return;
 
             // 现在后端返回的是扁平的原始对象 (包含 tab_basic, tab_stats 等)
@@ -316,9 +315,8 @@
             const url = isEditingNewCharacter ? '/api/characters/import' : `/api/characters/${charId}`;
             const payload = isEditingNewCharacter ? [currentCharacterData] : currentCharacterData;
 
-            const res = await fetch(url, {
+            const res = await window.authFetch(url, {
                 method: method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
@@ -344,7 +342,7 @@
 
         document.getElementById("character-export-all-btn").onclick = async () => {
             try {
-                const res = await fetch('/api/characters/export/all');
+                const res = await window.authFetch('/api/characters/export/all');
                 const data = await res.json();
                 downloadJSON(data, `all_characters_backup.json`);
             } catch (e) { alert("批量导出失败"); }
@@ -353,9 +351,8 @@
         // 保存角色
         document.getElementById("character-save-btn").onclick = async () => {
             if (!currentCharacterData.character_id) return alert("请先选择或新建角色");
-            const res = await fetch(`/api/characters/${currentCharacterData.character_id}`, {
+            const res = await window.authFetch(`/api/characters/${currentCharacterData.character_id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(currentCharacterData)
             });
             if (res.ok) alert("角色保存成功");
@@ -367,7 +364,7 @@
             if (!charId) return alert("请先选择角色");
             if (!confirm(`警告：确认要删除角色 [${charId}] 吗？此操作不可恢复。`)) return;
 
-            const res = await fetch(`/api/characters/${charId}`, { method: 'DELETE' });
+            const res = await window.authFetch(`/api/characters/${charId}`, { method: 'DELETE' });
             if (res.ok) {
                 alert("角色已删除");
                 currentCharacterData = {};
@@ -408,9 +405,8 @@
 
             currentCharacterData.template_id = tplId;
             // 立即保存到后端（原有逻辑）
-            const res = await fetch(`/api/characters/${currentCharacterData.character_id}`, {
+            const res = await window.authFetch(`/api/characters/${currentCharacterData.character_id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(currentCharacterData)
             });
             if (res.ok) {
@@ -425,7 +421,7 @@
             if (tplId === "system_default") return alert("系统默认模板不能删除");
             if (!confirm(`强烈警告：确认要删除模板 [${tplId}] 吗？使用此模板的角色显示可能会受到影响。`)) return;
 
-            const res = await fetch(`/api/templates/${tplId}`, { method: 'DELETE' });
+            const res = await window.authFetch(`/api/templates/${tplId}`, { method: 'DELETE' });
             if (res.ok) {
                 alert("模板已删除");
                 loadTemplates();
@@ -437,7 +433,7 @@
             if (!confirm("极度危险：确认要删除库中的【全部】角色吗？此操作不可撤销！")) return;
 
             try {
-                const res = await fetch('/api/characters/clear_all', { method: 'DELETE' }); // 假设后端有此接口
+                const res = await window.authFetch('/api/characters/clear_all', { method: 'DELETE' }); // 假设后端有此接口
                 if (res.ok) {
                     alert("所有角色已清除");
                     currentCharacterData = {};
@@ -460,9 +456,8 @@
             const url = isUpdate ? `/api/templates/${designerState.id}` : "/api/templates";
             const method = isUpdate ? "PUT" : "POST";
 
-            const res = await fetch(url, {
+            const res = await window.authFetch(url, {
                 method: method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     id: designerState.id,
                     name: designerState.name,
@@ -542,9 +537,8 @@
                     });
                 });
 
-                const res = await fetch('/api/characters/import', {
+                const res = await window.authFetch('/api/characters/import', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
 
@@ -711,7 +705,7 @@
     }
 
     async function loadTemplates() {
-        const res = await fetch('/api/templates/list');
+        const res = await window.authFetch('/api/templates/list');
         const data = await res.json();
         templatesList = (data.items || []).map(t => ({...t.config, id: t.id, name: t.name}));
         const el = document.getElementById("template-select");
@@ -722,9 +716,8 @@
         const reader = new FileReader();
         reader.onload = async (e) => {
             const config = JSON.parse(e.target.result);
-            const res = await fetch('/api/templates', {
+            const res = await window.authFetch('/api/templates', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({id: config.id, name: config.name, config: config})
             });
             if (res.ok) { alert("模板导入成功"); loadTemplates(); }

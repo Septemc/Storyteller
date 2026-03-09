@@ -350,6 +350,144 @@ def _recent_story(db: Session, session_id: str, limit: int = 6) -> List[str]:
     return [r.text for r in reversed(rows)]
 
 
+def _build_dev_log_info(
+    user_input: str,
+    system_prompt: str,
+    context: Dict[str, Any],
+    history: List[str],
+    format_constraint: str,
+) -> Dict[str, Any]:
+    """构建开发者日志信息，包含完整的提示词构建过程"""
+    
+    dev_log_info: Dict[str, Any] = {
+        "userInput": user_input,
+        "systemPrompt": system_prompt,
+        "formatConstraint": format_constraint,
+        "contextInfo": {},
+        "historyInfo": [],
+        "fullPrompt": ""
+    }
+    
+    full_prompt_parts = []
+    
+    if system_prompt:
+        full_prompt_parts.append(f"[System Prompt]\n{system_prompt}")
+        dev_log_info["contextInfo"]["systemPrompt"] = system_prompt
+    
+    context_parts = []
+    
+    mc = context.get("main_character") if context else None
+    if mc:
+        mc_info = {
+            "character_id": mc.get("character_id"),
+            "name": mc.get("name") or "未知",
+            "ability_tier": mc.get("ability_tier"),
+            "economy_summary": mc.get("economy_summary")
+        }
+        dev_log_info["contextInfo"]["mainCharacter"] = mc_info
+        
+        mc_lines = [f"【主角】\n- id: {mc.get('character_id')}  名称: {mc.get('name') or '未知'}"]
+        if mc.get("ability_tier"):
+            mc_lines.append(f"- 能力: {mc.get('ability_tier')}")
+        if mc.get("economy_summary"):
+            mc_lines.append(f"- 资源: {mc.get('economy_summary')}")
+        context_parts.extend(mc_lines)
+    
+    wb = context.get("worldbook") or [] if context else []
+    if wb:
+        dev_log_info["contextInfo"]["worldbook"] = [
+            {
+                "category": it.get("category"),
+                "title": it.get("title"),
+                "content": it.get("content")
+            } for it in wb
+        ]
+        
+        wb_lines = ["\n【世界书（节选）】"]
+        for it in wb:
+            cat = f"[{it.get('category')}] " if it.get("category") else ""
+            wb_lines.append(f"- {cat}{it.get('title')}: {it.get('content')}")
+        context_parts.extend(wb_lines)
+    
+    roster = context.get("characters") or []
+    if roster:
+        dev_log_info["contextInfo"]["characters"] = [
+            {
+                "character_id": ch.get("character_id"),
+                "name": ch.get("name") or "未知",
+                "ability_tier": ch.get("ability_tier"),
+                "brief": _character_brief(ch)
+            } for ch in roster
+        ]
+        
+        roster_lines = ["\n【角色库（节选）】"]
+        for ch in roster:
+            brief = _character_brief(ch)
+            line = f"- id: {ch.get('character_id')}  名称: {ch.get('name') or '未知'}"
+            if ch.get("ability_tier"):
+                line += f"  境界: {ch.get('ability_tier')}"
+            if brief:
+                line += f"  信息: {brief}"
+            roster_lines.append(line)
+        context_parts.extend(roster_lines)
+    
+    dungeon_ctx = context.get("dungeon")
+    if dungeon_ctx:
+        dungeon_info = {
+            "name": dungeon_ctx.get("name") or "未命名",
+            "node_name": dungeon_ctx.get("node_name"),
+            "progress_hint": dungeon_ctx.get("progress_hint")
+        }
+        dev_log_info["contextInfo"]["dungeon"] = dungeon_info
+        
+        dungeon_lines = ["\n【剧本】"]
+        dungeon_lines.append(f"- 剧本: {dungeon_ctx.get('name') or '未命名'}")
+        if dungeon_ctx.get("node_name"):
+            dungeon_lines.append(f"- 节点: {dungeon_ctx.get('node_name')} 进度: {dungeon_ctx.get('progress_hint')}")
+        context_parts.extend(dungeon_lines)
+    
+    if history:
+        dev_log_info["historyInfo"] = [
+            {
+                "index": i,
+                "content": h[-1200:],
+                "fullLength": len(h)
+            } for i, h in enumerate(history[-6:], 1)
+        ]
+        
+        history_lines = ["\n【近期剧情（节选）】"]
+        for i, h in enumerate(history[-6:], 1):
+            history_lines.append(f"({i}) {h[-1200:]}")
+        context_parts.extend(history_lines)
+    
+    if context_parts:
+        full_prompt_parts.append("[Context]\n" + "\n".join(context_parts))
+    
+    if format_constraint:
+        full_prompt_parts.append(f"[Format Constraint - 最高优先级]\n{format_constraint}")
+    
+    full_prompt_parts.append(f"[User Input]\n{user_input}")
+    
+    dev_log_info["fullPrompt"] = "\n\n".join(full_prompt_parts)
+    
+    return dev_log_info
+
+
+def _load_output_format_constraint() -> str:
+    """加载AI输出格式约束文件（最高优先级）"""
+    import os
+    
+    constraint_file = os.path.join(os.path.dirname(__file__), "output_format_constraint.txt")
+    
+    try:
+        with open(constraint_file, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+            return content
+    except Exception as e:
+        print(f"[WARNING] 无法加载输出格式约束文件: {e}")
+        return ""
+
+
 def _build_messages(system_prompt: str, context: Dict[str, Any], history: List[str], user_input: str) -> List[Dict[str, Any]]:
     # 将结构化 context 压缩成一段可读文本
     ctx_lines: List[str] = []
@@ -403,6 +541,12 @@ def _build_messages(system_prompt: str, context: Dict[str, Any], history: List[s
     if ctx_text:
         messages.append({"role": "system", "content": "以下是当前故事运行时上下文：\n" + ctx_text})
 
+    # 添加AI输出格式约束（最高优先级）
+    format_constraint = _load_output_format_constraint()
+    print(f"[DEBUG] orchestrator.py 中 _build_messages 被执行 format_constraint={format_constraint}")
+    if format_constraint:
+        messages.append({"role": "system", "content": format_constraint})
+
     messages.append({"role": "user", "content": user_input})
     return messages
 
@@ -420,11 +564,6 @@ def generate_story_text(
     - dev_log_info 包含开发者日志所需的所有信息
     """
     t0 = perf_counter()
-    
-    dev_log_info: Dict[str, Any] = {
-        "userInput": user_input,
-        "fullPrompt": ""
-    }
 
     runtime_context = build_session_runtime_context(db, session_id)
     st = runtime_context["session_state"]
@@ -454,61 +593,19 @@ def generate_story_text(
     }
 
     history = _recent_story(db, session_id, limit=4)
+    
+    format_constraint = _load_output_format_constraint()
+    
     messages = _build_messages(system_prompt, context, history, user_input)
     
-    # 构建发送给AI的完整文本用于开发者日志
-    full_prompt_parts = []
-    if system_prompt:
-        full_prompt_parts.append(f"[System]\n{system_prompt}")
-    
-    # 添加上下文
-    ctx_lines = []
-    mc = context.get("main_character") if context else None
-    if mc:
-        ctx_lines.append(f"【主角】\n- id: {mc.get('character_id')}  名称: {mc.get('name') or '未知'}")
-        if mc.get("ability_tier"):
-            ctx_lines.append(f"- 能力: {mc.get('ability_tier')}")
-        if mc.get("economy_summary"):
-            ctx_lines.append(f"- 资源: {mc.get('economy_summary')}")
+    dev_log_info = _build_dev_log_info(
+        user_input=user_input,
+        system_prompt=system_prompt,
+        context=context,
+        history=history,
+        format_constraint=format_constraint
+    )
 
-    wb = context.get("worldbook") or [] if context else []
-    if wb:
-        ctx_lines.append("\n【世界书（节选）】")
-        for it in wb:
-            cat = f"[{it.get('category')}] " if it.get("category") else ""
-            ctx_lines.append(f"- {cat}{it.get('title')}: {it.get('content')}")
-
-    roster = context.get("characters") or []
-    if roster:
-        ctx_lines.append("\n【角色库（节选）】")
-        for ch in roster:
-            brief = _character_brief(ch)
-            line = f"- id: {ch.get('character_id')}  名称: {ch.get('name') or '未知'}"
-            if ch.get("ability_tier"):
-                line += f"  境界: {ch.get('ability_tier')}"
-            if brief:
-                line += f"  信息: {brief}"
-            ctx_lines.append(line)
-    
-    dungeon_ctx = context.get("dungeon")
-    if dungeon_ctx:
-        ctx_lines.append("\n【剧本】")
-        ctx_lines.append(f"- 剧本: {dungeon_ctx.get('name') or '未命名'}")
-        if dungeon_ctx.get("node_name"):
-            ctx_lines.append(f"- 节点: {dungeon_ctx.get('node_name')} 进度: {dungeon_ctx.get('progress_hint')}")
-    
-    if history:
-        ctx_lines.append("\n【近期剧情（节选）】")
-        for i, h in enumerate(history[-6:], 1):
-            ctx_lines.append(f"({i}) {h[-1200:]}")
-    
-    if ctx_lines:
-        full_prompt_parts.append("[Context]\n" + "\n".join(ctx_lines))
-    
-    full_prompt_parts.append(f"[User]\n{user_input}")
-    dev_log_info["fullPrompt"] = "\n\n".join(full_prompt_parts)
-
-    # 若没有配置模型，则返回占位
     if not llm_cfg:
         story_text = (
             "【未配置模型】\n"

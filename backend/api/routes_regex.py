@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..db.base import get_db
 from ..db import models
-from ..core.auth import get_current_user, User as AuthUser
+from ..core.auth import get_current_user_sync, User as AuthUser
 
 router = APIRouter(prefix="/regex", tags=["regex"])
 
@@ -186,7 +186,7 @@ class RegexProfileListItem(BaseModel):
 
 
 @router.get("/profiles", response_model=List[RegexProfileListItem])
-def list_regex_profiles(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def list_regex_profiles(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_regex_in_db(db, user_id)
     
@@ -214,7 +214,7 @@ def list_regex_profiles(db: Session = Depends(get_db), current_user: Optional[Au
 
 
 @router.get("/profiles/{profile_id}", response_model=RegexProfileResponse)
-def get_regex_profile(profile_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def get_regex_profile(profile_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_regex_in_db(db, user_id)
     
@@ -241,7 +241,7 @@ def get_regex_profile(profile_id: str, db: Session = Depends(get_db), current_us
 
 
 @router.get("/active", response_model=RegexProfileResponse)
-def get_active_regex_profile(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def get_active_regex_profile(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_regex_in_db(db, user_id)
     
@@ -276,7 +276,7 @@ def get_active_regex_profile(db: Session = Depends(get_db), current_user: Option
 
 
 @router.post("/profiles", response_model=RegexProfileResponse)
-def create_regex_profile(req: RegexProfileCreate, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def create_regex_profile(req: RegexProfileCreate, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_regex_in_db(db, user_id)
     
@@ -338,7 +338,7 @@ def update_regex_profile(
     profile_id: str,
     req: RegexProfileUpdate,
     db: Session = Depends(get_db),
-    current_user: Optional[AuthUser] = Depends(get_current_user)
+    current_user: Optional[AuthUser] = Depends(get_current_user_sync)
 ):
     user_id = current_user.user_id if current_user else None
     ensure_default_regex_in_db(db, user_id)
@@ -382,7 +382,7 @@ def update_regex_profile(
 def set_active_regex_profile(
     profile_id: str = Query(..., description="正则化配置ID"),
     db: Session = Depends(get_db),
-    current_user: Optional[AuthUser] = Depends(get_current_user)
+    current_user: Optional[AuthUser] = Depends(get_current_user_sync)
 ):
     user_id = current_user.user_id if current_user else None
     ensure_default_regex_in_db(db, user_id)
@@ -409,7 +409,7 @@ def set_active_regex_profile(
 
 
 @router.delete("/profiles/{profile_id}")
-def delete_regex_profile(profile_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def delete_regex_profile(profile_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_regex_in_db(db, user_id)
     
@@ -433,7 +433,7 @@ def delete_regex_profile(profile_id: str, db: Session = Depends(get_db), current
 
 
 @router.post("/profiles/{profile_id}/toggle")
-def toggle_regex_profile(profile_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
+def toggle_regex_profile(profile_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     user_id = current_user.user_id if current_user else None
     ensure_default_regex_in_db(db, user_id)
     

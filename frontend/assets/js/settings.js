@@ -1,4 +1,27 @@
 (function () {
+  // =========================================================
+  // 0. 认证请求辅助函数
+  // =========================================================
+  function getAuthToken() {
+    return typeof Auth !== 'undefined' ? Auth.getToken() : localStorage.getItem('auth_token');
+  }
+
+  function authFetch(url, options = {}) {
+    const token = getAuthToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return fetch(url, { ...options, headers });
+  }
+
+  // 暴露到全局作用域，供其他模块使用
+  window.getAuthToken = getAuthToken;
+  window.authFetch = authFetch;
+
   // --- UI 元素引用 ---
   // Tabs
   const tabButtons = document.querySelectorAll('.settings-tab-btn');
@@ -272,7 +295,7 @@
   async function loadSettings() {
     statusEl.textContent = "加载中...";
     try {
-      const resp = await fetch("/api/settings/global");
+      const resp = await window.authFetch("/api/settings/global");
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const data = await resp.json();
       populateForm(data);
@@ -295,9 +318,8 @@
     let hasError = false;
     
     try {
-      const resp = await fetch("/api/settings/global", {
+      const resp = await window.authFetch("/api/settings/global", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings)
       });
       if (!resp.ok) {
@@ -480,6 +502,10 @@
   let currentPreset = null;  // full preset
   let selectedNodeId = null;
   let parentMap = {}; // nodeId -> parentId
+  
+  // 修改跟踪状态
+  let presetModified = false;
+  let modifiedNodes = new Set();
 
   function buildParentMap(node, parentId) {
     if (!node || typeof node !== "object") return;
@@ -649,11 +675,39 @@
     }
   }
 
+  function updateSaveButtonState() {
+    const saveBtn = document.getElementById('settings-save-btn');
+    if (saveBtn) {
+      if (presetModified) {
+        saveBtn.textContent = '保存所有更改 *';
+        saveBtn.style.background = 'var(--accent)';
+      } else {
+        saveBtn.textContent = '保存所有更改';
+        saveBtn.style.background = '';
+      }
+    }
+  }
+
   function bindPresetEditorEvents() {
     const updateNode = (key, val) => {
       const node = selectedNodeId ? findNode(currentPreset.root, selectedNodeId) : null;
       if (!node) return;
+      
+      // 检查值是否真的改变了
+      const oldValue = node[key];
+      if (oldValue === val) return;
+      
       node[key] = val;
+      
+      // 标记为已修改
+      presetModified = true;
+      if (selectedNodeId) {
+        modifiedNodes.add(selectedNodeId);
+      }
+      
+      // 更新保存按钮状态
+      updateSaveButtonState();
+      
       if (key === 'title' || key === 'identifier' || key === 'enabled') renderTree();
     };
 
@@ -695,24 +749,29 @@
       }
     }
     parent.children = Array.isArray(parent.children) ? parent.children : [];
-    if (kind === "group") {
-      parent.children.push({
-        id: nowId("node"),
-        kind: "group",
-        title: "新模块",
-        enabled: true,
-        children: []
-      });
-    } else {
-      parent.children.push({
-        id: nowId("node"),
-        kind: "prompt",
-        title: "新提示词",
-        enabled: true,
-        role: "system",
-        content: ""
-      });
-    }
+    
+    const newNode = kind === "group" ? {
+      id: nowId("node"),
+      kind: "group",
+      title: "新模块",
+      enabled: true,
+      children: []
+    } : {
+      id: nowId("node"),
+      kind: "prompt",
+      title: "新提示词",
+      enabled: true,
+      role: "system",
+      content: ""
+    };
+    
+    parent.children.push(newNode);
+    
+    // 标记为已修改
+    presetModified = true;
+    modifiedNodes.add(newNode.id);
+    updateSaveButtonState();
+    
     renderTree();
   }
 
@@ -726,15 +785,21 @@
     const parent = findParent(root, selectedNodeId);
     if (!parent || parent.kind !== "group") return;
 
+    // 标记为已修改
+    presetModified = true;
+    modifiedNodes.add(selectedNodeId);
+    
     parent.children = (parent.children || []).filter(ch => ch.id !== selectedNodeId);
     selectedNodeId = parent.id;
+    
+    updateSaveButtonState();
     renderTree();
     syncEditor();
   }
 
   async function loadPresetsOverview() {
     if (presetStatusEl) setText(presetStatusEl, "加载中...");
-    const resp = await fetch("/api/presets");
+    const resp = await window.authFetch("/api/presets");
     const data = await safeJson(resp);
     presetsOverview = data.presets || [];
     activePresetId = data.active ? data.active.preset_id : null;
@@ -764,13 +829,19 @@
   async function loadPresetDetail(presetId) {
     if (!presetId) return;
     if (presetStatusEl) setText(presetStatusEl, "加载预设...");
-    const resp = await fetch("/api/presets/" + encodeURIComponent(presetId));
+    const resp = await window.authFetch("/api/presets/" + encodeURIComponent(presetId));
     if (!resp.ok) {
       if (presetStatusEl) setText(presetStatusEl, "加载失败");
       return;
     }
     currentPreset = await resp.json();
     selectedNodeId = currentPreset && currentPreset.root ? currentPreset.root.id : null;
+    
+    // 重置修改状态
+    presetModified = false;
+    modifiedNodes.clear();
+    updateSaveButtonState();
+    
     renderTree();
     syncEditor();
     if (presetStatusEl) setText(presetStatusEl, "就绪");
@@ -779,9 +850,8 @@
   async function savePreset() {
     if (!currentPreset) return;
     if (presetStatusEl) setText(presetStatusEl, "保存中...");
-    const resp = await fetch("/api/presets/" + encodeURIComponent(currentPreset.id), {
+    const resp = await window.authFetch("/api/presets/" + encodeURIComponent(currentPreset.id), {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: currentPreset.id,
         name: currentPreset.name,
@@ -794,7 +864,44 @@
       const t = await resp.text();
       throw new Error(t);
     }
+    
+    // 重置修改状态
+    presetModified = false;
+    modifiedNodes.clear();
+    updateSaveButtonState();
+    
     await loadPresetsOverview();
+  }
+
+  // 批量保存所有修改
+  async function saveAllChanges() {
+    if (!currentPreset) return;
+    
+    // 检查是否为默认预设
+    const presetInfo = presetsOverview.find(p => p.id === currentPreset.id);
+    if (presetInfo && presetInfo.is_default) {
+      alert("默认预设不可修改，请先复制或创建新预设。");
+      return;
+    }
+    
+    if (!presetModified) {
+      alert("没有需要保存的修改。");
+      return;
+    }
+    
+    try {
+      await savePreset();
+      if (presetStatusEl) setText(presetStatusEl, "保存成功！");
+      
+      // 显示保存成功的提示
+      setTimeout(() => {
+        if (presetStatusEl) setText(presetStatusEl, "就绪");
+      }, 2000);
+      
+    } catch (error) {
+      console.error("保存失败:", error);
+      if (presetStatusEl) setText(presetStatusEl, "保存失败: " + error.message);
+    }
   }
 
   window.saveCurrentPreset = async function() {
@@ -810,7 +917,7 @@
     const name = prompt("新预设名称：", "新预设");
     if (!name) return;
     if (presetStatusEl) setText(presetStatusEl, "创建中...");
-    const resp = await fetch("/api/presets?name=" + encodeURIComponent(name), { method: "POST" });
+    const resp = await window.authFetch("/api/presets?name=" + encodeURIComponent(name), { method: "POST" });
     if (!resp.ok) {
       if (presetStatusEl) setText(presetStatusEl, "创建失败");
       return;
@@ -826,9 +933,8 @@
     if (!presetSelectEl) return;
     const pid = presetSelectEl.value;
     if (!pid) return;
-    const resp = await fetch("/api/presets/active", {
+    const resp = await window.authFetch("/api/presets/active", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ preset_id: pid })
     });
     if (!resp.ok) {
@@ -866,7 +972,7 @@
     if (!confirm("确认删除该预设？")) return;
 
     if (presetStatusEl) setText(presetStatusEl, "删除中...");
-    const resp = await fetch("/api/presets/" + encodeURIComponent(pid), { method: "DELETE" });
+    const resp = await window.authFetch("/api/presets/" + encodeURIComponent(pid), { method: "DELETE" });
     if (!resp.ok) {
       const t = await resp.text();
       if (presetStatusEl) setText(presetStatusEl, "删除失败：" + t);
@@ -877,37 +983,64 @@
   }
 
   async function importPreset() {
+    console.log("导入预设函数被调用");
     const f = presetImportFileEl && presetImportFileEl.files ? presetImportFileEl.files[0] : null;
+    console.log("选择的文件:", f);
+    
     if (!f) {
       alert("请先选择一个 JSON 文件。");
       return;
     }
+    
     if (presetStatusEl) setText(presetStatusEl, "导入中...");
-    const text = await f.text();
-    let payload;
-    try { payload = JSON.parse(text); } catch (e) { alert("JSON 解析失败"); return; }
+    
+    try {
+      const text = await f.text();
+      console.log("文件内容长度:", text.length);
+      
+      let payload;
+      try { 
+        payload = JSON.parse(text); 
+        console.log("JSON解析成功");
+      } catch (e) { 
+        console.error("JSON解析失败:", e);
+        alert("JSON 解析失败"); 
+        return; 
+      }
 
-    const nameHint = prompt("请输入预设名称：", f.name.replace(/\.json$/i, ""));
-    if (!nameHint) {
-      if (presetStatusEl) setText(presetStatusEl, "已取消导入");
-      return;
-    }
+      const nameHint = prompt("请输入预设名称：", f.name.replace(/\.json$/i, ""));
+      if (!nameHint) {
+        if (presetStatusEl) setText(presetStatusEl, "已取消导入");
+        return;
+      }
 
-    const resp = await fetch("/api/presets/import", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ payload, name_hint: nameHint })
-    });
-    if (!resp.ok) {
-      const t = await resp.text();
-      if (presetStatusEl) setText(presetStatusEl, "导入失败：" + t);
-      return;
+      console.log("开始调用API导入预设");
+      const resp = await window.authFetch("/api/presets/import", {
+        method: "POST",
+        body: JSON.stringify({ payload, name_hint: nameHint })
+      });
+      
+      console.log("API响应状态:", resp.status);
+      
+      if (!resp.ok) {
+        const t = await resp.text();
+        console.error("导入失败:", t);
+        if (presetStatusEl) setText(presetStatusEl, "导入失败：" + t);
+        return;
+      }
+      
+      const p = await resp.json();
+      console.log("导入成功:", p.id);
+      
+      if (presetStatusEl) setText(presetStatusEl, "导入成功");
+      await loadPresetsOverview();
+      if (presetSelectEl) presetSelectEl.value = p.id;
+      await loadPresetDetail(p.id);
+      
+    } catch (error) {
+      console.error("导入过程中出错:", error);
+      if (presetStatusEl) setText(presetStatusEl, "导入出错");
     }
-    const p = await resp.json();
-    if (presetStatusEl) setText(presetStatusEl, "导入成功");
-    await loadPresetsOverview();
-    if (presetSelectEl) presetSelectEl.value = p.id;
-    await loadPresetDetail(p.id);
     
     if (presetImportFileEl) presetImportFileEl.value = "";
   }
@@ -929,9 +1062,8 @@
     if (presetStatusEl) setText(presetStatusEl, "重命名中...");
     
     currentPreset.name = newName.trim();
-    const resp = await fetch("/api/presets/" + encodeURIComponent(pid), {
+    const resp = await window.authFetch("/api/presets/" + encodeURIComponent(pid), {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: currentPreset.id,
         name: currentPreset.name,
@@ -953,7 +1085,7 @@
 
   async function exportPreset() {
     if (!currentPreset) return;
-    const resp = await fetch("/api/presets/export/" + encodeURIComponent(currentPreset.id));
+    const resp = await window.authFetch("/api/presets/export/" + encodeURIComponent(currentPreset.id));
     if (!resp.ok) {
       // 如果后端没实现 export 接口，可以直接导出 currentPreset
       const blob = new Blob([JSON.stringify(currentPreset, null, 2)], { type: "application/json" });
@@ -979,11 +1111,23 @@
       await loadPresetDetail(presetSelectEl.value);
     });
   }
+  // 修复预设导入按钮事件绑定
+  if (presetImportFileEl) {
+    console.log("预设导入按钮元素找到，绑定事件");
+    presetImportFileEl.addEventListener("change", importPreset);
+    
+    // 添加调试信息
+    presetImportFileEl.addEventListener("click", function() {
+      console.log("预设导入按钮被点击");
+    });
+  } else {
+    console.error("预设导入按钮元素未找到");
+  }
+  
   presetCreateBtn && presetCreateBtn.addEventListener("click", createPreset);
   presetSetActiveBtn && presetSetActiveBtn.addEventListener("click", setActivePreset);
   presetRenameBtn && presetRenameBtn.addEventListener("click", renamePreset);
   presetDeleteBtn && presetDeleteBtn.addEventListener("click", deletePreset);
-  presetImportFileEl && presetImportFileEl.addEventListener("change", importPreset);
   presetExportBtn && presetExportBtn.addEventListener("click", exportPreset);
 
   addGroupBtn && addGroupBtn.addEventListener("click", () => addChildNode("group"));
@@ -1087,7 +1231,7 @@
 
   async function loadLLMConfigs() {
     if (llmStatusEl) setText(llmStatusEl, "加载中...");
-    const resp = await fetch("/api/llm/configs");
+    const resp = await window.authFetch("/api/llm/configs");
     const data = await safeJson(resp);
     llmConfigs = data.configs || [];
     llmActive = data.active || { config_id: null, model: null };
@@ -1117,9 +1261,8 @@
     const method = isNewConfig ? "POST" : "PUT";
     const url = method === "PUT" ? ("/api/llm/configs/" + encodeURIComponent(cfg.id)) : "/api/llm/configs";
     
-    const resp = await fetch(url, {
+    const resp = await window.authFetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg)
     });
     if (!resp.ok) {
@@ -1156,7 +1299,7 @@
     if (!cfg) return;
     if (!confirm("确认删除该配置？")) return;
     if (llmStatusEl) setText(llmStatusEl, "删除中...");
-    const resp = await fetch("/api/llm/configs/" + encodeURIComponent(cfg.id), { method: "DELETE" });
+    const resp = await window.authFetch("/api/llm/configs/" + encodeURIComponent(cfg.id), { method: "DELETE" });
     if (!resp.ok) {
       const t = await resp.text();
       if (llmStatusEl) setText(llmStatusEl, "删除失败：" + t);
@@ -1175,9 +1318,8 @@
 
     const model = llmModelSelectEl ? llmModelSelectEl.value : null;
     if (llmStatusEl) setText(llmStatusEl, "设为当前...");
-    const resp = await fetch("/api/llm/active", {
+    const resp = await window.authFetch("/api/llm/active", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ config_id: cfg.id, model })
     });
     if (!resp.ok) {
@@ -1198,9 +1340,8 @@
       return;
     }
     if (llmStatusEl) setText(llmStatusEl, "检索模型中...");
-    const resp = await fetch("/api/llm/models/list", {
+    const resp = await window.authFetch("/api/llm/models/list", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ base_url, api_key })
     });
     if (!resp.ok) {
@@ -1241,6 +1382,12 @@
   function initPresetAndLLM() {
     const hasPresetArea = !!$("tab-presets");
     const hasLLMArea = !!$("tab-api");
+
+    // 绑定保存所有更改按钮
+    const saveAllBtn = $("settings-save-btn");
+    if (saveAllBtn) {
+      saveAllBtn.addEventListener("click", saveAllChanges);
+    }
 
     if (hasPresetArea) loadPresetsOverview().catch(console.error);
     if (hasLLMArea) loadLLMConfigs().catch(console.error);
