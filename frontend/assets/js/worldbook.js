@@ -78,7 +78,7 @@
     // 1. 优先从数据库加载（覆盖 localStorage）
     try {
       console.log('[加载] 尝试从数据库加载...');
-      const response = await fetch('/api/worldbook/list');
+      const response = await window.authFetch('/api/worldbook/list');
       console.log(`[加载] API 响应状态：${response.status}`);
       
       if (response.ok) {
@@ -211,12 +211,8 @@
         return false;
       }
       
-      const response = await fetch('/api/worldbook/import', {
+      const response = await window.authFetch('/api/worldbook/import', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({ entries })
       });
       
@@ -647,11 +643,8 @@
   
   async function performSemanticSearch(query) {
     try {
-      const response = await fetch('/api/worldbook/semantic_search', {
+      const response = await window.authFetch('/api/worldbook/semantic_search', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           query: query,
           top_k: 20,

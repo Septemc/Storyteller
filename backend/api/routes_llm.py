@@ -223,27 +223,59 @@ def set_active(body: ActiveLLM, db: Session = Depends(get_db), current_user: Opt
 @router.get("/llm/configs/{config_id}/models")
 def get_models_for_config(config_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """根据配置 ID 获取可用模型列表"""
-    user_id = current_user.user_id if current_user else None
-    query = db.query(DBLLMConfig).filter(DBLLMConfig.id == config_id)
-    if user_id:
-        query = query.filter(DBLLMConfig.user_id == user_id)
-    cfg = query.first()
-    if not cfg:
-        raise HTTPException(status_code=404, detail="config not found")
-
     try:
-        models = list_models(cfg.base_url or "", cfg.api_key or "")
-    except LLMError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        user_id = current_user.user_id if current_user else None
+        query = db.query(DBLLMConfig).filter(DBLLMConfig.id == config_id)
+        if user_id:
+            query = query.filter(DBLLMConfig.user_id == user_id)
+        cfg = query.first()
+        if not cfg:
+            raise HTTPException(status_code=404, detail="配置不存在")
 
-    return {"models": models}
+        # 验证配置数据
+        if not cfg.base_url or not cfg.api_key:
+            raise HTTPException(status_code=400, detail="配置信息不完整，请检查base_url和api_key")
+
+        try:
+            models = list_models(cfg.base_url, cfg.api_key)
+        except LLMError as e:
+            # 返回更详细的错误信息
+            raise HTTPException(status_code=400, detail=f"获取模型列表失败: {str(e)}")
+
+        return {"models": models}
+        
+    except HTTPException:
+        # 重新抛出已知的HTTP异常
+        raise
+    except Exception as e:
+        # 捕获所有其他异常，避免500错误
+        print(f"[ERROR] get_models_for_config 发生未知错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="服务器内部错误")
 
 
 @router.post("/llm/models/list")
 def list_models_by_credentials(body: ListModelsReq):
     """不保存配置，直接测试连接获取模型列表"""
     try:
-        models = list_models(body.base_url, body.api_key)
-    except LLMError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return {"models": models}
+        # 验证输入参数
+        if not body.base_url or not body.base_url.strip():
+            raise HTTPException(status_code=400, detail="base_url 不能为空")
+        
+        if not body.api_key or not body.api_key.strip():
+            raise HTTPException(status_code=400, detail="api_key 不能为空")
+        
+        try:
+            models = list_models(body.base_url, body.api_key)
+        except LLMError as e:
+            # 返回更详细的错误信息
+            raise HTTPException(status_code=400, detail=f"获取模型列表失败: {str(e)}")
+        
+        return {"models": models}
+        
+    except HTTPException:
+        # 重新抛出已知的HTTP异常
+        raise
+    except Exception as e:
+        # 捕获所有其他异常，避免500错误
+        print(f"[ERROR] list_models_by_credentials 发生未知错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="服务器内部错误")

@@ -124,9 +124,8 @@
       const scriptPayload = toDungeonPayload(script);
       const dungeonIds = script.dungeons.map(d => d.dungeon_id);
       
-      await fetch(`/api/scripts/${script.script_id}`, {
+      await window.authFetch(`/api/scripts/${script.script_id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           script_id: script.script_id,
           name: script.name || '',
@@ -142,9 +141,8 @@
       // 3. 更新会话状态，包括 current_script_id
       const target = getAppliedDungeonAndNode(script);
       
-      await fetch('/api/session/context', {
+      await window.authFetch('/api/session/context', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id: sessionId,
           current_script_id: script.script_id,
@@ -202,9 +200,8 @@
     const dungeons = script.dungeons || [];
     for (const dungeon of dungeons) {
       const payload = toDungeonPayload(dungeon);
-      const resp = await fetch(`/api/dungeon/${encodeURIComponent(dungeon.dungeon_id)}`, {
+      const resp = await window.authFetch(`/api/dungeon/${encodeURIComponent(dungeon.dungeon_id)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (!resp.ok) {
@@ -250,9 +247,8 @@
     await syncScriptToBackend(script);
     const target = getAppliedDungeonAndNode(script);
 
-    const resp = await fetch('/api/session/context', {
+    const resp = await window.authFetch('/api/session/context', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         session_id: sessionId,
         current_dungeon_id: target.dungeonId,

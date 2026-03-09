@@ -1,4 +1,27 @@
 (function () {
+  // =========================================================
+  // 0. 认证请求辅助函数
+  // =========================================================
+  function getAuthToken() {
+    return typeof Auth !== 'undefined' ? Auth.getToken() : localStorage.getItem('auth_token');
+  }
+
+  function authFetch(url, options = {}) {
+    const token = getAuthToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return fetch(url, { ...options, headers });
+  }
+
+  // 暴露到全局作用域，供其他模块使用
+  window.getAuthToken = getAuthToken;
+  window.authFetch = authFetch;
+
   let regexProfiles = [];
   let currentRegexId = null;
   let currentRegexConfig = null;
@@ -32,7 +55,7 @@
 
   async function loadRegexProfiles() {
     try {
-      const resp = await fetch('/regex/profiles');
+      const resp = await window.authFetch('/regex/profiles');
       if (!resp.ok) throw new Error('Failed to load regex profiles');
       regexProfiles = await resp.json();
       renderRegexSelect();
@@ -44,7 +67,7 @@
 
   async function loadActiveRegex() {
     try {
-      const resp = await fetch('/regex/active');
+      const resp = await window.authFetch('/regex/active');
       if (!resp.ok) throw new Error('Failed to load active regex');
       const data = await resp.json();
       currentRegexId = data.id;
@@ -182,7 +205,7 @@
     if (!profileId) return;
 
     try {
-      const resp = await fetch('/regex/profiles/' + profileId);
+      const resp = await window.authFetch('/regex/profiles/' + profileId);
       if (!resp.ok) throw new Error('Failed to load regex profile');
       const data = await resp.json();
       currentRegexId = data.id;
@@ -205,7 +228,7 @@
     if (!name) return;
 
     try {
-      const resp = await fetch('/regex/profiles', {
+      const resp = await window.authFetch('/regex/profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name })
@@ -229,9 +252,8 @@
       return;
     }
 
-    const resp = await fetch('/regex/profiles/' + currentRegexId, {
+    const resp = await window.authFetch('/regex/profiles/' + currentRegexId, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ config: currentRegexConfig })
     });
     if (!resp.ok) throw new Error('Failed to save regex profile');
@@ -259,7 +281,7 @@
     if (!confirm('确定要删除此正则化配置吗？')) return;
 
     try {
-      const resp = await fetch('/regex/profiles/' + currentRegexId, {
+      const resp = await window.authFetch('/regex/profiles/' + currentRegexId, {
         method: 'DELETE'
       });
       if (!resp.ok) throw new Error('Failed to delete regex profile');
@@ -274,7 +296,7 @@
     if (!currentRegexId) return;
 
     try {
-      const resp = await fetch('/regex/active?profile_id=' + encodeURIComponent(currentRegexId), {
+      const resp = await window.authFetch('/regex/active?profile_id=' + encodeURIComponent(currentRegexId), {
         method: 'PUT'
       });
       if (!resp.ok) throw new Error('Failed to set active regex');
@@ -360,26 +382,39 @@
   }
 
   async function importRegex() {
+    console.log("正则导入函数被调用");
     const file = regexImportFile ? regexImportFile.files[0] : null;
+    console.log("选择的文件:", file);
+    
     if (!file) {
+      console.log("没有选择文件");
       return;
     }
 
     const reader = new FileReader();
     reader.onload = async function (e) {
       try {
+        console.log("开始解析文件内容");
         const config = JSON.parse(e.target.result);
+        console.log("JSON解析成功");
+        
         const defaultName = config.name || file.name.replace(/\.json$/i, '');
         const name = prompt('请输入正则化配置名称：', defaultName);
         if (!name) return;
 
-        const resp = await fetch('/regex/profiles', {
+        console.log("开始调用API导入正则配置");
+        const resp = await window.authFetch('/regex/profiles', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: name, config: config })
         });
+        
+        console.log("API响应状态:", resp.status);
+        
         if (!resp.ok) throw new Error('Failed to import regex profile');
+        
         const data = await resp.json();
+        console.log("导入成功:", data.id);
+        
         await loadRegexProfiles();
         regexSelect.value = data.id;
         await loadSelectedRegex();
@@ -405,9 +440,8 @@
     if (!newName || newName.trim() === '') return;
 
     try {
-      const resp = await fetch('/regex/profiles/' + currentRegexId, {
+      const resp = await window.authFetch('/regex/profiles/' + currentRegexId, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName.trim(), config: currentRegexConfig })
       });
       if (!resp.ok) throw new Error('Failed to rename regex profile');
@@ -458,9 +492,19 @@
       regexDeleteNodeBtn.addEventListener('click', deleteNode);
     }
 
+    // 修复正则导入按钮事件绑定
     if (regexImportFile) {
+      console.log("正则导入按钮元素找到，绑定事件");
       regexImportFile.addEventListener('change', importRegex);
+      
+      // 添加调试信息
+      regexImportFile.addEventListener('click', function() {
+        console.log("正则导入按钮被点击");
+      });
+    } else {
+      console.error("正则导入按钮元素未找到");
     }
+    
     if (regexExportBtn) {
       regexExportBtn.addEventListener('click', exportRegex);
     }

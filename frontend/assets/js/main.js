@@ -1,4 +1,4 @@
-﻿// assets/js/main.js
+// assets/js/main.js
 (function () {
   // =========================================
   // 0. 认证请求辅助函数
@@ -18,6 +18,10 @@
     }
     return fetch(url, { ...options, headers });
   }
+  
+  // 暴露到全局作用域，供其他模块使用
+  window.getAuthToken = getAuthToken;
+  window.authFetch = authFetch;
 
   // =========================================
   // 1. DOM 元素获取
@@ -629,7 +633,7 @@
   // 获取后处理正则规则
   async function initPostprocessingRules() {
     try {
-      const response = await fetch('/regex/active');
+      const response = await authFetch('/regex/active');
       if (response.ok) {
         const data = await response.json();
         regexConfig = data.config || {};
@@ -707,16 +711,31 @@
       return [];
     }
     
-    const optionsText = text.substring(optionsStart + 5, optionsEnd);
+    const optionsText = text.substring(optionsStart + 6, optionsEnd);
     const options = [];
     
-    // 解析行动选项
+    // 增强兼容性：只要在<行动选项>标签内的每一行文字都当成一个行动进行渲染
     const lines = optionsText.split('\n');
     for (const line of lines) {
       const trimmedLine = line.trim();
-      if (trimmedLine && trimmedLine.match(/^\d+:/)) {
-        // 提取选项文本（去除数字和冒号）
-        const optionText = trimmedLine.replace(/^\d+:/, '').trim();
+      if (trimmedLine) {
+        // 支持多种格式：
+        // 1. 数字: 选项文本 (如 "1: 探索周围")
+        // 2. 符号+选项文本 (如 "- 探索周围" 或 "• 探索周围")
+        // 3. 纯文本选项 (如 "探索周围")
+        
+        let optionText = trimmedLine;
+        
+        // 移除常见的编号格式
+        optionText = optionText
+          .replace(/^\d+[:：、.\s]+/, '')  // 移除数字+冒号(中英文)/顿号/点号
+          .replace(/^[-•*]\s*/, '')      // 移除符号+空格
+          .replace(/^【.*?】\s*/, '')     // 移除方括号内容
+          .replace(/^<.*?>\s*/, '')      // 移除HTML标签
+          .replace(/^[一二三四五六七八九十]+[、.\s]+/, '')  // 移除中文编号
+          .trim();
+        
+        // 如果移除格式后还有内容，则作为选项
         if (optionText) {
           options.push(optionText);
         }
