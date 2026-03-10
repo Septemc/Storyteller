@@ -201,6 +201,10 @@ class EmbeddingEngine:
             except ImportError:
                 print("[警告] sentence-transformers 未安装，降级为 TF-IDF 模式")
                 self.config.provider = "tfidf"
+            except Exception as e:
+                # 例如模型下载失败 / 权限问题等
+                print(f"[警告] sentence-transformers 初始化失败，降级为 TF-IDF 模式: {e}")
+                self.config.provider = "tfidf"
     
     def compute_embeddings(
         self,

@@ -14,7 +14,8 @@ SECRET_KEY = "storyteller_secret_key_change_in_production_2024"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 使用 pbkdf2_sha256，避免 bcrypt 后端兼容性问题
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
@@ -65,10 +66,22 @@ class PasswordChange(BaseModel):
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    # 兼容旧 bcrypt 哈希（$2a$/$2b$/$2y$）
+    if hashed_password and hashed_password.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            import bcrypt as _bcrypt  # type: ignore
+            return _bcrypt.checkpw(
+                plain_password.encode("utf-8"),
+                hashed_password.encode("utf-8")
+            )
+        except Exception:
+            return False
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
+    if password is None:
+        raise ValueError("password cannot be empty")
     return pwd_context.hash(password)
 
 

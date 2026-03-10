@@ -106,6 +106,9 @@
         <div id="applied-world-info" class="small-text muted" style="margin-top: 6px; color: var(--accent);">
           当前应用：尚未应用任何世界书
         </div>
+        <div id="import-status" class="small-text muted" style="margin-top: 6px; color: var(--accent); display: none;">
+          正在导入，请勿重复点击
+        </div>
       </div>
 
 
@@ -113,7 +116,8 @@
       <!-- 搜索 + 新建模块 / 条目 + 导入模块 / 条目 + 删除 -->
       <div class="settings-section">
         <div class="search-wrapper" style="position: relative;">
-          <input id="search-keyword" class="form-input" placeholder="搜索内容..." style="padding-right: 80px;">
+          <input id="search-keyword" class="form-input" placeholder="搜索内容..." style="padding-right: 80px;"
+                 autocomplete="off" autocapitalize="off" spellcheck="false" name="search_keyword" data-lpignore="true">
           <button id="btn-search" class="icon-button" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%);">
             🔍
           </button>

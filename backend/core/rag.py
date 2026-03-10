@@ -449,8 +449,20 @@ class RAGRetriever:
 def create_retriever(db: Session) -> RAGRetriever:
     """创建检索器（使用默认配置）"""
     # TODO: 从配置表读取 Embedding 配置
-    config = EmbeddingConfig(provider="tfidf")  # 默认使用 TF-IDF
-    return RAGRetriever(db, config)
+    # 默认使用 sentence-transformers，如失败则回退到 TF-IDF
+    try:
+        config = EmbeddingConfig(
+            provider="sentence_transformers",
+            model="paraphrase-multilingual-MiniLM-L12-v2",
+        )
+        retriever = RAGRetriever(db, config)
+        # 触发引擎初始化，确保模型可用
+        _ = retriever.engine
+        return retriever
+    except Exception as e:
+        print(f"[RAG] sentence-transformers 初始化失败，回退 TF-IDF: {e}")
+        fallback = EmbeddingConfig(provider="tfidf")
+        return RAGRetriever(db, fallback)
 
 
 def retrieve_worldbook_context(

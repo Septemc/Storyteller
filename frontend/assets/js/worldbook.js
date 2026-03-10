@@ -11,7 +11,9 @@
     isEditMode: false,
     keyword: '',
     importMode: null,       // 'world' | 'category' | 'entry'
-    useSemanticSearch: false // 是否启用语义搜索
+    useSemanticSearch: false, // 是否启用语义搜索
+    dataSource: 'local',     // 'db' | 'local'
+    isImporting: false
   };
 
   // ====== DOM 缓存 ======
@@ -40,15 +42,21 @@
     modePreview: document.getElementById('mode-preview'),
     modeEdit: document.getElementById('mode-edit'),
     btnSave: document.getElementById('btn-save-detail'),
-    btnExportCurrent: document.getElementById('btn-export-current')
+    btnExportCurrent: document.getElementById('btn-export-current'),
+
+    importStatus: document.getElementById('import-status')
   };
 
   // ====== 初始化入口 ======
-  function init() {
+  async function init() {
     initAuthUI();
-    loadData();
+    await loadData();
     bindEvents();
+    clearSearchInput();
     refreshUI();
+    // 规避浏览器自动填充：延迟再清一次
+    setTimeout(clearSearchInput, 0);
+    setTimeout(clearSearchInput, 200);
   }
   
   function initAuthUI() {
@@ -70,6 +78,34 @@
     }
   }
 
+  function getAuthToken() {
+    if (typeof Auth !== 'undefined' && typeof Auth.getToken === 'function') {
+      const token = Auth.getToken();
+      if (token) return token;
+    }
+    return localStorage.getItem('auth_token') || localStorage.getItem('token');
+  }
+
+  function authFetch(url, options = {}) {
+    const token = getAuthToken();
+    const headers = {
+      ...(options.headers || {})
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (!headers['Content-Type'] && options.body && !(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    return fetch(url, {
+      ...options,
+      headers
+    });
+  }
+
   // ====== 数据持久化 ======
   // 从 localStorage 或数据库加载数据
   async function loadData() {
@@ -78,7 +114,7 @@
     // 1. 优先从数据库加载（覆盖 localStorage）
     try {
       console.log('[加载] 尝试从数据库加载...');
-      const response = await window.authFetch('/api/worldbook/list');
+      const response = await authFetch('/api/worldbook/list?page=1&page_size=100');
       console.log(`[加载] API 响应状态：${response.status}`);
       
       if (response.ok) {
@@ -86,8 +122,29 @@
         console.log(`[加载] API 返回数据：`, result);
         
         // API 返回分页格式：{items: [...], page, total_pages}
-        const dbEntries = result.items || result;
+        let dbEntries = result.items || result;
         console.log(`[加载] 解析后条目数：${dbEntries.length}`);
+        
+        // 若有分页，补齐后续页
+        if (result.items && result.total_pages && result.total_pages > 1) {
+          for (let p = 2; p <= result.total_pages; p++) {
+            try {
+              const respPage = await authFetch(`/api/worldbook/list?page=${p}&page_size=100`);
+              if (!respPage.ok) {
+                console.warn(`[加载] 获取第${p}页失败：${respPage.status}`);
+                break;
+              }
+              const pageResult = await respPage.json();
+              if (pageResult && Array.isArray(pageResult.items)) {
+                dbEntries = dbEntries.concat(pageResult.items);
+              }
+            } catch (err) {
+              console.warn(`[加载] 获取第${p}页异常：`, err);
+              break;
+            }
+          }
+          console.log(`[加载] 合并分页后条目数：${dbEntries.length}`);
+        }
         
         if (dbEntries && dbEntries.length > 0) {
           console.log(`[加载] 从数据库加载 ${dbEntries.length} 条世界书`);
@@ -95,42 +152,49 @@
           
           // 将数据库条目转换为前端格式
           const world = {
-            id: '1',
+            id: 'db',
             name: '世界书',
             description: '从数据库加载',
-            categories: {
-              '1': []  // 统一放在模块 "1" 中
-            },
-            categoryMeta: {
-              '1': { name: '1' }
-            },
+            categories: {},
+            categoryMeta: {},
             _expanded_cats: {}
           };
           
-          // 所有条目都放在模块 "1" 下
           dbEntries.forEach(entry => {
-            const entryId = entry.entry_id || `TEMP_${Date.now()}_${Math.random()}`;
-            world.categories['1'].push({
-              id: entryId.replace('WB_', ''),
+            const entryId = entry.entry_id || `WB_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            const category = entry.category || '未分类';
+            
+            if (!world.categories[category]) {
+              world.categories[category] = [];
+            }
+            if (!world.categoryMeta[category]) {
+              world.categoryMeta[category] = { name: category, description: '' };
+            }
+            
+            const meta = entry.meta && typeof entry.meta === 'object' ? entry.meta : {};
+            world.categories[category].push({
+              id: entryId,
               title: entry.title || '未命名条目',
-              // 从数据库加载时，content 字段需要从详情接口获取
-              // 暂时使用空内容，用户点击时会从详情接口加载
               content: entry.content || '',
               importance: entry.importance || 0.5,
               tags: (entry.tags && typeof entry.tags === 'string') ? entry.tags.split(',') : [],
-              canonical: entry.canonical || false
+              canonical: entry.canonical || false,
+              enabled: entry.enabled !== undefined ? entry.enabled : (meta.enabled !== undefined ? meta.enabled : true),
+              disable: entry.disable !== undefined ? entry.disable : (meta.disable !== undefined ? meta.disable : false),
+              raw: meta
             });
           });
           
-          console.log(`[加载] 模块 "1" 下有 ${world.categories['1'].length} 个条目`);
+          console.log(`[加载] 分类数：${Object.keys(world.categories).length}`);
           
           state.worldbooks = [world];
           state.currentWorldId = world.id;
+          state.dataSource = 'db';
           
           // 保存到 localStorage（作为缓存）- 覆盖旧的，不合并
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state.worldbooks));
+          trySetLocalStorage(STORAGE_KEY, JSON.stringify(state.worldbooks));
           if (state.appliedWorldId) {
-            localStorage.setItem(APPLIED_KEY, state.appliedWorldId);
+            trySetLocalStorage(APPLIED_KEY, state.appliedWorldId);
           } else {
             localStorage.removeItem(APPLIED_KEY);
           }
@@ -138,6 +202,20 @@
           console.log('[加载] 已更新 localStorage 缓存');
           return;
         }
+        
+        // 数据库响应成功但没有条目，视为数据库为空，清空本地缓存
+        if (response.ok && (!dbEntries || dbEntries.length === 0)) {
+          console.log('[加载] 数据库为空，清空本地缓存');
+          state.worldbooks = [];
+          state.currentWorldId = null;
+          state.currentSelection = null;
+          state.dataSource = 'db';
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(APPLIED_KEY);
+          return;
+        }
+      } else {
+        console.warn(`[加载] 数据库加载失败（HTTP ${response.status}），回退到 localStorage`);
       }
     } catch (error) {
       console.warn('[加载] 数据库加载失败，回退到 localStorage:', error);
@@ -165,23 +243,60 @@
     } else {
       state.currentWorldId = null;
     }
+    state.dataSource = 'local';
+  }
+
+  function trySetLocalStorage(key, value) {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (e) {
+      console.warn('[worldbook] localStorage 写入失败，可能超出容量:', e);
+      return false;
+    }
   }
 
   function saveData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.worldbooks));
+    const ok = trySetLocalStorage(STORAGE_KEY, JSON.stringify(state.worldbooks));
+    if (!ok) {
+      // 超出容量时，避免阻断流程，直接跳过本地缓存
+      localStorage.removeItem(STORAGE_KEY);
+    }
     if (state.appliedWorldId) {
-      localStorage.setItem(APPLIED_KEY, state.appliedWorldId);
+      trySetLocalStorage(APPLIED_KEY, state.appliedWorldId);
     } else {
       localStorage.removeItem(APPLIED_KEY);
+    }
+  }
+
+  function setImporting(isImporting, message) {
+    state.isImporting = isImporting;
+    if (els.importStatus) {
+      els.importStatus.textContent = message || '正在导入，请勿重复点击';
+      els.importStatus.style.display = isImporting ? 'block' : 'none';
+    }
+    const buttons = [els.btnImportWorld, els.btnImportCategory, els.btnImportEntry];
+    buttons.forEach(btn => {
+      if (btn) btn.disabled = isImporting;
+    });
+    if (els.fileInput) {
+      els.fileInput.disabled = isImporting;
+    }
+  }
+
+  function clearSearchInput() {
+    state.keyword = '';
+    if (els.searchInput) {
+      els.searchInput.value = '';
     }
   }
   
   // 同步世界书数据到后端
   async function syncWorldbookToBackend(worldbookData) {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) {
-        console.warn('未登录，跳过后端同步');
+        console.warn('未登录，跳过后端同步（仅保存在本地 localStorage）');
         return false;
       }
       
@@ -191,15 +306,22 @@
         Object.entries(worldbookData.categories).forEach(([category, items]) => {
           if (Array.isArray(items)) {
             items.forEach(item => {
+              const safeId = ensureEntryId(item.id);
+              if (safeId !== item.id) {
+                item.id = safeId;
+              }
+              const meta = item.raw && typeof item.raw === 'object' ? item.raw : {};
+              meta.enabled = item.enabled !== undefined ? item.enabled : (meta.enabled !== undefined ? meta.enabled : true);
+              meta.disable = item.disable !== undefined ? item.disable : (meta.disable !== undefined ? meta.disable : false);
               entries.push({
-                entry_id: item.id || `WB_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                entry_id: item.id || generateEntryId(),
                 category: category,
                 title: item.title || '未命名条目',
                 content: item.content || '',
                 tags: item.tags || [],
                 importance: item.importance || 0.5,
                 canonical: item.canonical || false,
-                meta: item.raw || {}
+                meta
               });
             });
           }
@@ -211,7 +333,7 @@
         return false;
       }
       
-      const response = await window.authFetch('/api/worldbook/import', {
+      const response = await authFetch('/api/worldbook/import?sync_embeddings=false', {
         method: 'POST',
         body: JSON.stringify({ entries })
       });
@@ -225,6 +347,47 @@
       return true;
     } catch (error) {
       console.error('世界书同步失败:', error);
+      return false;
+    }
+  }
+
+  async function syncEntryToBackend(entry, category) {
+    try {
+      const token = getAuthToken();
+      if (!token) return false;
+
+      const safeId = ensureEntryId(entry.id);
+      if (safeId !== entry.id) {
+        entry.id = safeId;
+      }
+
+      const meta = entry.raw && typeof entry.raw === 'object' ? entry.raw : {};
+      meta.enabled = entry.enabled !== undefined ? entry.enabled : true;
+      meta.disable = entry.disable !== undefined ? entry.disable : false;
+
+      const payload = {
+        entries: [
+          {
+            entry_id: entry.id,
+            category: category,
+            title: entry.title || '未命名条目',
+            content: entry.content || '',
+            tags: entry.tags || [],
+            importance: entry.importance || 0.5,
+            canonical: entry.canonical || false,
+            meta
+          }
+        ]
+      };
+
+      const response = await authFetch('/api/worldbook/import?sync_embeddings=false', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      return response.ok;
+    } catch (err) {
+      console.error('条目同步失败:', err);
       return false;
     }
   }
@@ -244,6 +407,30 @@
   // ====== 工具函数 ======
   function generateId() {
     return 'w_' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function generateEntryId() {
+    const rand = Math.random().toString(36).slice(2, 10);
+    const ts = Date.now().toString(36).slice(-4);
+    return 'E' + rand + ts;
+  }
+
+  function ensureEntryId(rawId) {
+    if (rawId === null || rawId === undefined || rawId === '') {
+      return generateEntryId();
+    }
+    const idStr = String(rawId).trim();
+    if (!idStr) return generateEntryId();
+    if (/^\d+$/.test(idStr)) {
+      return generateEntryId();
+    }
+    return idStr;
+  }
+
+  function isEntryActive(entry) {
+    const enabled = entry && entry.enabled !== undefined ? Boolean(entry.enabled) : true;
+    const disable = entry && entry.disable !== undefined ? Boolean(entry.disable) : false;
+    return (disable === false) && (enabled === true);
   }
 
   function getWorldById(id) {
@@ -474,9 +661,19 @@
           <span class="icon-arrow arrow-toggle"></span>
         </div>
         <div class="tree-children-2">
-          ${filteredEntries.map(e => `
-            <div class="tree-node tree-item-3" data-id="${escapeHtml(e.id)}">📄 ${escapeHtml(e.title || '未命名条目')}</div>
-          `).join('')}
+          ${filteredEntries.map(e => {
+            const isActive = isEntryActive(e);
+            const title = escapeHtml(e.title || '未命名条目');
+            return `
+            <div class="tree-node tree-item-3${isActive ? '' : ' entry-inactive'}" data-id="${escapeHtml(e.id)}">
+              <span class="tree-entry-label">📄 ${title}</span>
+              <label class="toggle-switch tree-entry-toggle" title="${isActive ? '已启用' : '已禁用'}">
+                <input type="checkbox" data-entry-id="${escapeHtml(e.id)}" ${isActive ? 'checked' : ''}>
+                <span class="slider"></span>
+              </label>
+            </div>
+            `;
+          }).join('')}
         </div>
       `;
 
@@ -505,6 +702,50 @@
           const entryId = itemEl.getAttribute('data-id');
           selectNode('entry', { worldId: world.id, catName, entryId });
         };
+      });
+
+      // 绑定开关逻辑
+      container.querySelectorAll('.tree-entry-toggle').forEach(labelEl => {
+        labelEl.addEventListener('click', (e) => e.stopPropagation());
+      });
+      container.querySelectorAll('.tree-entry-toggle input').forEach(inputEl => {
+        inputEl.addEventListener('click', (e) => e.stopPropagation());
+        inputEl.addEventListener('change', async (e) => {
+          e.stopPropagation();
+          const entryId = inputEl.getAttribute('data-entry-id');
+          const entries = world.categories[catName] || [];
+          const entry = entries.find(it => String(it.id) === String(entryId));
+          if (!entry) return;
+
+          const nextActive = inputEl.checked;
+          entry.enabled = nextActive;
+          entry.disable = !nextActive;
+
+          if (!entry.raw || typeof entry.raw !== 'object') {
+            entry.raw = {};
+          }
+          entry.raw.enabled = entry.enabled;
+          entry.raw.disable = entry.disable;
+
+          saveData();
+
+          // 更新样式
+          const rowEl = inputEl.closest('.tree-item-3');
+          if (rowEl) {
+            if (nextActive) {
+              rowEl.classList.remove('entry-inactive');
+            } else {
+              rowEl.classList.add('entry-inactive');
+            }
+          }
+
+          // 同步到后端（单条更新）
+          try {
+            await syncEntryToBackend(entry, catName);
+          } catch (err) {
+            console.warn('条目开关同步失败：', err);
+          }
+        });
       });
 
       els.treeRoot.appendChild(container);
@@ -643,7 +884,7 @@
   
   async function performSemanticSearch(query) {
     try {
-      const response = await window.authFetch('/api/worldbook/semantic_search', {
+      const response = await authFetch('/api/worldbook/semantic_search', {
         method: 'POST',
         body: JSON.stringify({
           query: query,
@@ -666,6 +907,8 @@
       alert(`语义搜索失败：${error.message}\n将使用关键词搜索`);
       // 降级到关键词搜索
       state.useSemanticSearch = false;
+      const semanticToggle = document.getElementById('semantic-search-toggle');
+      const semanticHint = document.getElementById('semantic-search-hint');
       if (semanticToggle) semanticToggle.checked = false;
       if (semanticHint) semanticHint.style.display = 'none';
       renderTree();
@@ -736,12 +979,23 @@
 
     function pushEntry(world, catName, src) {
       ensureCategory(world, catName);
+      const safeId = ensureEntryId(src.id || src.uid);
+      // 导入时尊重原始开关字段
+      const enabled = (src.enabled !== undefined) ? Boolean(src.enabled) : true;
+      const disable = (src.disable !== undefined)
+        ? Boolean(src.disable)
+        : (src.disabled !== undefined ? Boolean(src.disabled) : false);
+      const raw = (src && typeof src === 'object') ? { ...src } : {};
+      raw.enabled = enabled;
+      raw.disable = disable;
       world.categories[catName].push({
-        id: String(src.id || src.uid || generateId()),
+        id: safeId,
         title: src.title || src.comment || src.name || '未命名条目',
         content: src.content || src.text || '',
         tags: src.tags || src.key || [],
-        raw: src
+        enabled,
+        disable,
+        raw
       });
     }
 
@@ -865,38 +1119,64 @@
 
   // 导入整本世界书
   async function handleImportWorld(file) {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const raw = JSON.parse(e.target.result);
-        const worlds = normalizeImportedJson(raw, file.name);
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          let raw;
+          try {
+            raw = JSON.parse(e.target.result);
+          } catch (parseErr) {
+            console.error(parseErr);
+            alert('导入失败：JSON 解析失败，请确认文件格式正确。');
+            return resolve();
+          }
+          const worlds = normalizeImportedJson(raw, file.name);
 
-        if (!worlds.length) {
-          alert('未识别到可用的世界书结构。');
-          return;
+          if (!worlds.length) {
+            alert('未识别到可用的世界书结构。');
+            return resolve();
+          }
+
+          state.worldbooks.push(...worlds);
+          saveData();
+
+          // 同步到后端
+          let syncOkCount = 0;
+          for (const world of worlds) {
+            if (await syncWorldbookToBackend(world)) {
+              syncOkCount += 1;
+            }
+          }
+
+          // 默认选中新导入的第一个世界
+          state.currentWorldId = worlds[0].id;
+          state.currentSelection = { type: 'world', worldId: state.currentWorldId };
+          state.isEditMode = false;
+
+          refreshUI();
+          if (syncOkCount === worlds.length) {
+            alert(`导入成功：共导入 ${worlds.length} 个世界书。`);
+          } else {
+            alert(`导入成功（本地）：共导入 ${worlds.length} 个世界书；其中 ${worlds.length - syncOkCount} 个未同步到后端。`);
+          }
+        } catch (err) {
+          console.error(err);
+          if (err && err.name === 'QuotaExceededError') {
+            alert('本地缓存空间不足，但后端可能已完成导入。建议清理浏览器缓存后刷新。');
+          } else {
+            alert('导入失败：处理文件时发生错误，请查看控制台日志。');
+          }
+        } finally {
+          resolve();
         }
-
-        state.worldbooks.push(...worlds);
-        saveData();
-
-        // 同步到后端
-        for (const world of worlds) {
-          await syncWorldbookToBackend(world);
-        }
-
-        // 默认选中新导入的第一个世界
-        state.currentWorldId = worlds[0].id;
-        state.currentSelection = { type: 'world', worldId: state.currentWorldId };
-        state.isEditMode = false;
-
-        refreshUI();
-        alert(`导入成功：共导入 ${worlds.length} 个世界书。`);
-      } catch (err) {
-        console.error(err);
-        alert('导入失败：请确认 JSON 格式是否正确。');
-      }
-    };
-    reader.readAsText(file, 'utf-8');
+      };
+      reader.onerror = () => {
+        alert('读取文件失败，请重试。');
+        resolve();
+      };
+      reader.readAsText(file, 'utf-8');
+    });
   }
 
   // 导入模块：把文件中的所有模块合并到当前世界书中
@@ -905,69 +1185,77 @@
     const world = getWorldById(state.currentWorldId);
     if (!world) {
       alert('请先选择一个世界书，再导入模块。');
-      return;
+      return Promise.resolve();
     }
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const raw = JSON.parse(e.target.result);
-        const importedWorlds = normalizeImportedJson(raw, file.name);
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const raw = JSON.parse(e.target.result);
+          const importedWorlds = normalizeImportedJson(raw, file.name);
 
-        if (!importedWorlds.length) {
-          alert('未识别到可用的模块结构。');
-          return;
-        }
+          if (!importedWorlds.length) {
+            alert('未识别到可用的模块结构。');
+            return resolve();
+          }
 
-        importedWorlds.forEach(srcWorld => {
-          Object.keys(srcWorld.categories || {}).forEach(catName => {
-            const srcEntries = srcWorld.categories[catName] || [];
-            if (!world.categories[catName]) {
-              // 新模块：直接拷贝
-              world.categories[catName] = [];
-            }
-            if (!world.categoryMeta) world.categoryMeta = {};
-            if (!world.categoryMeta[catName]) {
-              world.categoryMeta[catName] = {
-                description:
-                  srcWorld.categoryMeta &&
-                  srcWorld.categoryMeta[catName] &&
-                  srcWorld.categoryMeta[catName].description
-                    ? String(srcWorld.categoryMeta[catName].description)
-                    : ''
-              };
-            }
-            // 已存在模块：附加条目
-            srcEntries.forEach(eItem => {
-              world.categories[catName].push({
-                id: generateId(),
-                title: eItem.title || '未命名条目',
-                content: eItem.content || '',
-                tags: eItem.tags || [],
-                raw: eItem.raw || eItem
+          importedWorlds.forEach(srcWorld => {
+            Object.keys(srcWorld.categories || {}).forEach(catName => {
+              const srcEntries = srcWorld.categories[catName] || [];
+              if (!world.categories[catName]) {
+                // 新模块：直接拷贝
+                world.categories[catName] = [];
+              }
+              if (!world.categoryMeta) world.categoryMeta = {};
+              if (!world.categoryMeta[catName]) {
+                world.categoryMeta[catName] = {
+                  description:
+                    srcWorld.categoryMeta &&
+                    srcWorld.categoryMeta[catName] &&
+                    srcWorld.categoryMeta[catName].description
+                      ? String(srcWorld.categoryMeta[catName].description)
+                      : ''
+                };
+              }
+              // 已存在模块：附加条目
+              srcEntries.forEach(eItem => {
+                world.categories[catName].push({
+                  id: generateId(),
+                  title: eItem.title || '未命名条目',
+                  content: eItem.content || '',
+                  tags: eItem.tags || [],
+                  raw: eItem.raw || eItem
+                });
               });
             });
           });
-        });
 
-        if (!world._expanded_cats) world._expanded_cats = {};
-        Object.keys(world.categories || {}).forEach(catName => {
-          world._expanded_cats[catName] = true;
-        });
+          if (!world._expanded_cats) world._expanded_cats = {};
+          Object.keys(world.categories || {}).forEach(catName => {
+            world._expanded_cats[catName] = true;
+          });
 
-        saveData();
-        renderTree();
-        
-        // 同步到后端
-        await syncWorldbookToBackend(world);
-        
-        alert('导入模块成功。');
-      } catch (err) {
-        console.error(err);
-        alert('导入模块失败：请确认 JSON 格式是否正确。');
-      }
-    };
-    reader.readAsText(file, 'utf-8');
+          saveData();
+          renderTree();
+          
+          // 同步到后端
+          const syncOk = await syncWorldbookToBackend(world);
+          
+          alert(syncOk ? '导入模块成功。' : '导入模块成功（本地），但后端同步失败。');
+        } catch (err) {
+          console.error(err);
+          alert('导入模块失败：请确认 JSON 格式是否正确。');
+        } finally {
+          resolve();
+        }
+      };
+      reader.onerror = () => {
+        alert('读取文件失败，请重试。');
+        resolve();
+      };
+      reader.readAsText(file, 'utf-8');
+    });
   }
 
   // 导入条目：把文件中的条目合并到当前世界书的对应模块中
@@ -977,61 +1265,69 @@
     const world = getWorldById(state.currentWorldId);
     if (!world) {
       alert('请先选择一个世界书，再导入条目。');
-      return;
+      return Promise.resolve();
     }
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const raw = JSON.parse(e.target.result);
-        const importedWorlds = normalizeImportedJson(raw, file.name);
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const raw = JSON.parse(e.target.result);
+          const importedWorlds = normalizeImportedJson(raw, file.name);
 
-        if (!importedWorlds.length) {
-          alert('未识别到可用的条目结构。');
-          return;
-        }
+          if (!importedWorlds.length) {
+            alert('未识别到可用的条目结构。');
+            return resolve();
+          }
 
-        importedWorlds.forEach(srcWorld => {
-          Object.keys(srcWorld.categories || {}).forEach(catName => {
-            const srcEntries = srcWorld.categories[catName] || [];
-            if (!world.categories[catName]) {
-              world.categories[catName] = [];
-            }
-            if (!world.categoryMeta) world.categoryMeta = {};
-            if (!world.categoryMeta[catName]) {
-              world.categoryMeta[catName] = { description: '' };
-            }
+          importedWorlds.forEach(srcWorld => {
+            Object.keys(srcWorld.categories || {}).forEach(catName => {
+              const srcEntries = srcWorld.categories[catName] || [];
+              if (!world.categories[catName]) {
+                world.categories[catName] = [];
+              }
+              if (!world.categoryMeta) world.categoryMeta = {};
+              if (!world.categoryMeta[catName]) {
+                world.categoryMeta[catName] = { description: '' };
+              }
 
-            srcEntries.forEach(eItem => {
-              world.categories[catName].push({
-                id: generateId(),
-                title: eItem.title || '未命名条目',
-                content: eItem.content || '',
-                tags: eItem.tags || [],
-                raw: eItem.raw || eItem
+              srcEntries.forEach(eItem => {
+                world.categories[catName].push({
+                  id: generateId(),
+                  title: eItem.title || '未命名条目',
+                  content: eItem.content || '',
+                  tags: eItem.tags || [],
+                  raw: eItem.raw || eItem
+                });
               });
             });
           });
-        });
 
-        if (!world._expanded_cats) world._expanded_cats = {};
-        Object.keys(world.categories || {}).forEach(catName => {
-          world._expanded_cats[catName] = true;
-        });
+          if (!world._expanded_cats) world._expanded_cats = {};
+          Object.keys(world.categories || {}).forEach(catName => {
+            world._expanded_cats[catName] = true;
+          });
 
-        saveData();
-        renderTree();
-        
-        // 同步到后端
-        await syncWorldbookToBackend(world);
-        
-        alert('导入条目成功。');
-      } catch (err) {
-        console.error(err);
-        alert('导入条目失败：请确认 JSON 格式是否正确。');
-      }
-    };
-    reader.readAsText(file, 'utf-8');
+          saveData();
+          renderTree();
+          
+          // 同步到后端
+          const syncOk = await syncWorldbookToBackend(world);
+          
+          alert(syncOk ? '导入条目成功。' : '导入条目成功（本地），但后端同步失败。');
+        } catch (err) {
+          console.error(err);
+          alert('导入条目失败：请确认 JSON 格式是否正确。');
+        } finally {
+          resolve();
+        }
+      };
+      reader.onerror = () => {
+        alert('读取文件失败，请重试。');
+        resolve();
+      };
+      reader.readAsText(file, 'utf-8');
+    });
   }
 
   function normalizeEntryForExport(e) {
@@ -1181,6 +1477,10 @@
 
     // 导入世界书 JSON
     els.btnImportWorld.onclick = () => {
+      if (state.isImporting) {
+        alert('正在导入，请勿重复点击');
+        return;
+      }
       state.importMode = 'world';
       els.fileInput.click();
     };
@@ -1189,13 +1489,35 @@
     els.btnExportWorld.onclick = handleExportWorldOnly;
 
     // 删除当前世界书（顶栏删除）
-    els.btnDeleteWorld.onclick = () => {
+    els.btnDeleteWorld.onclick = async () => {
       const world = getWorldById(state.currentWorldId);
       if (!world) {
         alert('当前没有可删除的世界书。');
         return;
       }
       if (!confirm(`确认删除世界书「${world.name}」？该操作不可撤销。`)) return;
+
+      // 如果当前数据来自数据库，则同步删除全部条目
+      if (state.dataSource === 'db') {
+        const token = getAuthToken();
+        if (!token) {
+          alert('未登录，无法同步删除数据库中的世界书。请先登录后再删除。');
+          return;
+        }
+        try {
+          const resp = await authFetch('/api/worldbook/all?confirm=true', { method: 'DELETE' });
+          if (!resp.ok) {
+            const errText = await resp.text();
+            console.error('[删除世界书] 后端删除失败:', resp.status, errText);
+            alert('后端删除失败，请稍后重试。');
+            return;
+          }
+        } catch (err) {
+          console.error('[删除世界书] 请求失败:', err);
+          alert('无法连接服务器，删除失败。');
+          return;
+        }
+      }
 
       const idx = state.worldbooks.findIndex(w => w.id === world.id);
       if (idx >= 0) {
@@ -1214,25 +1536,31 @@
 
       saveData();
       refreshUI();
+      alert(`已删除世界书「${world.name}」。`);
     };
 
     // 通用 file input，根据 importMode 分发
-    els.fileInput.onchange = (e) => {
+    els.fileInput.onchange = async (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
 
       const mode = state.importMode || 'world';
       state.importMode = null;
 
-      if (mode === 'world') {
-        handleImportWorld(file);
-      } else if (mode === 'category') {
-        handleImportCategory(file);
-      } else if (mode === 'entry') {
-        handleImportEntry(file);
-      } else {
-        // 兜底当世界书导入
-        handleImportWorld(file);
+      setImporting(true);
+      try {
+        if (mode === 'world') {
+          await handleImportWorld(file);
+        } else if (mode === 'category') {
+          await handleImportCategory(file);
+        } else if (mode === 'entry') {
+          await handleImportEntry(file);
+        } else {
+          // 兜底当世界书导入
+          await handleImportWorld(file);
+        }
+      } finally {
+        setImporting(false);
       }
 
       e.target.value = '';
@@ -1336,9 +1664,13 @@
         if (!world._expanded_cats) world._expanded_cats = {};
         world._expanded_cats[catName] = true;
 
-        // 等待同步完成再关闭
-        await saveData();
-        console.log('[新建条目] 同步完成');
+        saveData();
+        if (state.dataSource === 'db') {
+          const syncOk = await syncWorldbookToBackend(world);
+          if (!syncOk) {
+            alert('条目已在本地创建，但后端同步失败，请稍后重试或刷新页面。');
+          }
+        }
         
         selectNode('entry', { worldId: world.id, catName, entryId: entry.id });
         renderTree();
@@ -1353,6 +1685,10 @@
         alert('请先选择一个世界书。');
         return;
       }
+      if (state.isImporting) {
+        alert('正在导入，请勿重复点击');
+        return;
+      }
       state.importMode = 'category';
       els.fileInput.click();
     };
@@ -1364,12 +1700,16 @@
         alert('请先选择一个世界书。');
         return;
       }
+      if (state.isImporting) {
+        alert('正在导入，请勿重复点击');
+        return;
+      }
       state.importMode = 'entry';
       els.fileInput.click();
     };
 
     // 删除（模块 / 条目）
-    els.btnDeleteNode.onclick = () => {
+    els.btnDeleteNode.onclick = async () => {
       const sel = state.currentSelection;
       const world = sel ? getWorldById(sel.worldId) : null;
 
@@ -1392,6 +1732,29 @@
         const ok = confirm(`确认删除模块「${catName}」及其所有条目？该操作不可撤销。`);
         if (!ok) return;
 
+        if (state.dataSource === 'db') {
+          const token = getAuthToken();
+          if (!token) {
+            alert('未登录，无法同步删除数据库中的模块。请先登录后再删除。');
+            return;
+          }
+          try {
+            const resp = await authFetch(`/api/worldbook/category?category=${encodeURIComponent(catName)}`, {
+              method: 'DELETE'
+            });
+            if (!resp.ok) {
+              const errText = await resp.text();
+              console.error('[删除模块] 后端删除失败:', resp.status, errText);
+              alert('后端删除失败，请稍后重试。');
+              return;
+            }
+          } catch (err) {
+            console.error('[删除模块] 请求失败:', err);
+            alert('无法连接服务器，删除失败。');
+            return;
+          }
+        }
+
         delete world.categories[catName];
         if (world.categoryMeta && world.categoryMeta[catName]) {
           delete world.categoryMeta[catName];
@@ -1406,6 +1769,7 @@
         saveData();
         renderTree();
         renderDetail();
+        alert(`已删除模块「${catName}」。`);
       } else if (sel.type === 'entry') {
         const catName = sel.catName;
         const entries = world.categories[catName] || [];
@@ -1418,34 +1782,40 @@
         const ok = confirm(`确认删除条目「${entry.title || '未命名条目'}」？该操作不可撤销。`);
         if (!ok) return;
 
-        // 先调用后端 API 删除数据库记录
-        const entryId = `WB_${entry.id}`;
-        fetch(`/api/worldbook/${entryId}`, {
-          method: 'DELETE'
-        })
-        .then(response => {
-          if (response.ok) {
-            console.log(`[删除] ✅ 成功删除条目 ${entryId}`);
-            // 前端也删除
-            entries.splice(idx, 1);
-            
-            state.currentSelection = { type: 'category', worldId: world.id, catName };
-            state.isEditMode = false;
-            
-            // 保存到 localStorage（不需要同步到数据库，因为已经通过 API 删除了）
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state.worldbooks));
-            
-            renderTree();
-            renderDetail();
-          } else {
-            console.error(`[删除] ❌ 失败：${response.status}`);
-            alert('删除失败，请检查网络连接或刷新页面后重试。');
+        if (state.dataSource === 'db') {
+          const token = getAuthToken();
+          if (!token) {
+            alert('未登录，无法同步删除数据库中的条目。请先登录后再删除。');
+            return;
           }
-        })
-        .catch(error => {
-          console.error(`[删除] ❌ 错误：`, error);
-          alert('删除失败，无法连接到服务器。');
-        });
+          try {
+            const resp = await authFetch(`/api/worldbook/${encodeURIComponent(entry.id)}`, {
+              method: 'DELETE'
+            });
+            if (!resp.ok) {
+              const errText = await resp.text();
+              console.error('[删除条目] 后端删除失败:', resp.status, errText);
+              alert('删除失败，请稍后重试。');
+              return;
+            }
+            console.log(`[删除] ✅ 成功删除条目 ${entry.id}`);
+          } catch (err) {
+            console.error('[删除条目] 请求失败:', err);
+            alert('删除失败，无法连接到服务器。');
+            return;
+          }
+        }
+
+        // 前端删除
+        entries.splice(idx, 1);
+        
+        state.currentSelection = { type: 'category', worldId: world.id, catName };
+        state.isEditMode = false;
+        
+        saveData();
+        
+        renderTree();
+        renderDetail();
       }
     };
 
@@ -1497,9 +1867,13 @@
         entry.content = contentTextarea.value || '';
       }
 
-      // 等待同步完成
-      await saveData();
-      console.log('[保存] 同步完成');
+      saveData();
+      if (state.dataSource === 'db') {
+        const syncOk = await syncWorldbookToBackend(world);
+        if (!syncOk) {
+          alert('保存成功（本地），但后端同步失败，请稍后重试或刷新页面。');
+        }
+      }
       
       state.isEditMode = false;
       renderTree();
@@ -1511,6 +1885,13 @@
   }
 
   // ====== 启动 ======
-  init();
+  init().catch(err => {
+    console.error('[worldbook] 初始化失败：', err);
+    bindEvents();
+    refreshUI();
+  });
 })();
+
+
+
 

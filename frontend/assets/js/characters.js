@@ -50,6 +50,10 @@
             await loadTemplates();
             await loadCharacterList();
             setupEventListeners();
+            clearCharacterSearch();
+            guardSearchAutofill();
+            setTimeout(clearCharacterSearch, 0);
+            setTimeout(clearCharacterSearch, 200);
         } catch (err) {
             console.error("Initialization Failed:", err);
         }
@@ -72,6 +76,66 @@
                 loginLink.style.display = 'none';
             }
         }
+    }
+
+    function clearCharacterSearch() {
+        const searchEl = document.getElementById("character-search");
+        if (searchEl) {
+            searchEl.value = "";
+        }
+    }
+
+    function getAutofillUsername() {
+        try {
+            if (typeof Auth !== 'undefined' && Auth.getUser) {
+                const user = Auth.getUser();
+                if (user && user.username) return user.username;
+            }
+            const raw = localStorage.getItem('auth_user');
+            if (raw) {
+                const user = JSON.parse(raw);
+                if (user && user.username) return user.username;
+            }
+        } catch (e) {
+            // ignore
+        }
+        return null;
+    }
+
+    function guardSearchAutofill() {
+        const searchEl = document.getElementById("character-search");
+        if (!searchEl) return;
+
+        let userInteracted = false;
+        const onUserInput = () => { userInteracted = true; };
+        searchEl.addEventListener('input', onUserInput, { once: true });
+        searchEl.addEventListener('keydown', onUserInput, { once: true });
+
+        const username = getAutofillUsername();
+        const guardUntil = Date.now() + 5000;
+
+        const clearIfAutofilled = () => {
+            if (userInteracted) return;
+            if (Date.now() > guardUntil) return;
+            if (document.activeElement === searchEl) return;
+            if (!searchEl.value) return;
+            if (username && searchEl.value === username) {
+                searchEl.value = "";
+            }
+        };
+
+        // 多次清理，覆盖浏览器延后填充
+        [0, 150, 400, 800, 1200, 2000, 3500].forEach(delay => {
+            setTimeout(clearIfAutofilled, delay);
+        });
+
+        const interval = setInterval(() => {
+            if (Date.now() > guardUntil || userInteracted) {
+                clearInterval(interval);
+                return;
+            }
+            clearIfAutofilled();
+        }, 200);
     }
 
     // === 3.1. 导出功能工具函数 ===
