@@ -150,14 +150,31 @@
           console.log(`[加载] 从数据库加载 ${dbEntries.length} 条世界书`);
           console.log(`[加载] 第一条数据：`, dbEntries[0]);
           
+          // 尝试从本地缓存保留世界书元信息（名称/描述/模块描述）
+          let cachedWorldMeta = null;
+          try {
+            const rawCache = localStorage.getItem(STORAGE_KEY);
+            if (rawCache) {
+              const parsedCache = JSON.parse(rawCache);
+              if (Array.isArray(parsedCache) && parsedCache.length > 0) {
+                const preferredId = state.appliedWorldId && parsedCache.find(w => String(w.id) === String(state.appliedWorldId))
+                  ? state.appliedWorldId
+                  : parsedCache[0].id;
+                cachedWorldMeta = parsedCache.find(w => String(w.id) === String(preferredId)) || parsedCache[0];
+              }
+            }
+          } catch (e) {
+            cachedWorldMeta = null;
+          }
+
           // 将数据库条目转换为前端格式
           const world = {
-            id: 'db',
-            name: '世界书',
-            description: '从数据库加载',
+            id: (cachedWorldMeta && cachedWorldMeta.id) ? cachedWorldMeta.id : 'db',
+            name: (cachedWorldMeta && cachedWorldMeta.name) ? cachedWorldMeta.name : '世界书',
+            description: (cachedWorldMeta && cachedWorldMeta.description) ? cachedWorldMeta.description : '从数据库加载',
             categories: {},
-            categoryMeta: {},
-            _expanded_cats: {}
+            categoryMeta: (cachedWorldMeta && cachedWorldMeta.categoryMeta) ? cachedWorldMeta.categoryMeta : {},
+            _expanded_cats: (cachedWorldMeta && cachedWorldMeta._expanded_cats) ? cachedWorldMeta._expanded_cats : {}
           };
           
           dbEntries.forEach(entry => {
