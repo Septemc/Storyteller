@@ -51,7 +51,6 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="密码长度至少6位"
         )
-    
     user = create_user(db, user_data)
     
     return RegisterResponse(
@@ -169,7 +168,6 @@ def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="新密码长度至少6位"
         )
-    
     user.password_hash = get_password_hash(password_data.new_password)
     db.commit()
     

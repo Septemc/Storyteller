@@ -1810,6 +1810,22 @@ body[data-page="index"].input-half-screen .input-textarea {
   background: var(--accent-soft);
 }
 
+.tree-entry-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tree-entry-toggle {
+  margin-left: 8px;
+}
+
+.tree-item-3.entry-inactive {
+  opacity: 0.55;
+}
+
 /* 语义搜索高亮样式 */
 .tree-item-3.search-highlight {
   background: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);

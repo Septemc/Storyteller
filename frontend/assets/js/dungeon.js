@@ -51,7 +51,10 @@
     initAuthUI();
     loadData();
     bindEvents();
+    clearSearchInput();
     refreshUI();
+    setTimeout(clearSearchInput, 0);
+    setTimeout(clearSearchInput, 200);
   }
   
   function initAuthUI() {
@@ -70,6 +73,13 @@
       if (user && loginLink) {
         loginLink.style.display = 'none';
       }
+    }
+  }
+
+  function clearSearchInput() {
+    state.keyword = '';
+    if (els.searchInput) {
+      els.searchInput.value = '';
     }
   }
 
