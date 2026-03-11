@@ -9,12 +9,14 @@ from pydantic import BaseModel, EmailStr
 
 from backend.db.base import get_db
 from backend.db.models import User, UserRole
+from .tenant import scoped_default_id
 
 SECRET_KEY = "storyteller_secret_key_change_in_production_2024"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 使用 pbkdf2_sha256，避免 bcrypt 后端兼容性问题
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
@@ -65,10 +67,22 @@ class PasswordChange(BaseModel):
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    # 兼容旧 bcrypt 哈希（$2a$/$2b$/$2y$）
+    if hashed_password and hashed_password.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            import bcrypt as _bcrypt  # type: ignore
+            return _bcrypt.checkpw(
+                plain_password.encode("utf-8"),
+                hashed_password.encode("utf-8")
+            )
+        except Exception:
+            return False
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
+    if password is None:
+        raise ValueError("password cannot be empty")
     return pwd_context.hash(password)
 
 
@@ -93,8 +107,7 @@ def decode_token(token: str) -> Optional[dict]:
             options={"verify_sub": False}  # 不验证 sub 字段类型
         )
         return payload
-    except JWTError as e:
-        print(f"[DEBUG] Token decode error: {e}")
+    except JWTError:
         return None
 
 
@@ -140,7 +153,7 @@ def create_user(db: Session, user_data: UserCreate) -> User:
     
     if default_preset:
         user_preset = DBPreset(
-            id=f"preset_{user.user_id}",
+            id=scoped_default_id("preset_default", user.user_id),
             user_id=user.user_id,
             name=default_preset.name,
             version=default_preset.version,
@@ -160,7 +173,7 @@ def create_user(db: Session, user_data: UserCreate) -> User:
     
     if default_regex:
         user_regex = DBRegexProfile(
-            id=f"regex_{user.user_id}",
+            id=scoped_default_id("regex_default", user.user_id),
             user_id=user.user_id,
             name=default_regex.name,
             version=default_regex.version,
@@ -211,37 +224,28 @@ def get_current_user_sync(
     db: Session = Depends(get_db),
 ) -> Optional[User]:
     """同步版本的 get_current_user，用于同步路由函数"""
-    print(f"[DEBUG] get_current_user_sync - token: {token[:30] if token else 'None'}...")
     
     if not token:
-        print("[DEBUG] get_current_user_sync - No token provided")
         return None
     
     payload = decode_token(token)
-    print(f"[DEBUG] get_current_user_sync - payload: {payload}")
     
     if not payload:
-        print("[DEBUG] get_current_user_sync - Token decode failed")
         return None
     
     user_id = payload.get("sub")
-    print(f"[DEBUG] get_current_user_sync - user_id from token: {user_id} (type: {type(user_id).__name__})")
     
     if user_id is None:
-        print("[DEBUG] get_current_user_sync - No user_id in payload")
         return None
     
     # 根据类型选择查找方式
     if isinstance(user_id, str):
         # 字符串 user_id（如 "a00000000001"）
         user = get_user_by_user_id(db, user_id)
-        print(f"[DEBUG] get_current_user_sync - lookup by user_id (string): {user_id}")
     else:
         # 整数 ID（主键）
         user = get_user_by_id(db, user_id)
-        print(f"[DEBUG] get_current_user_sync - lookup by id (int): {user_id}")
     
-    print(f"[DEBUG] get_current_user_sync - user found: {user.username if user else 'None'}")
     
     return user
 

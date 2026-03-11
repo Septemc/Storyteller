@@ -1,6 +1,15 @@
-"""Core modules (LLM, presets, orchestrator)."""
+"""Core package.
 
-from . import storage  # noqa: F401
-from . import prompts  # noqa: F401
-from . import orchestrator  # noqa: F401
-from . import llm_client  # noqa: F401
+Keep package import side effects minimal. Submodules should be imported on demand.
+"""
+
+__all__ = [
+    "auth",
+    "embeddings",
+    "llm_client",
+    "orchestrator",
+    "prompts",
+    "rag",
+    "storage",
+    "tenant",
+]

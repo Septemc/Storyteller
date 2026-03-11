@@ -1,0 +1,868 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Storyteller | 剧情</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="assets/js/theme-init.js"></script>
+</head>
+<body data-page="index">
+  <header class="top-nav">
+    <div class="nav-left">
+      <span class="app-title">Storyteller</span>
+      <span class="app-subtitle">说书人·剧情控制台</span>
+    </div>
+    <div class="nav-center">
+      <div class="current-save-info" id="current-save-info">
+        <div class="save-name" id="current-save-name">未加载存档</div>
+        <div class="save-id" id="current-save-id">--</div>
+        <button class="save-manager-toggle-btn" id="save-manager-toggle-btn" title="打开存档管理">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          存档管理
+        </button>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-link active">剧情</a>
+      <a href="characters.html" class="nav-link">角色</a>
+      <a href="worldbook.html" class="nav-link">世界书</a>
+      <a href="dungeon.html" class="nav-link">剧本</a>
+      <a href="settings.html" class="nav-link">设置</a>
+      <div class="nav-user-info">
+        <div class="nav-user-wrapper" id="nav-user-wrapper">
+          <span class="nav-username" id="nav-username">游客</span>
+          <button class="nav-logout-btn" id="nav-logout-btn" title="退出登录" style="display: none;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+          <div class="nav-user-dropdown" id="nav-user-dropdown">
+            <div class="dropdown-item" data-action="profile">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span>个人中心</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" data-action="guide">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+              <span>使用指南</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" data-action="settings">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              <span>账户设置</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item danger" data-action="logout">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              <span>退出登录</span>
+            </div>
+          </div>
+        </div>
+        <a href="login.html" class="nav-login-link" id="nav-login-link">登录</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="main-layout">
+    <!-- 左侧：主角与玩家视角 -->
+    <aside class="side-panel side-panel-left">
+      <section class="sidebar-section player-panel">
+        <div class="sidebar-header">
+          <div class="sidebar-title">主角与玩家视角</div>
+          <button class="panel-collapse-btn" data-panel="player" aria-label="登录/展开">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
+        <div class="sidebar-body player-body">
+          <!-- 1. 主观数值与状态 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-stats">
+              <span class="subsection-title">主角数值与状态</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-stats">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div class="stat-label">生命值</div>
+                  <div class="stat-bar-container">
+                    <div class="stat-bar stat-bar-health" style="width: 100%"></div>
+                  </div>
+                  <div class="stat-value">100/100</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-label">魔法值</div>
+                  <div class="stat-bar-container">
+                    <div class="stat-bar stat-bar-mana" style="width: 100%"></div>
+                  </div>
+                  <div class="stat-value">100/100</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-label">体力值</div>
+                  <div class="stat-bar-container">
+                    <div class="stat-bar stat-bar-stamina" style="width: 100%"></div>
+                  </div>
+                  <div class="stat-value">100/100</div>
+                </div>
+              </div>
+              <div class="status-badges">
+                <span class="status-badge status-normal">正常</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 经济/资源系统 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-resources">
+              <span class="subsection-title">经济/资源</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-resources">
+              <div class="resource-grid">
+                <div class="resource-item">
+                  <span class="resource-icon">💰</span>
+                  <div class="resource-info">
+                    <div class="resource-name">金币</div>
+                    <div class="resource-value" id="resource-gold">0</div>
+                  </div>
+                </div>
+                <div class="resource-item">
+                  <span class="resource-icon">💎</span>
+                  <div class="resource-info">
+                    <div class="resource-name">钻石</div>
+                    <div class="resource-value" id="resource-diamond">0</div>
+                  </div>
+                </div>
+              </div>
+              <div class="resource-summary" id="var-economy">未知</div>
+            </div>
+          </div>
+
+          <!-- 3. 能力评级 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-abilities">
+              <span class="subsection-title">能力评级</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-abilities">
+              <div class="ability-summary" id="var-ability">未知</div>
+              <div class="ability-stars">
+                <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 势力/阵营 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-factions">
+              <span class="subsection-title">势力/阵营</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-factions">
+              <div class="faction-summary" id="var-faction">未知</div>
+            </div>
+          </div>
+
+          <!-- 5. 物品栏/状态栏 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-inventory">
+              <span class="subsection-title">物品栏</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-inventory">
+              <div class="inventory-grid">
+                <div class="inventory-slot empty"></div>
+                <div class="inventory-slot empty"></div>
+                <div class="inventory-slot empty"></div>
+                <div class="inventory-slot empty"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. Buff/Debuff -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="player-buffs">
+              <span class="subsection-title">Buff/Debuff</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="player-buffs">
+              <div class="buff-list">
+                <div class="muted small-text">暂无生效效果</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 历史行动输入 -->
+          <div class="player-subsection">
+            <div class="subsection-header" data-toggle="action-history">
+              <span class="subsection-title">历史行动</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="action-history">
+              <div class="muted">暂无历史行动</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- 中间：故事进程 -->
+    <section class="story-panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">故事进程</div>
+        </div>
+        <div class="panel-header-right">
+          <button id="font-settings-btn" class="btn-secondary" title="字体设置">字体设置</button>
+        </div>
+      </div>
+      <div id="story-log" class="story-log">
+        <!-- 剧情内容将插入到这里 -->
+      </div>
+      <!-- 实时计时显示区域 -->
+      <div id="story-timer" class="story-timer" style="display: none;">
+        <span class="timer-item">前端耗时：<span id="timer-frontend">0.0s</span></span>
+        <span class="timer-divider">|</span>
+        <span class="timer-item">后端耗时：<span id="timer-backend">0.0s</span></span>
+      </div>
+    </section>
+
+    <!-- 右侧：客观信息 -->
+    <aside class="side-panel side-panel-right">
+      <!-- 当前场景与剧本模块 -->
+      <section class="sidebar-section scene-panel">
+        <div class="sidebar-header">
+          <div class="sidebar-title">当前场景与剧本</div>
+          <button class="panel-collapse-btn" data-panel="scene" aria-label="收起/展开">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
+        <div class="sidebar-body scene-body">
+          <!-- 1. 场景信息 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-info">
+              <span class="subsection-title">场景信息</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-info">
+              <div class="scene-name">
+                <span class="scene-icon">📍</span>
+                <span id="dungeon-name">暂无</span>
+              </div>
+              <div class="scene-node">
+                <span class="node-label">当前节点：</span>
+                <span id="dungeon-node-name">暂无</span>
+              </div>
+              <div class="scene-description" id="scene-description">
+                暂无场景描述
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 任务目标 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-quests">
+              <span class="subsection-title">任务目标</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-quests">
+              <div class="quest-list">
+                <div class="quest-item quest-main">
+                  <span class="quest-type">主线</span>
+                  <span class="quest-name">暂无任务</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 环境状态 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-environment">
+              <span class="subsection-title">环境状态</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-environment">
+              <div class="environment-grid">
+                <div class="env-item">
+                  <span class="env-icon">🌤️</span>
+                  <span class="env-value" id="env-weather">晴朗</span>
+                </div>
+                <div class="env-item">
+                  <span class="env-icon">🕐</span>
+                  <span class="env-value" id="env-time">白天</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 剧本进度 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-progress">
+              <span class="subsection-title">剧本进度</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-progress">
+              <div class="progress-container">
+                <div class="progress-bar-wrapper">
+                  <div class="progress-bar" id="dungeon-progress-bar" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="dungeon-progress">0%</div>
+              </div>
+              <div class="progress-hint" id="dungeon-progress-hint">暂无进度提示</div>
+            </div>
+          </div>
+
+          <!-- 5. 场景互动点 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-interact">
+              <span class="subsection-title">场景互动点</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-interact">
+              <div class="interact-list">
+                <div class="muted small-text">暂无可互动元素</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. 挑战信息 -->
+          <div class="scene-subsection">
+            <div class="subsection-header" data-toggle="scene-challenge">
+              <span class="subsection-title">挑战信息</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="scene-challenge">
+              <div class="challenge-info">
+                <div class="muted small-text">暂无挑战信息</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 周围人物与势力模块 -->
+      <section class="sidebar-section characters-panel">
+        <div class="sidebar-header">
+          <div class="sidebar-title">周围人物与势力</div>
+          <button class="panel-collapse-btn" data-panel="characters" aria-label="登录/展开">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
+        <div class="sidebar-body characters-body">
+          <!-- 1. NPC列表 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="npc-list">
+              <span class="subsection-title">NPC列表</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="npc-list">
+              <div class="npc-grid">
+                <div class="muted small-text">暂无NPC</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 敌对目标 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="enemy-list">
+              <span class="subsection-title">敌对目标</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="enemy-list">
+              <div class="enemy-grid">
+                <div class="muted small-text">暂无敌对目标</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 势力分布 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="faction-distribution">
+              <span class="subsection-title">势力分布</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="faction-distribution">
+              <div class="faction-list">
+                <div class="muted small-text">暂无势力信息</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 社交关系 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="social-relations">
+              <span class="subsection-title">社交关系</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="social-relations">
+              <div class="relation-list">
+                <div class="muted small-text">暂无社交关系</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. 队伍信息 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="party-info">
+              <span class="subsection-title">队伍信息</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="party-info">
+              <div class="party-status">
+                <div class="muted small-text">当前为单人模式</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. 势力任务 -->
+          <div class="characters-subsection">
+            <div class="subsection-header" data-toggle="faction-quests">
+              <span class="subsection-title">势力任务</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="faction-quests">
+              <div class="faction-quest-list">
+                <div class="muted small-text">暂无可接任务</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 地图与世界事件模块 -->
+      <section class="sidebar-section world-panel">
+        <div class="sidebar-header">
+          <div class="sidebar-title">地图与世界事件</div>
+          <button class="panel-collapse-btn" data-panel="world" aria-label="登录/展开">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
+        <div class="sidebar-body world-body">
+          <!-- 1. 区域地图 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="area-map">
+              <span class="subsection-title">区域地图</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="area-map">
+              <div class="map-container">
+                <div class="map-placeholder">
+                  <span class="map-icon">馃椇锔�</span>
+                  <span class="map-text">点击展开地图</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 世界地图 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="world-map">
+              <span class="subsection-title">世界地图</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="world-map">
+              <div class="world-map-btn">
+                <button class="btn-secondary btn-small">查看世界地图</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 事件标记 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="event-markers">
+              <span class="subsection-title">事件标记</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="event-markers">
+              <div class="event-list">
+                <div class="muted small-text">暂无进行中的事件</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 快速旅行 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="quick-travel">
+              <span class="subsection-title">快速旅行</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="fast-travel">
+              <div class="travel-list">
+                <div class="muted small-text">暂无已发现地点</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. 探索进度 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="exploration-progress">
+              <span class="subsection-title">探索进度</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="exploration-progress">
+              <div class="exploration-stats">
+                <div class="exploration-item">
+                  <span class="exploration-label">已探索区域</span>
+                  <span class="exploration-value">0/0</span>
+                </div>
+                <div class="exploration-item">
+                  <span class="exploration-label">隐藏地点</span>
+                  <span class="exploration-value">0/0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. 事件日历 -->
+          <div class="world-subsection">
+            <div class="subsection-header" data-toggle="event-calendar">
+              <span class="subsection-title">事件日历</span>
+              <svg class="toggle-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="subsection-content" id="event-calendar">
+              <div class="calendar-list">
+                <div class="muted small-text">暂无即将发生的事件</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <!-- 底部输入栏：可登录 + 下次行动建议 + 半屏书写 -->
+  <footer class="input-bar" id="input-bar">
+    <div class="input-container">
+      <div class="input-header-row">
+        <div class="input-header-left">
+          <button
+            type="button"
+            class="icon-button input-collapse-btn"
+            id="input-collapse-toggle"
+            aria-label="登录/展开"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="input-header-desc">
+            Storyteller Console &nbsp;·&nbsp; <span id="session-label-inline">Ready</span>
+          </div>
+        </div>
+        <div class="input-header-actions">
+          <button id="generate-btn-collapsed" class="btn-primary btn-small" style="display: none;">暂停</button>
+        </div>
+      </div>
+
+      <div class="input-body" id="input-body">
+
+        <div class="action-suggestions" id="action-suggestions">
+          <div class="action-suggestions-header">
+            <button type="button" class="action-suggestions-toggle" id="action-suggestions-toggle">
+              ✨ 下次行动建议 (点击展开)
+            </button>
+          </div>
+          <div class="action-suggestions-body" id="action-suggestions-body">
+            <!-- <button type="button" class="suggestion-chip" data-suggest="暂停">
+              1. 暂停
+            </button>
+            <button type="button" class="suggestion-chip" data-suggest="我走上前去，尝试与看起来最关键的角色搭话，询问关于这里发生的事情。">
+              2. 我走上前去，尝试与看起来最关键的角色搭话，询问关于这里发生的事情。
+            </button>
+            <button type="button" class="suggestion-chip" data-suggest="我检查自己随身物品，确认武器和补给品的状态，以防突发状况。">
+              3. 我检查自己随身物品，确认武器和补给品的状态，以防突发状况。
+            </button> -->
+          </div>
+        </div>
+
+        <div class="input-main">
+          <div class="input-main-inner">
+            <textarea
+              id="user-input"
+              class="input-textarea"
+              rows="1"
+              placeholder="请输入行动"
+            ></textarea>
+
+            <button
+              type="button"
+              class="input-size-toggle"
+              id="input-size-toggle"
+              aria-label="切换半屏模式"
+              title="切换半屏专注模式"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="input-actions">
+            <div class="input-hint" id="input-hint">Ctrl + Enter 发送</div>
+            <button id="generate-btn" class="btn-primary btn-small">生成下一段</button>
+          </div>
+          <div class="small-text input-status" id="input-status" style="text-align: right;"></div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 字体设置弹窗 -->
+  <div id="font-settings-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-window" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title">字体设置</h3>
+        <button id="font-modal-close" class="modal-close-btn" aria-label="发送">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="typography-grid">
+          <div class="typography-row typography-row--header">
+            <div class="typography-col typography-col-label">区域</div>
+            <div class="typography-col">字体样式</div>
+            <div class="typography-col">字体大小</div>
+            <div class="typography-col typography-col-sm">加粗</div>
+          </div>
+
+          <div class="typography-row">
+            <div class="typography-col typography-col-label">思考过程</div>
+            <div class="typography-col">
+              <select id="font-thinking-family" class="form-select">
+                <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+              </select>
+            </div>
+            <div class="typography-col">
+              <select id="font-thinking-size" class="form-select">
+                <option value="11px">11px</option>
+                <option value="12px">12px</option>
+                <option value="13px">13px</option>
+                <option value="14px">14px</option>
+                <option value="15px">15px</option>
+                <option value="16px">16px</option>
+              </select>
+            </div>
+            <div class="typography-col typography-col-sm">
+              <input type="checkbox" id="font-thinking-bold" class="form-checkbox">
+            </div>
+          </div>
+
+          <div class="typography-row">
+            <div class="typography-col typography-col-label">正文</div>
+            <div class="typography-col">
+              <select id="font-body-family" class="form-select">
+                <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+              </select>
+            </div>
+            <div class="typography-col">
+              <select id="font-body-size" class="form-select">
+                <option value="12px">12px</option>
+                <option value="13px">13px</option>
+                <option value="14px">14px</option>
+                <option value="15px">15px</option>
+                <option value="16px">16px</option>
+                <option value="18px">18px</option>
+                <option value="20px">20px</option>
+              </select>
+            </div>
+            <div class="typography-col typography-col-sm">
+              <input type="checkbox" id="font-body-bold" class="form-checkbox">
+            </div>
+          </div>
+
+          <div class="typography-row">
+            <div class="typography-col typography-col-label">总结</div>
+            <div class="typography-col">
+              <select id="font-summary-family" class="form-select">
+                <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+              </select>
+            </div>
+            <div class="typography-col">
+              <select id="font-summary-size" class="form-select">
+                <option value="11px">11px</option>
+                <option value="12px">12px</option>
+                <option value="13px">13px</option>
+                <option value="14px">14px</option>
+                <option value="15px">15px</option>
+                <option value="16px">16px</option>
+              </select>
+            </div>
+            <div class="typography-col typography-col-sm">
+              <input type="checkbox" id="font-summary-bold" class="form-checkbox">
+            </div>
+          </div>
+
+          <div class="typography-row">
+            <div class="typography-col typography-col-label">原文</div>
+            <div class="typography-col">
+              <select id="font-raw-family" class="form-select">
+                <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+              </select>
+            </div>
+            <div class="typography-col">
+              <select id="font-raw-size" class="form-select">
+                <option value="11px">11px</option>
+                <option value="12px">12px</option>
+                <option value="13px">13px</option>
+                <option value="14px">14px</option>
+                <option value="15px">15px</option>
+                <option value="16px">16px</option>
+              </select>
+            </div>
+            <div class="typography-col typography-col-sm">
+              <input type="checkbox" id="font-raw-bold" class="form-checkbox">
+            </div>
+          </div>
+
+          <div class="typography-row">
+            <div class="typography-col typography-col-label">统计面板</div>
+            <div class="typography-col">
+              <select id="font-stats-family" class="form-select">
+                <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+              </select>
+            </div>
+            <div class="typography-col">
+              <select id="font-stats-size" class="form-select">
+                <option value="11px">11px</option>
+                <option value="12px">12px</option>
+                <option value="13px">13px</option>
+                <option value="14px">14px</option>
+                <option value="15px">15px</option>
+              </select>
+            </div>
+            <div class="typography-col typography-col-sm">
+              <input type="checkbox" id="font-stats-bold" class="form-checkbox">
+            </div>
+          </div>
+        </div>
+
+        <div class="font-options-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-soft);">
+          <label class="form-check" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="font-body-indent" class="form-checkbox">
+            <span>正文首行缩进两字符</span>
+          </label>
+        </div>
+
+        <div class="small-text muted" style="margin-top:12px;">
+          设置会自动同步到全局设置页面。
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="font-modal-reset" class="btn-secondary">重置默认</button>
+        <button id="font-modal-save" class="btn-primary">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 存档管理弹窗 -->
+  <div id="save-manager-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-window save-manager-window">
+      <div class="modal-header">
+        <h3 class="modal-title">存档管理</h3>
+        <button id="save-manager-close" class="modal-close-btn" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body save-manager-body">
+        <!-- 左侧存档列表 -->
+        <div class="save-list-panel">
+          <div class="save-list-header">
+            <span class="save-list-title">所有存档</span>
+            <button id="new-save-btn" class="btn-primary btn-small">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" style="margin-right: 4px;">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              新建存档
+            </button>
+          </div>
+          <div class="save-list" id="save-list">
+            <!-- 存档列表项将动态生成 -->
+            <div class="save-list-empty">
+              <div class="empty-icon">📋</div>
+              <div class="empty-text">暂无存档</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 右侧存档详情 -->
+        <div class="save-detail-panel">
+          <div class="save-detail-header">
+            <span class="save-detail-title">存档详情</span>
+          </div>
+          <div class="save-detail-content" id="save-detail-content">
+            <div class="save-detail-empty">
+              <div class="empty-icon">📝</div>
+              <div class="empty-text">选择一个存档查看详情</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="save-manager-cancel" class="btn-secondary">取消</button>
+        <button id="load-save-btn" class="btn-primary" disabled>加载存档</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 存档重命名弹窗 -->
+  <div id="rename-save-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-window" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">重命名存档</h3>
+        <button id="rename-modal-close" class="modal-close-btn" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field-group">
+          <label class="form-field-label">加载存档</label>
+          <input type="text" id="rename-input" class="form-field-input" placeholder="输入新的存档名称">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="rename-cancel" class="btn-secondary">取消</button>
+        <button id="rename-confirm" class="btn-primary">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/save-manager.js"></script>
+  <script src="assets/js/dev-tools.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/account.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
+

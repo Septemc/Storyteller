@@ -1,16 +1,17 @@
-"""FastAPI routers for Storyteller.
+"""API package for Storyteller.
 
-保持 main.py 的 `from .api import routes_xxx` 用法：
-在这里显式导出各个 routes 模块。
+Keep package import side effects minimal. Router modules should be imported on demand.
 """
 
-from . import routes_story  # noqa: F401
-from . import routes_worldbook  # noqa: F401
-from . import routes_characters  # noqa: F401
-from . import routes_dungeon  # noqa: F401
-from . import routes_settings  # noqa: F401
-from . import routes_templates  # noqa: F401
-
-# --- 本次重构新增 ---
-from . import routes_llm  # noqa: F401
-from . import routes_presets  # noqa: F401
+__all__ = [
+    "routes_auth",
+    "routes_characters",
+    "routes_dungeon",
+    "routes_llm",
+    "routes_presets",
+    "routes_regex",
+    "routes_settings",
+    "routes_story",
+    "routes_templates",
+    "routes_worldbook",
+]
