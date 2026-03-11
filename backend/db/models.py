@@ -16,6 +16,10 @@ import enum
 import uuid
 
 
+def generate_worldbook_id() -> str:
+    return f"W{uuid.uuid4().hex[:7]}"
+
+
 class UserRole(enum.Enum):
     ADMIN = "admin"
     USER = "user"
@@ -57,6 +61,7 @@ class WorldbookEntry(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
+    worldbook_id = Column(String(8), nullable=False, index=True, default=generate_worldbook_id)
     entry_id = Column(String, unique=True, index=True, nullable=False)
     category = Column(String, index=True, nullable=True)
     tags = Column(String, nullable=True)
@@ -188,6 +193,7 @@ class Script(Base):
     __tablename__ = "scripts"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
     script_id = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
@@ -278,6 +284,8 @@ class WorldbookEmbedding(Base):
     __tablename__ = "worldbook_embeddings"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(32), ForeignKey("users.user_id"), nullable=True, index=True)
+    worldbook_id = Column(String(8), nullable=False, index=True, default=generate_worldbook_id)
     entry_id = Column(String, ForeignKey("worldbook.entry_id"), nullable=False, index=True)
     
     # 向量数据 (SQLite 使用 JSON 存储数组)

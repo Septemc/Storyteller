@@ -1,73 +1,71 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from typing import Optional
 
-from backend.db.base import get_db
-from backend.db.models import User
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from backend.core.auth import (
+    PasswordChange,
     Token,
     UserCreate,
-    UserLogin,
     UserInfo,
+    UserLogin,
     UserUpdate,
-    PasswordChange,
     authenticate_user,
-    create_user,
     create_access_token,
+    create_user,
     get_current_user_required,
-    get_user_by_username,
     get_user_by_email,
+    get_user_by_username,
 )
+from backend.db.base import get_db
+from backend.db.models import User
 
-router = APIRouter(prefix="/api/auth", tags=["认证"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 class RegisterResponse(BaseModel):
     success: bool
     message: str
-    user: UserInfo = None
+    user: Optional[UserInfo] = None
+
+
+class PasswordChangeCompat(BaseModel):
+    current_password: str
+    new_password: str
+
+
+def _to_user_info(user: User) -> UserInfo:
+    return UserInfo(
+        user_id=user.user_id,
+        username=user.username,
+        email=user.email,
+        nickname=user.nickname,
+        avatar=user.avatar,
+        role=user.role.value,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        last_login_at=user.last_login_at,
+    )
 
 
 @router.post("/register", response_model=RegisterResponse)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
     existing = get_user_by_username(db, user_data.username)
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="用户名已存在"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
+
     if user_data.email:
         existing_email = get_user_by_email(db, user_data.email)
         if existing_email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="邮箱已被注册"
-            )
-    
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
     if len(user_data.password) < 6:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="密码长度至少6位"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 6 characters")
+
     user = create_user(db, user_data)
-    
-    return RegisterResponse(
-        success=True,
-        message="注册成功",
-        user=UserInfo(
-            user_id=user.user_id,
-            username=user.username,
-            email=user.email,
-            nickname=user.nickname,
-            avatar=user.avatar,
-            role=user.role.value,
-            is_active=user.is_active,
-            created_at=user.created_at,
-            last_login_at=user.last_login_at,
-        )
-    )
+    return RegisterResponse(success=True, message="Registered successfully", user=_to_user_info(user))
 
 
 @router.post("/login", response_model=Token)
@@ -76,21 +74,17 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名或密码错误",
+            detail="Invalid username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="账户已被禁用"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
+
     user.last_login_at = datetime.utcnow()
     db.commit()
-    
+
     access_token = create_access_token(data={"sub": user.user_id})
-    
     return Token(
         access_token=access_token,
         user_id=user.user_id,
@@ -101,17 +95,7 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserInfo)
 def get_current_user_info(user: User = Depends(get_current_user_required)):
-    return UserInfo(
-        user_id=user.user_id,
-        username=user.username,
-        email=user.email,
-        nickname=user.nickname,
-        avatar=user.avatar,
-        role=user.role.value,
-        is_active=user.is_active,
-        created_at=user.created_at,
-        last_login_at=user.last_login_at,
-    )
+    return _to_user_info(user)
 
 
 @router.put("/me", response_model=UserInfo)
@@ -122,31 +106,33 @@ def update_current_user(
 ):
     if update_data.nickname is not None:
         user.nickname = update_data.nickname
+
     if update_data.email is not None:
         existing = get_user_by_email(db, update_data.email)
-        if existing and existing.id != user.user_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="邮箱已被其他用户使用"
-            )
+        if existing and existing.user_id != user.user_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already used by another account")
         user.email = update_data.email
+
     if update_data.avatar is not None:
         user.avatar = update_data.avatar
-    
+
     db.commit()
     db.refresh(user)
-    
-    return UserInfo(
-        user_id=user.user_id,
-        username=user.username,
-        email=user.email,
-        nickname=user.nickname,
-        avatar=user.avatar,
-        role=user.role.value,
-        is_active=user.is_active,
-        created_at=user.created_at,
-        last_login_at=user.last_login_at,
-    )
+    return _to_user_info(user)
+
+
+@router.get("/profile", response_model=UserInfo)
+def get_profile_alias(user: User = Depends(get_current_user_required)):
+    return _to_user_info(user)
+
+
+@router.put("/profile", response_model=UserInfo)
+def update_profile_alias(
+    update_data: UserUpdate,
+    user: User = Depends(get_current_user_required),
+    db: Session = Depends(get_db),
+):
+    return update_current_user(update_data=update_data, user=user, db=db)
 
 
 @router.post("/change-password")
@@ -155,28 +141,38 @@ def change_password(
     user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db),
 ):
-    from backend.core.auth import verify_password, get_password_hash
-    
+    from backend.core.auth import get_password_hash, verify_password
+
     if not verify_password(password_data.old_password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="原密码错误"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+
     if len(password_data.new_password) < 6:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="新密码长度至少6位"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must be at least 6 characters")
+
     user.password_hash = get_password_hash(password_data.new_password)
     db.commit()
-    
-    return {"success": True, "message": "密码修改成功"}
+    return {"success": True, "message": "Password updated"}
+
+
+@router.put("/password")
+def change_password_alias(
+    password_data: PasswordChangeCompat,
+    user: User = Depends(get_current_user_required),
+    db: Session = Depends(get_db),
+):
+    return change_password(
+        password_data=PasswordChange(
+            old_password=password_data.current_password,
+            new_password=password_data.new_password,
+        ),
+        user=user,
+        db=db,
+    )
 
 
 @router.post("/logout")
 def logout():
-    return {"success": True, "message": "已退出登录"}
+    return {"success": True, "message": "Logged out"}
 
 
 @router.get("/check-username/{username}")
