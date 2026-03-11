@@ -5,6 +5,7 @@ import json
 from ..db.base import get_db
 from ..db import models
 from ..core.auth import get_current_user, User as AuthUser
+from ..core.tenant import current_user_id, owner_only, owner_or_public, resolve_scoped_id
 
 router = APIRouter(prefix="/api/templates", tags=["templates"])
 
@@ -14,18 +15,9 @@ def list_templates(
     db: Session = Depends(get_db),
     current_user: Optional[AuthUser] = Depends(get_current_user)
 ):
-    query = db.query(models.CharacterTemplate)
-    
-    # 如果用户已登录，只显示用户自己的模板和系统模板（user_id 为 NULL）
-    if current_user:
-        query = query.filter(
-            (models.CharacterTemplate.user_id == current_user.user_id) |
-            (models.CharacterTemplate.user_id == None)
-        )
-    else:
-        # 未登录用户只能看到系统模板
-        query = query.filter(models.CharacterTemplate.user_id == None)
-    
+    user_id = current_user_id(current_user)
+    query = owner_or_public(db.query(models.CharacterTemplate), models.CharacterTemplate, user_id)
+
     tmps = query.all()
     return {
         "items": [
@@ -45,31 +37,22 @@ def create_template(
     db: Session = Depends(get_db),
     current_user: Optional[AuthUser] = Depends(get_current_user)
 ):
-    t_id = payload.get("id")
-    
-    # 检查模板 ID 是否已存在
-    existing_query = db.query(models.CharacterTemplate).filter_by(id=t_id)
-    if current_user:
-        # 如果用户已登录，检查是否是该用户的模板
-        existing_query = existing_query.filter(
-            (models.CharacterTemplate.user_id == current_user.user_id) |
-            (models.CharacterTemplate.user_id == None)
-        )
-    
-    if existing_query.first():
-        raise HTTPException(400, "Template ID already exists")
-    
-    # 创建新模板
+    user_id = current_user_id(current_user)
+    requested_id = payload.get("id")
+    if not requested_id:
+        raise HTTPException(400, "Template ID is required")
+    t_id = resolve_scoped_id(db, models.CharacterTemplate, "id", requested_id, user_id)
+
     new_t = models.CharacterTemplate(
         id=t_id,
-        user_id=current_user.user_id if current_user else None,
+        user_id=user_id,
         name=payload.get("name", "未命名"),
         description=payload.get("description", ""),
         config_json=json.dumps(payload.get("config", {}), ensure_ascii=False)
     )
     db.add(new_t)
     db.commit()
-    return {"status": "ok"}
+    return {"status": "ok", "id": t_id}
 
 
 @router.put("/{template_id}")
@@ -79,15 +62,12 @@ def update_template(
     db: Session = Depends(get_db),
     current_user: Optional[AuthUser] = Depends(get_current_user)
 ):
-    query = db.query(models.CharacterTemplate).filter_by(id=template_id)
-    
-    # 如果用户已登录，只能更新自己的模板
-    if current_user:
-        query = query.filter(models.CharacterTemplate.user_id == current_user.user_id)
-    else:
-        # 未登录用户不能更新模板
-        raise HTTPException(401, "Authentication required")
-    
+    user_id = current_user_id(current_user)
+    query = owner_only(
+        db.query(models.CharacterTemplate).filter_by(id=template_id),
+        models.CharacterTemplate,
+        user_id,
+    )
     t = query.first()
     if not t:
         raise HTTPException(404, "Template not found or you don't have permission to update it")
@@ -106,15 +86,12 @@ def delete_template(
     db: Session = Depends(get_db),
     current_user: Optional[AuthUser] = Depends(get_current_user)
 ):
-    query = db.query(models.CharacterTemplate).filter_by(id=template_id)
-    
-    # 如果用户已登录，只能删除自己的模板
-    if current_user:
-        query = query.filter(models.CharacterTemplate.user_id == current_user.user_id)
-    else:
-        # 未登录用户不能删除模板
-        raise HTTPException(401, "Authentication required")
-    
+    user_id = current_user_id(current_user)
+    query = owner_only(
+        db.query(models.CharacterTemplate).filter_by(id=template_id),
+        models.CharacterTemplate,
+        user_id,
+    )
     t = query.first()
     if not t:
         raise HTTPException(404, "Template not found or you don't have permission to delete it")

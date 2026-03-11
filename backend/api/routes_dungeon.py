@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..db.base import get_db
 from ..db import models
 from ..core.auth import get_current_user, User as AuthUser
+from ..core.tenant import current_user_id, owner_only, owner_or_public, resolve_scoped_id
 
 router = APIRouter()
 
@@ -79,10 +80,8 @@ class ScriptListResponse(BaseModel):
 
 @router.get("/dungeon/list", response_model=DungeonListResponse)
 def list_dungeons(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)) -> DungeonListResponse:
-    user_id = current_user.user_id if current_user else None
-    query = db.query(models.Dungeon)
-    if user_id:
-        query = query.filter(models.Dungeon.user_id == user_id)
+    user_id = current_user_id(current_user)
+    query = owner_only(db.query(models.Dungeon), models.Dungeon, user_id)
     rows = query.order_by(models.Dungeon.dungeon_id).all()
     items = [
         DungeonListItem(
@@ -99,13 +98,13 @@ def list_dungeons(db: Session = Depends(get_db), current_user: Optional[AuthUser
 @router.get("/dungeon/{dungeon_id}", response_model=DungeonPayload)
 def get_dungeon(dungeon_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)) -> DungeonPayload:
     import json
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
 
-    query = db.query(models.Dungeon).filter(
-        models.Dungeon.dungeon_id == dungeon_id
+    query = owner_only(
+        db.query(models.Dungeon).filter(models.Dungeon.dungeon_id == dungeon_id),
+        models.Dungeon,
+        user_id,
     )
-    if user_id:
-        query = query.filter(models.Dungeon.user_id == user_id)
     d = query.first()
     
     if not d:
@@ -160,18 +159,19 @@ def upsert_dungeon(
     current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> DungeonPayload:
     import json
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
 
-    query = db.query(models.Dungeon).filter(
-        models.Dungeon.dungeon_id == dungeon_id
+    query = owner_only(
+        db.query(models.Dungeon).filter(models.Dungeon.dungeon_id == dungeon_id),
+        models.Dungeon,
+        user_id,
     )
-    if user_id:
-        query = query.filter(models.Dungeon.user_id == user_id)
     d = query.first()
     
     if not d:
+        actual_dungeon_id = resolve_scoped_id(db, models.Dungeon, "dungeon_id", dungeon_id, user_id)
         d = models.Dungeon(
-            dungeon_id=dungeon_id,
+            dungeon_id=actual_dungeon_id,
             name=payload.name,
             user_id=user_id,
         )
@@ -182,11 +182,12 @@ def upsert_dungeon(
     d.level_min = payload.level_min
     d.level_max = payload.level_max
     d.global_rules_json = json.dumps(payload.global_rules, ensure_ascii=False)
+    effective_dungeon_id = d.dungeon_id
 
     d.nodes.clear()
     for node in payload.nodes:
         dn = models.DungeonNode(
-            dungeon_id=dungeon_id,
+            dungeon_id=effective_dungeon_id,
             node_id=node.node_id,
             index_in_dungeon=node.index,
             name=node.name,
@@ -196,20 +197,63 @@ def upsert_dungeon(
             summary_requirements=node.summary_requirements,
             story_requirements_json=json.dumps(node.story_requirements, ensure_ascii=False),
             branching_json=json.dumps(node.branching, ensure_ascii=False),
-            user_id=user_id,
         )
         d.nodes.append(dn)
 
     db.commit()
-    return payload
+    return DungeonPayload(
+        dungeon_id=effective_dungeon_id,
+        name=d.name,
+        description=d.description or "",
+        level_min=d.level_min or 1,
+        level_max=d.level_max or 5,
+        global_rules=payload.global_rules,
+        nodes=payload.nodes,
+    )
+
+
+@router.delete("/dungeon/{dungeon_id}")
+def delete_dungeon(
+    dungeon_id: str,
+    db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
+):
+    user_id = current_user_id(current_user)
+    dungeon = owner_only(
+        db.query(models.Dungeon).filter(models.Dungeon.dungeon_id == dungeon_id),
+        models.Dungeon,
+        user_id,
+    ).first()
+    if not dungeon:
+        raise HTTPException(status_code=404, detail="dungeon not found")
+
+    scripts = owner_only(db.query(models.Script), models.Script, user_id).all()
+    for script in scripts:
+        try:
+            dungeon_ids = json.loads(script.dungeon_ids_json or "[]")
+        except Exception:
+            dungeon_ids = []
+        if dungeon_id in dungeon_ids:
+            script.dungeon_ids_json = json.dumps(
+                [item for item in dungeon_ids if item != dungeon_id],
+                ensure_ascii=False,
+            )
+
+    db.delete(dungeon)
+    db.commit()
+    return {"ok": True, "dungeon_id": dungeon_id}
 
 
 # ========== Script API Routes ==========
 
 @router.get("/scripts", response_model=ScriptListResponse)
-def list_scripts(db: Session = Depends(get_db)) -> ScriptListResponse:
+def list_scripts(
+    db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
+) -> ScriptListResponse:
     """列出所有脚本"""
-    rows = db.query(models.Script).order_by(models.Script.script_id).all()
+    user_id = current_user_id(current_user)
+    rows = owner_or_public(db.query(models.Script), models.Script, user_id).order_by(models.Script.script_id).all()
     items = [
         ScriptListItem(
             script_id=s.script_id,
@@ -222,13 +266,18 @@ def list_scripts(db: Session = Depends(get_db)) -> ScriptListResponse:
 
 
 @router.get("/scripts/{script_id}", response_model=ScriptResponse)
-def get_script(script_id: str, db: Session = Depends(get_db)) -> ScriptResponse:
+def get_script(
+    script_id: str,
+    db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
+) -> ScriptResponse:
     """获取脚本详情"""
-    s = (
-        db.query(models.Script)
-        .filter(models.Script.script_id == script_id)
-        .first()
-    )
+    user_id = current_user_id(current_user)
+    s = owner_or_public(
+        db.query(models.Script).filter(models.Script.script_id == script_id),
+        models.Script,
+        user_id,
+    ).first()
     if not s:
         raise HTTPException(status_code=404, detail="脚本不存在。")
 
@@ -258,15 +307,18 @@ def upsert_script(
     script_id: str,
     payload: ScriptPayload,
     db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> ScriptResponse:
     """创建或更新脚本"""
-    s = (
-        db.query(models.Script)
-        .filter(models.Script.script_id == script_id)
-        .first()
-    )
+    user_id = current_user_id(current_user)
+    s = owner_only(
+        db.query(models.Script).filter(models.Script.script_id == script_id),
+        models.Script,
+        user_id,
+    ).first()
     if not s:
-        s = models.Script(script_id=script_id)
+        actual_script_id = resolve_scoped_id(db, models.Script, "script_id", script_id, user_id)
+        s = models.Script(script_id=actual_script_id, user_id=user_id)
         db.add(s)
 
     s.name = payload.name
@@ -288,13 +340,18 @@ def upsert_script(
 
 
 @router.delete("/scripts/{script_id}")
-def delete_script(script_id: str, db: Session = Depends(get_db)):
+def delete_script(
+    script_id: str,
+    db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
+):
     """删除脚本"""
-    s = (
-        db.query(models.Script)
-        .filter(models.Script.script_id == script_id)
-        .first()
-    )
+    user_id = current_user_id(current_user)
+    s = owner_only(
+        db.query(models.Script).filter(models.Script.script_id == script_id),
+        models.Script,
+        user_id,
+    ).first()
     if not s:
         raise HTTPException(status_code=404, detail="脚本不存在。")
 

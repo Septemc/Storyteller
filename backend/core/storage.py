@@ -11,6 +11,7 @@ import json
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 from ..db import models
+from .tenant import owner_only
 
 # --- Helper ---
 
@@ -22,9 +23,9 @@ def _parse_preset_config(json_str: str) -> Dict[str, Any]:
 
 # --- LLM Config Access ---
 
-def list_llm_configs(db: Session) -> List[Dict[str, Any]]:
+def list_llm_configs(db: Session, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """从 DBLLMConfig 表读取所有配置"""
-    rows = db.query(models.DBLLMConfig).all()
+    rows = owner_only(db.query(models.DBLLMConfig), models.DBLLMConfig, user_id).all()
     out = []
     for r in rows:
         out.append({
@@ -38,17 +39,17 @@ def list_llm_configs(db: Session) -> List[Dict[str, Any]]:
         })
     return out
 
-def get_active_llm_config(db: Session, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+def get_active_llm_config(db: Session, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """获取当前激活的 LLM 配置 (详细信息)"""
-    query = db.query(models.DBLLMConfig).filter(models.DBLLMConfig.is_active == True)
-    if user_id:
-        query = query.filter(models.DBLLMConfig.user_id == user_id)
+    query = owner_only(
+        db.query(models.DBLLMConfig).filter(models.DBLLMConfig.is_active == True),
+        models.DBLLMConfig,
+        user_id,
+    )
     row = query.first()
     
     if not row:
-        query = db.query(models.DBLLMConfig)
-        if user_id:
-            query = query.filter(models.DBLLMConfig.user_id == user_id)
+        query = owner_only(db.query(models.DBLLMConfig), models.DBLLMConfig, user_id)
         row = query.first()
 
     if not row:
@@ -63,7 +64,7 @@ def get_active_llm_config(db: Session, user_id: Optional[int] = None) -> Optiona
         "default_model": row.default_model,
     }
 
-def get_llm_active(db: Session, user_id: Optional[int] = None) -> Dict[str, Any]:
+def get_llm_active(db: Session, user_id: Optional[str] = None) -> Dict[str, Any]:
     """获取当前激活的简要信息 (供 orchestrator 判断 model)"""
     cfg = get_active_llm_config(db, user_id)
     if not cfg:
@@ -77,9 +78,9 @@ def get_llm_active(db: Session, user_id: Optional[int] = None) -> Dict[str, Any]
 
 # --- Preset Access ---
 
-def list_presets(db: Session) -> List[Dict[str, Any]]:
+def list_presets(db: Session, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """从 DBPreset 表读取所有预设元数据"""
-    rows = db.query(models.DBPreset).all()
+    rows = owner_only(db.query(models.DBPreset), models.DBPreset, user_id).all()
     out = []
     for r in rows:
         # 注意：这里不解析庞大的 config_json，只返回列表所需的元数据
@@ -91,17 +92,17 @@ def list_presets(db: Session) -> List[Dict[str, Any]]:
         })
     return out
 
-def get_active_preset(db: Session, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+def get_active_preset(db: Session, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """获取当前激活的预设 (包含完整的 root 树结构)"""
-    query = db.query(models.DBPreset).filter(models.DBPreset.is_active == True)
-    if user_id:
-        query = query.filter(models.DBPreset.user_id == user_id)
+    query = owner_only(
+        db.query(models.DBPreset).filter(models.DBPreset.is_active == True),
+        models.DBPreset,
+        user_id,
+    )
     row = query.first()
     
     if not row:
-        query = db.query(models.DBPreset)
-        if user_id:
-            query = query.filter(models.DBPreset.user_id == user_id)
+        query = owner_only(db.query(models.DBPreset), models.DBPreset, user_id)
         row = query.first()
 
     if not row:
@@ -119,17 +120,21 @@ def get_active_preset(db: Session, user_id: Optional[int] = None) -> Optional[Di
 
 # --- Regex Profile Access ---
 
-def get_active_regex(db: Session, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+def get_active_regex(db: Session, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """获取当前激活的正则配置"""
-    query = db.query(models.DBRegexProfile).filter(models.DBRegexProfile.is_active == True)
-    if user_id:
-        query = query.filter(models.DBRegexProfile.user_id == user_id)
+    query = owner_only(
+        db.query(models.DBRegexProfile).filter(models.DBRegexProfile.is_active == True),
+        models.DBRegexProfile,
+        user_id,
+    )
     row = query.first()
     
     if not row:
-        query = db.query(models.DBRegexProfile).filter(models.DBRegexProfile.is_default == True)
-        if user_id:
-            query = query.filter(models.DBRegexProfile.user_id == user_id)
+        query = owner_only(
+            db.query(models.DBRegexProfile).filter(models.DBRegexProfile.is_default == True),
+            models.DBRegexProfile,
+            user_id,
+        )
         row = query.first()
     
     if not row:

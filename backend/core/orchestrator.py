@@ -1,27 +1,19 @@
-"""Story orchestrator (minimal).
-
-- 从 DB 读取：角色 / 世界书 / 副本(以及会话当前节点)
-- 从 GlobalSetting 读取：active preset / active llm config
-- 用 preset 编译 system prompt
-- 拼装 messages -> 调用 OpenAI-compatible LLM
-
-本实现目标：让主剧情界面具备“能输入、能输出、能流式”的最小闭环。
-"""
-
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
 from ..db import models
-from . import storage
-from . import prompts
+from . import prompts, storage
 from .llm_client import LLMError, chat_completion
+from .tenant import owner_only, owner_or_public
 
 
 @dataclass
@@ -38,6 +30,10 @@ class GenerateMeta:
     duration_ms: Optional[int] = None
 
 
+OUTPUT_FORMAT_CONSTRAINT_PATH = Path(__file__).with_name("output_format_constraint.txt")
+CONTENT_TAGS = ["思考过程", "正文部分", "内容总结", "行动选项"]
+
+
 def _safe_json_loads(value: Optional[str], default: Any) -> Any:
     if not value:
         return default
@@ -47,42 +43,59 @@ def _safe_json_loads(value: Optional[str], default: Any) -> Any:
         return default
 
 
-def _get_or_create_session_state(db: Session, session_id: str, user_id: Optional[str] = None) -> models.SessionState:
-    query = db.query(models.SessionState).filter(models.SessionState.session_id == session_id)
-    if user_id:
-        query = query.filter(models.SessionState.user_id == user_id)
-    st = query.first()
-    if not st:
-        st = models.SessionState(
-            session_id=session_id, 
-            current_dungeon_id=None, 
-            current_node_id=None, 
-            total_word_count=0,
-            user_id=user_id,
-        )
-        db.add(st)
-        db.commit()
-        db.refresh(st)
-    return st
+def _first_non_empty(data: Dict[str, Any], keys: List[str]) -> Optional[str]:
+    for key in keys:
+        value = data.get(key)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return None
+
+
+def _get_or_create_session_state(
+    db: Session,
+    session_id: str,
+    user_id: Optional[str] = None,
+) -> models.SessionState:
+    query = owner_only(
+        db.query(models.SessionState).filter(models.SessionState.session_id == session_id),
+        models.SessionState,
+        user_id,
+    )
+    state = query.first()
+    if state:
+        return state
+
+    state = models.SessionState(
+        session_id=session_id,
+        current_dungeon_id=None,
+        current_node_id=None,
+        total_word_count=0,
+        user_id=user_id,
+    )
+    db.add(state)
+    db.commit()
+    db.refresh(state)
+    return state
 
 
 def _character_profile_from_row(row: models.Character) -> Dict[str, Any]:
     basic = _safe_json_loads(row.basic_json, {})
     data = _safe_json_loads(row.data_json, {})
 
-    # 兼容 data_json 中的 tab_basic/basic，以及扁平结构（f_name 等）
     if isinstance(data, dict):
         data_basic = data.get("tab_basic") or data.get("basic")
         if isinstance(data_basic, dict):
             basic = data_basic
 
-        # 若 data_json 是扁平结构，把根字段并入 basic，避免姓名等丢失
         flat_basic = {
             k: v
             for k, v in data.items()
             if not k.startswith("tab_") and k not in {"character_id", "type", "template_id"}
         }
-        if isinstance(flat_basic, dict) and flat_basic:
+        if flat_basic:
             merged = dict(flat_basic)
             merged.update(basic if isinstance(basic, dict) else {})
             basic = merged
@@ -90,28 +103,11 @@ def _character_profile_from_row(row: models.Character) -> Dict[str, Any]:
     if not isinstance(basic, dict):
         basic = {}
 
-    def _first_non_empty(keys: List[str]) -> Optional[Any]:
-        for key in keys:
-            value = basic.get(key)
-            if value is not None and str(value).strip() != "":
-                return value
-        return None
-
-    name = _first_non_empty([
-        "name", "姓名", "角色名", "f_name", "f_nickname", "昵称"
-    ])
-    ability_tier = _first_non_empty([
-        "ability_tier", "能力评级", "境界", "f_ability_tier", "f_level", "f_realm", "f_stage"
-    ])
-    economy_summary = _first_non_empty([
-        "economy_summary", "经济", "资源", "f_economy", "f_resources", "f_money", "f_wealth"
-    ])
-
     return {
         "character_id": row.character_id,
-        "name": name,
-        "ability_tier": ability_tier,
-        "economy_summary": economy_summary,
+        "name": _first_non_empty(basic, ["name", "姓名", "角色名", "f_name", "f_nickname", "昵称"]),
+        "ability_tier": _first_non_empty(basic, ["ability_tier", "能力评级", "境界", "f_ability_tier", "f_level", "f_realm", "f_stage"]),
+        "economy_summary": _first_non_empty(basic, ["economy_summary", "经济", "资源", "f_economy", "f_resources", "f_money", "f_wealth"]),
         "raw_basic": basic,
     }
 
@@ -121,27 +117,25 @@ def _pick_main_character(
     preferred_character_id: Optional[str] = None,
     user_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """优先使用会话指定主角，其次 type=pc/player，最后取第一条。"""
     row: Optional[models.Character] = None
 
     if preferred_character_id:
-        row = (
-            db.query(models.Character)
-            .filter(models.Character.character_id == preferred_character_id)
-            .first()
-        )
+        row = owner_only(
+            db.query(models.Character).filter(models.Character.character_id == preferred_character_id),
+            models.Character,
+            user_id,
+        ).first()
 
     if not row:
-        row = (
-            db.query(models.Character)
-            .filter(models.Character.type.in_(["pc", "player", "protagonist", "main", "hero"]))
-            .first()
-        )
+        row = owner_only(
+            db.query(models.Character).filter(models.Character.type.in_(["pc", "player", "protagonist", "main", "hero"])),
+            models.Character,
+            user_id,
+        ).first()
+
     if not row:
-        query = db.query(models.Character)
-        if user_id:
-            query = query.filter(models.Character.user_id == user_id)
-        row = query.first()
+        row = owner_only(db.query(models.Character), models.Character, user_id).first()
+
     if not row:
         return None
 
@@ -149,19 +143,19 @@ def _pick_main_character(
 
 
 def _character_brief(profile: Dict[str, Any], max_len: int = 120) -> str:
-    raw = profile.get("raw_basic") if isinstance(profile, dict) else {}
+    raw = profile.get("raw_basic")
     if not isinstance(raw, dict):
-        raw = {}
+        return ""
 
     parts: List[str] = []
-    occ = raw.get("f_occ") or raw.get("occupation") or raw.get("职业")
-    fac = raw.get("f_fac") or raw.get("f_faction") or raw.get("势力")
+    occupation = raw.get("f_occ") or raw.get("occupation") or raw.get("职业")
+    faction = raw.get("f_fac") or raw.get("f_faction") or raw.get("势力")
     tags = raw.get("f_tags") or raw.get("tags")
 
-    if occ:
-        parts.append(f"职业:{occ}")
-    if fac:
-        parts.append(f"势力:{fac}")
+    if occupation:
+        parts.append(f"职业:{occupation}")
+    if faction:
+        parts.append(f"势力:{faction}")
     if isinstance(tags, list) and tags:
         parts.append("标签:" + ",".join(str(t) for t in tags[:3]))
 
@@ -173,121 +167,113 @@ def _character_brief(profile: Dict[str, Any], max_len: int = 120) -> str:
 
 def _character_roster_snippets(
     db: Session,
+    user_id: Optional[str],
     limit: int = 5,
     context_text: Optional[str] = None,
     exclude_character_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """获取角色库摘要。
-
-    - 优先返回被用户输入命中的角色（按姓名或 ID）
-    - 其次返回其余角色，供“某某是谁”类问答使用
-    """
-    import re
-
-    rows = db.query(models.Character).all()
+    rows = owner_only(db.query(models.Character), models.Character, user_id).all()
     if not rows:
         return []
 
-    query = (context_text or "").strip()
-    tokens = re.findall(r"[A-Za-z0-9_]{2,}|[\u4e00-\u9fff]{2,}", query)
-
+    tokens = re.findall(r"[A-Za-z0-9_]{2,}|[\u4e00-\u9fff]{2,}", (context_text or "").strip())
     scored: List[Tuple[int, Dict[str, Any]]] = []
+
     for row in rows:
         profile = _character_profile_from_row(row)
-        cid = str(profile.get("character_id") or "")
-        if exclude_character_id and cid == str(exclude_character_id):
+        character_id = str(profile.get("character_id") or "")
+        if exclude_character_id and character_id == str(exclude_character_id):
             continue
 
         name = str(profile.get("name") or "")
-        raw_basic = profile.get("raw_basic") if isinstance(profile.get("raw_basic"), dict) else {}
-        search_blob = " ".join([
-            cid,
-            name,
-            json.dumps(raw_basic, ensure_ascii=False),
-        ])
+        search_blob = " ".join([character_id, name, json.dumps(profile.get("raw_basic") or {}, ensure_ascii=False)])
 
         score = 0
-        if query:
-            if name and name in query:
+        if context_text:
+            if name and name in context_text:
                 score += 100
-            if cid and cid in query:
+            if character_id and character_id in context_text:
                 score += 80
-            for tk in tokens:
-                if tk and tk in search_blob:
+            for token in tokens:
+                if token in search_blob:
                     score += 3
 
         scored.append((score, profile))
 
     scored.sort(key=lambda x: x[0], reverse=True)
-
-    selected = [p for _, p in scored[:limit]]
-    return selected
+    return [item for _, item in scored[:limit]]
 
 
-def _worldbook_snippets(db: Session, limit: int = 8, context_text: Optional[str] = None) -> List[Dict[str, Any]]:
-    """获取世界书片段（支持 RAG 语义检索）
-    
-    Args:
-        db: 数据库会话
-        limit: 返回数量
-        context_text: 可选的上下文文本，用于语义检索。如果为 None，则退化为按重要性排序
-    
-    Returns:
-        世界书片段列表
-    """
-    # 如果提供了上下文，使用 RAG 语义检索
+def _worldbook_snippets(
+    db: Session,
+    user_id: Optional[str],
+    context_text: Optional[str] = None,
+    limit: int = 8,
+) -> List[Dict[str, Any]]:
     if context_text:
         try:
             from .rag import create_retriever
-            retriever = create_retriever(db)
+
+            retriever = create_retriever(db, user_id=user_id)
             results = retriever.retrieve_for_story(context_text, top_k=limit, use_hybrid=True)
-            return results
-        except Exception as e:
-            # RAG 失败时降级到传统方式
-            print(f"[Orchestrator] RAG 检索失败，降级到传统方式：{e}")
-    
-    # 传统方式：按重要性和更新时间排序
-    rows = (
-        db.query(models.WorldbookEntry)
-        .order_by(models.WorldbookEntry.importance.desc(), models.WorldbookEntry.updated_at.desc())
-        .limit(limit)
-        .all()
-    )
-    out: List[Dict[str, Any]] = []
-    for r in rows:
-        out.append({
-            "entry_id": r.entry_id,
-            "title": r.title,
-            "category": r.category,
-            "content": (r.content or "")[:800],
-        })
-    return out
+            filtered = []
+            for result in results:
+                entry_id = result.get("entry_id")
+                worldbook_id = result.get("worldbook_id")
+                if not entry_id:
+                    continue
+                entry_query = db.query(models.WorldbookEntry).filter(models.WorldbookEntry.entry_id == entry_id)
+                if worldbook_id:
+                    entry_query = entry_query.filter(models.WorldbookEntry.worldbook_id == worldbook_id)
+                entry = owner_or_public(entry_query, models.WorldbookEntry, user_id).first()
+                if entry:
+                    filtered.append(result)
+            if filtered:
+                return filtered
+        except Exception:
+            pass
+
+    rows = owner_or_public(db.query(models.WorldbookEntry), models.WorldbookEntry, user_id).order_by(
+        models.WorldbookEntry.importance.desc(),
+        models.WorldbookEntry.updated_at.desc(),
+    ).limit(limit).all()
+
+    return [
+        {
+            "worldbook_id": row.worldbook_id,
+            "entry_id": row.entry_id,
+            "title": row.title,
+            "category": row.category,
+            "content": (row.content or "")[:800],
+        }
+        for row in rows
+    ]
 
 
-def _dungeon_context(db: Session, st: models.SessionState, user_id: Optional[int] = None) -> Tuple[Optional[models.Dungeon], Optional[models.DungeonNode]]:
+def _dungeon_context(
+    db: Session,
+    st: models.SessionState,
+    user_id: Optional[str],
+) -> Tuple[Optional[models.Dungeon], Optional[models.DungeonNode]]:
     dungeon = None
     node = None
+
     if st.current_dungeon_id:
-        query = db.query(models.Dungeon).filter(models.Dungeon.dungeon_id == st.current_dungeon_id)
-        if user_id:
-            query = query.filter(models.Dungeon.user_id == user_id)
-        dungeon = query.first()
+        dungeon = owner_only(
+            db.query(models.Dungeon).filter(models.Dungeon.dungeon_id == st.current_dungeon_id),
+            models.Dungeon,
+            user_id,
+        ).first()
 
     if not dungeon:
-        query = db.query(models.Dungeon)
-        if user_id:
-            query = query.filter(models.Dungeon.user_id == user_id)
-        dungeon = query.first()
+        dungeon = owner_only(db.query(models.Dungeon), models.Dungeon, user_id).first()
 
     if dungeon:
         if st.current_node_id:
-            node_query = db.query(models.DungeonNode).filter(
+            node = db.query(models.DungeonNode).filter(
                 models.DungeonNode.dungeon_id == dungeon.dungeon_id,
                 models.DungeonNode.node_id == st.current_node_id,
-            )
-            if user_id:
-                node_query = node_query.filter(models.DungeonNode.user_id == user_id)
-            node = node_query.first()
+            ).first()
         if not node and dungeon.nodes:
             node = dungeon.nodes[0]
 
@@ -300,26 +286,26 @@ def _build_dungeon_progress_hint(
 ) -> Optional[str]:
     if not dungeon:
         return None
-
     if node and node.progress_percent is not None:
         clamped = max(0, min(100, int(node.progress_percent)))
         return f"节点进度 {clamped}%"
-
     total_nodes = len(dungeon.nodes or [])
     if not node or total_nodes <= 0:
         return "未设置节点进度"
-
     return f"节点 {int(node.index_in_dungeon) + 1}/{total_nodes}"
 
 
-def build_session_runtime_context(db: Session, session_id: str) -> Dict[str, Any]:
-    """统一构建会话上下文，供 story route 与生成器复用。"""
-    st = _get_or_create_session_state(db, session_id)
-    global_state = _safe_json_loads(st.global_state_json, {})
+def build_session_runtime_context(
+    db: Session,
+    session_id: str,
+    user_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    state = _get_or_create_session_state(db, session_id, user_id=user_id)
+    global_state = _safe_json_loads(state.global_state_json, {})
     preferred_character_id = global_state.get("main_character_id")
 
-    main_character = _pick_main_character(db, preferred_character_id=preferred_character_id)
-    dungeon, node = _dungeon_context(db, st)
+    main_character = _pick_main_character(db, preferred_character_id=preferred_character_id, user_id=user_id)
+    dungeon, node = _dungeon_context(db, state, user_id=user_id)
 
     dungeon_ctx = None
     if dungeon:
@@ -331,196 +317,73 @@ def build_session_runtime_context(db: Session, session_id: str) -> Dict[str, Any
         }
 
     return {
-        "session_state": st,
+        "session_state": state,
         "global_state": global_state,
         "main_character": main_character,
         "dungeon": dungeon_ctx,
     }
 
 
-def _recent_story(db: Session, session_id: str, limit: int = 6) -> List[str]:
-    rows = (
-        db.query(models.StorySegment)
-        .filter(models.StorySegment.session_id == session_id)
-        .order_by(models.StorySegment.order_index.desc())
-        .limit(limit)
-        .all()
-    )
-    # 反转到正序
-    return [r.text for r in reversed(rows)]
-
-
-def _build_dev_log_info(
-    user_input: str,
-    system_prompt: str,
-    context: Dict[str, Any],
-    history: List[str],
-    format_constraint: str,
-) -> Dict[str, Any]:
-    """构建开发者日志信息，包含完整的提示词构建过程"""
-    
-    dev_log_info: Dict[str, Any] = {
-        "userInput": user_input,
-        "systemPrompt": system_prompt,
-        "formatConstraint": format_constraint,
-        "contextInfo": {},
-        "historyInfo": [],
-        "fullPrompt": ""
-    }
-    
-    full_prompt_parts = []
-    
-    if system_prompt:
-        full_prompt_parts.append(f"[System Prompt]\n{system_prompt}")
-        dev_log_info["contextInfo"]["systemPrompt"] = system_prompt
-    
-    context_parts = []
-    
-    mc = context.get("main_character") if context else None
-    if mc:
-        mc_info = {
-            "character_id": mc.get("character_id"),
-            "name": mc.get("name") or "未知",
-            "ability_tier": mc.get("ability_tier"),
-            "economy_summary": mc.get("economy_summary")
-        }
-        dev_log_info["contextInfo"]["mainCharacter"] = mc_info
-        
-        mc_lines = [f"【主角】\n- id: {mc.get('character_id')}  名称: {mc.get('name') or '未知'}"]
-        if mc.get("ability_tier"):
-            mc_lines.append(f"- 能力: {mc.get('ability_tier')}")
-        if mc.get("economy_summary"):
-            mc_lines.append(f"- 资源: {mc.get('economy_summary')}")
-        context_parts.extend(mc_lines)
-    
-    wb = context.get("worldbook") or [] if context else []
-    if wb:
-        dev_log_info["contextInfo"]["worldbook"] = [
-            {
-                "category": it.get("category"),
-                "title": it.get("title"),
-                "content": it.get("content")
-            } for it in wb
-        ]
-        
-        wb_lines = ["\n【世界书（节选）】"]
-        for it in wb:
-            cat = f"[{it.get('category')}] " if it.get("category") else ""
-            wb_lines.append(f"- {cat}{it.get('title')}: {it.get('content')}")
-        context_parts.extend(wb_lines)
-    
-    roster = context.get("characters") or []
-    if roster:
-        dev_log_info["contextInfo"]["characters"] = [
-            {
-                "character_id": ch.get("character_id"),
-                "name": ch.get("name") or "未知",
-                "ability_tier": ch.get("ability_tier"),
-                "brief": _character_brief(ch)
-            } for ch in roster
-        ]
-        
-        roster_lines = ["\n【角色库（节选）】"]
-        for ch in roster:
-            brief = _character_brief(ch)
-            line = f"- id: {ch.get('character_id')}  名称: {ch.get('name') or '未知'}"
-            if ch.get("ability_tier"):
-                line += f"  境界: {ch.get('ability_tier')}"
-            if brief:
-                line += f"  信息: {brief}"
-            roster_lines.append(line)
-        context_parts.extend(roster_lines)
-    
-    dungeon_ctx = context.get("dungeon")
-    if dungeon_ctx:
-        dungeon_info = {
-            "name": dungeon_ctx.get("name") or "未命名",
-            "node_name": dungeon_ctx.get("node_name"),
-            "progress_hint": dungeon_ctx.get("progress_hint")
-        }
-        dev_log_info["contextInfo"]["dungeon"] = dungeon_info
-        
-        dungeon_lines = ["\n【剧本】"]
-        dungeon_lines.append(f"- 剧本: {dungeon_ctx.get('name') or '未命名'}")
-        if dungeon_ctx.get("node_name"):
-            dungeon_lines.append(f"- 节点: {dungeon_ctx.get('node_name')} 进度: {dungeon_ctx.get('progress_hint')}")
-        context_parts.extend(dungeon_lines)
-    
-    if history:
-        dev_log_info["historyInfo"] = [
-            {
-                "index": i,
-                "content": h[-1200:],
-                "fullLength": len(h)
-            } for i, h in enumerate(history[-6:], 1)
-        ]
-        
-        history_lines = ["\n【近期剧情（节选）】"]
-        for i, h in enumerate(history[-6:], 1):
-            history_lines.append(f"({i}) {h[-1200:]}")
-        context_parts.extend(history_lines)
-    
-    if context_parts:
-        full_prompt_parts.append("[Context]\n" + "\n".join(context_parts))
-    
-    if format_constraint:
-        full_prompt_parts.append(f"[Format Constraint - 最高优先级]\n{format_constraint}")
-    
-    full_prompt_parts.append(f"[User Input]\n{user_input}")
-    
-    dev_log_info["fullPrompt"] = "\n\n".join(full_prompt_parts)
-    
-    return dev_log_info
+def _recent_story(
+    db: Session,
+    session_id: str,
+    user_id: Optional[str],
+    limit: int = 6,
+) -> List[str]:
+    rows = owner_only(
+        db.query(models.StorySegment).filter(models.StorySegment.session_id == session_id),
+        models.StorySegment,
+        user_id,
+    ).order_by(models.StorySegment.order_index.desc()).limit(limit).all()
+    return [row.text for row in reversed(rows)]
 
 
 def _load_output_format_constraint() -> str:
-    """加载AI输出格式约束文件（最高优先级）"""
-    import os
-    
-    constraint_file = os.path.join(os.path.dirname(__file__), "output_format_constraint.txt")
-    
+    if not OUTPUT_FORMAT_CONSTRAINT_PATH.exists():
+        return ""
     try:
-        with open(constraint_file, "r", encoding="utf-8") as f:
-            content = f.read().strip()
-            return content
-    except Exception as e:
-        print(f"[WARNING] 无法加载输出格式约束文件: {e}")
+        return OUTPUT_FORMAT_CONSTRAINT_PATH.read_text(encoding="utf-8").strip()
+    except Exception:
         return ""
 
 
-def _build_messages(system_prompt: str, context: Dict[str, Any], history: List[str], user_input: str) -> List[Dict[str, Any]]:
-    # 将结构化 context 压缩成一段可读文本
+def _build_messages(
+    system_prompt: str,
+    context: Dict[str, Any],
+    history: List[str],
+    user_input: str,
+) -> List[Dict[str, str]]:
     ctx_lines: List[str] = []
 
-    mc = context.get("main_character") if context else None
-    if mc:
+    main_character = context.get("main_character")
+    if main_character:
         ctx_lines.append("【主角】")
-        ctx_lines.append(f"- id: {mc.get('character_id')}  名称: {mc.get('name') or '未知'}")
-        if mc.get("ability_tier"):
-            ctx_lines.append(f"- 能力: {mc.get('ability_tier')}")
-        if mc.get("economy_summary"):
-            ctx_lines.append(f"- 资源: {mc.get('economy_summary')}")
+        ctx_lines.append(f"- id: {main_character.get('character_id')}  名称: {main_character.get('name') or '未知'}")
+        if main_character.get("ability_tier"):
+            ctx_lines.append(f"- 能力: {main_character.get('ability_tier')}")
+        if main_character.get("economy_summary"):
+            ctx_lines.append(f"- 资源: {main_character.get('economy_summary')}")
 
     roster = context.get("characters") or []
     if roster:
         ctx_lines.append("\n【角色库（节选）】")
-        for ch in roster:
-            brief = _character_brief(ch)
-            line = f"- id: {ch.get('character_id')}  名称: {ch.get('name') or '未知'}"
-            if ch.get("ability_tier"):
-                line += f"  境界: {ch.get('ability_tier')}"
+        for character in roster:
+            line = f"- id: {character.get('character_id')}  名称: {character.get('name') or '未知'}"
+            if character.get("ability_tier"):
+                line += f"  境界: {character.get('ability_tier')}"
+            brief = _character_brief(character)
             if brief:
                 line += f"  信息: {brief}"
             ctx_lines.append(line)
 
-    wb = context.get("worldbook") or []
-    if wb:
+    worldbook = context.get("worldbook") or []
+    if worldbook:
         ctx_lines.append("\n【世界书（节选）】")
-        for it in wb:
-            cat = f"[{it.get('category')}] " if it.get("category") else ""
-            ctx_lines.append(f"- {cat}{it.get('title')}: {it.get('content')}")
+        for item in worldbook:
+            category = f"[{item.get('category')}] " if item.get("category") else ""
+            ctx_lines.append(f"- {category}{item.get('title')}: {item.get('content')}")
 
-    dungeon = context.get("dungeon") if context else None
+    dungeon = context.get("dungeon")
     if dungeon:
         ctx_lines.append("\n【副本】")
         ctx_lines.append(f"- 副本: {dungeon.get('name') or '未命名'}")
@@ -529,26 +392,61 @@ def _build_messages(system_prompt: str, context: Dict[str, Any], history: List[s
 
     if history:
         ctx_lines.append("\n【近期剧情（节选）】")
-        for i, h in enumerate(history[-6:], 1):
-            ctx_lines.append(f"({i}) {h[-1200:]}")
+        for index, item in enumerate(history[-6:], 1):
+            ctx_lines.append(f"({index}) {item[-1200:]}")
 
-    ctx_text = "\n".join(ctx_lines).strip()
-
-    messages: List[Dict[str, Any]] = []
+    messages: List[Dict[str, str]] = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
+    if ctx_lines:
+        messages.append({"role": "system", "content": "以下是当前故事运行时上下文：\n" + "\n".join(ctx_lines)})
 
-    if ctx_text:
-        messages.append({"role": "system", "content": "以下是当前故事运行时上下文：\n" + ctx_text})
-
-    # 添加AI输出格式约束（最高优先级）
-    format_constraint = _load_output_format_constraint()
-    print(f"[DEBUG] orchestrator.py 中 _build_messages 被执行 format_constraint={format_constraint}")
-    if format_constraint:
-        messages.append({"role": "system", "content": format_constraint})
+    constraint = _load_output_format_constraint()
+    if constraint:
+        messages.append({"role": "system", "content": constraint})
 
     messages.append({"role": "user", "content": user_input})
     return messages
+
+
+def _build_dev_log_info(
+    user_input: str,
+    system_prompt: str,
+    context: Dict[str, Any],
+    history: List[str],
+    messages: List[Dict[str, str]],
+) -> Dict[str, Any]:
+    return {
+        "userInput": user_input,
+        "systemPrompt": system_prompt,
+        "contextInfo": context,
+        "historyInfo": history[-6:],
+        "messages": messages,
+        "fullPrompt": "\n\n".join([f"[{m['role']}]\n{m['content']}" for m in messages]),
+    }
+
+
+def _is_valid_story_content(text: str) -> bool:
+    if not text:
+        return False
+    stripped = text.strip()
+    if not stripped:
+        return False
+    has_any_tag = any(f"<{tag}>" in stripped for tag in CONTENT_TAGS)
+    if has_any_tag:
+        body_match = re.search(r"<正文部分>(.*?)</正文部分>", stripped, re.DOTALL)
+        if body_match and body_match.group(1).strip():
+            return True
+        thinking_match = re.search(r"<思考过程>(.*?)</思考过程>", stripped, re.DOTALL)
+        if thinking_match and thinking_match.group(1).strip():
+            return True
+        return False
+    return len(stripped) >= 10
+
+
+def is_valid_story_content(text: str) -> bool:
+    """Public helper used by route layer to keep validation logic centralized."""
+    return _is_valid_story_content(text)
 
 
 def generate_story_text(
@@ -558,74 +456,59 @@ def generate_story_text(
     force_stream: Optional[bool] = None,
     user_id: Optional[str] = None,
 ) -> Tuple[str, GenerateMeta, Optional[Generator[str, None, None]], Dict[str, Any]]:
-    """返回 (full_text, meta, stream_gen, dev_log_info)
+    started = perf_counter()
 
-    - 如果 stream_gen 不为空：full_text=""，由调用方边读边拼
-    - dev_log_info 包含开发者日志所需的所有信息
-    """
-    t0 = perf_counter()
+    runtime = build_session_runtime_context(db, session_id, user_id=user_id)
+    recent_history = _recent_story(db, session_id, user_id=user_id, limit=4)
+    rag_context = " ".join([item[-500:] for item in recent_history]) + f" {user_input}"
 
-    runtime_context = build_session_runtime_context(db, session_id)
-    st = runtime_context["session_state"]
+    context: Dict[str, Any] = {
+        "main_character": runtime.get("main_character"),
+        "characters": _character_roster_snippets(
+            db,
+            user_id=user_id,
+            limit=6,
+            context_text=user_input,
+            exclude_character_id=(runtime.get("main_character") or {}).get("character_id"),
+        ),
+        "worldbook": _worldbook_snippets(db, user_id=user_id, context_text=rag_context, limit=6),
+        "dungeon": runtime.get("dungeon"),
+    }
 
     preset = storage.get_active_preset(db, user_id)
     system_prompt = prompts.compile_system_prompt(preset)
+    llm_cfg = storage.get_active_llm_config(db, user_id=user_id)
+    llm_active = storage.get_llm_active(db, user_id=user_id)
 
-    llm_cfg = storage.get_active_llm_config(db)
-    llm_active = storage.get_llm_active(db)
-
-    # 构建用于 RAG 检索的上下文文本（从最近剧情提取关键词）
-    recent_history = _recent_story(db, session_id, limit=4)
-    rag_context = " ".join([h[-500:] for h in recent_history])  # 取每条最近 500 字
-    if user_input:
-        rag_context += " " + user_input
-    
-    context: Dict[str, Any] = {
-        "main_character": runtime_context.get("main_character"),
-        "characters": _character_roster_snippets(
-            db,
-            limit=6,
-            context_text=user_input,
-            exclude_character_id=(runtime_context.get("main_character") or {}).get("character_id") if runtime_context.get("main_character") else None,
-        ),
-        "worldbook": _worldbook_snippets(db, limit=6, context_text=rag_context),
-        "dungeon": runtime_context.get("dungeon"),
-    }
-
-    history = _recent_story(db, session_id, limit=4)
-    
-    format_constraint = _load_output_format_constraint()
-    
-    messages = _build_messages(system_prompt, context, history, user_input)
-    
+    messages = _build_messages(system_prompt, context, recent_history, user_input)
     dev_log_info = _build_dev_log_info(
         user_input=user_input,
         system_prompt=system_prompt,
         context=context,
-        history=history,
-        format_constraint=format_constraint
+        history=recent_history,
+        messages=messages,
     )
 
     if not llm_cfg:
-        story_text = (
+        text = (
             "【未配置模型】\n"
-            "请先在【设置 → API 配置】里添加 base_url 与 api_key，并选择一个模型，然后再生成。\n\n"
+            "请先在“设置 -> LLM 配置”中添加 base_url 和 api_key，并选择默认模型。\n\n"
             f"你的输入：{user_input}"
         )
-        duration_ms = int((perf_counter() - t0) * 1000)
+        duration_ms = int((perf_counter() - started) * 1000)
         meta = GenerateMeta(
             scene_title="占位输出",
             tags=["no_model"],
             tone="中性",
             pacing="-",
-            dungeon_progress_hint=context.get("dungeon", {}).get("progress_hint") if context and context.get("dungeon") else None,
-            dungeon_name=context.get("dungeon", {}).get("name") if context and context.get("dungeon") else None,
-            dungeon_node_name=context.get("dungeon", {}).get("node_name") if context and context.get("dungeon") else None,
-            main_character=context.get("main_character") if context else None,
-            word_count=len(story_text),
+            dungeon_progress_hint=(context.get("dungeon") or {}).get("progress_hint"),
+            dungeon_name=(context.get("dungeon") or {}).get("name"),
+            dungeon_node_name=(context.get("dungeon") or {}).get("node_name"),
+            main_character=context.get("main_character"),
+            word_count=len(text),
             duration_ms=duration_ms,
         )
-        return story_text, meta, None, dev_log_info
+        return text, meta, None, dev_log_info
 
     base_url = str(llm_cfg.get("base_url") or "")
     api_key = str(llm_cfg.get("api_key") or "")
@@ -634,21 +517,14 @@ def generate_story_text(
     if force_stream is not None:
         stream_flag = bool(force_stream)
 
-    print(f"[ORCH_DEBUG] LLM config:")
-    print(f"  base_url: {base_url[:50]}...")
-    print(f"  api_key: {api_key[:15]}...")
-    print(f"  llm_active: {llm_active}")
-    print(f"  llm_cfg default_model: {llm_cfg.get('default_model')}")
-    print(f"  final model: '{model}'")
-
     if not model:
-        story_text = "【未选择模型】请在【设置 → API 配置】里选择一个可用模型。"
-        duration_ms = int((perf_counter() - t0) * 1000)
-        meta = GenerateMeta(scene_title="占位输出", tags=["no_model"], word_count=len(story_text), duration_ms=duration_ms)
-        return story_text, meta, None, dev_log_info
+        text = "【未选择模型】请在“设置 -> LLM 配置”中设置默认模型。"
+        duration_ms = int((perf_counter() - started) * 1000)
+        meta = GenerateMeta(scene_title="占位输出", tags=["no_model"], word_count=len(text), duration_ms=duration_ms)
+        return text, meta, None, dev_log_info
 
     try:
-        full_text, gen = chat_completion(
+        full_text, stream_gen = chat_completion(
             base_url=base_url,
             api_key=api_key,
             model=model,
@@ -657,35 +533,49 @@ def generate_story_text(
             stream=stream_flag,
             timeout_s=120,
         )
-    except LLMError as e:
-        story_text = f"【模型请求失败】{e}"
-        duration_ms = int((perf_counter() - t0) * 1000)
-        meta = GenerateMeta(scene_title="错误", tags=["error"], word_count=len(story_text), duration_ms=duration_ms)
-        return story_text, meta, None, dev_log_info
+    except LLMError as exc:
+        text = f"【模型请求失败】{exc}"
+        duration_ms = int((perf_counter() - started) * 1000)
+        meta = GenerateMeta(scene_title="错误", tags=["error"], word_count=len(text), duration_ms=duration_ms)
+        return text, meta, None, dev_log_info
 
-    duration_ms = int((perf_counter() - t0) * 1000)
-    
-    print(f"[DEBUG] context value: {context}")
-    print(f"[DEBUG] context type: {type(context)}")
-
+    duration_ms = int((perf_counter() - started) * 1000)
     meta = GenerateMeta(
         scene_title="新剧情",
         tags=["llm", preset.get("name") if preset else "preset"],
         tone="由预设决定",
         pacing="由预设决定",
-        dungeon_progress_hint=context.get("dungeon", {}).get("progress_hint") if context and context.get("dungeon") else None,
-        dungeon_name=context.get("dungeon", {}).get("name") if context and context.get("dungeon") else None,
-        dungeon_node_name=context.get("dungeon", {}).get("node_name") if context and context.get("dungeon") else None,
-        main_character=context.get("main_character") if context else None,
+        dungeon_progress_hint=(context.get("dungeon") or {}).get("progress_hint"),
+        dungeon_name=(context.get("dungeon") or {}).get("name"),
+        dungeon_node_name=(context.get("dungeon") or {}).get("node_name"),
+        main_character=context.get("main_character"),
         duration_ms=duration_ms,
     )
 
-    # stream：交给上层写入 story_segment
-    if gen is not None:
-        return "", meta, gen, dev_log_info
+    if stream_gen is not None:
+        return "", meta, stream_gen, dev_log_info
 
+    if not is_valid_story_content(full_text):
+        full_text = "【生成结果为空】请重试或调整提示词配置。"
     meta.word_count = len(full_text)
     return full_text, meta, None, dev_log_info
+
+
+def _extract_tag_content(text: str, tag_name: str) -> Optional[str]:
+    pattern = rf"<{tag_name}>(.*?)</{tag_name}>"
+    match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+    return match.group(1).strip() if match else None
+
+
+def extract_story_parts(text: str) -> Dict[str, Optional[str]]:
+    """Extract thinking/story/summary/actions by orchestrator tag convention."""
+    tags = list(CONTENT_TAGS) + ["", "", "", ""]
+    return {
+        "thinking": _extract_tag_content(text, tags[0]),
+        "story": _extract_tag_content(text, tags[1]),
+        "summary": _extract_tag_content(text, tags[2]),
+        "actions": _extract_tag_content(text, tags[3]),
+    }
 
 
 def persist_story_segment(
@@ -698,65 +588,60 @@ def persist_story_segment(
     backend_duration: float = 0.0,
     user_id: Optional[str] = None,
 ) -> int:
-    """写入 StorySegment 并返回 order_index。"""
-    import re
-    
-    st = _get_or_create_session_state(db, session_id, user_id=user_id)
-    print(f"[DEBUG] persist_story_segment 调用，user_id: {user_id}, st: {st}, session_id: {session_id}")
-    # 如果 session_state 已存在但没有 user_id，更新它
-    if st and not st.user_id and user_id:
-        st.user_id = user_id
+    state = _get_or_create_session_state(db, session_id, user_id=user_id)
+    if state and not state.user_id and user_id:
+        state.user_id = user_id
         db.commit()
-    
-    existing_count = db.query(models.StorySegment).filter(models.StorySegment.session_id == session_id).count()
+
+    existing_count = owner_only(
+        db.query(models.StorySegment).filter(models.StorySegment.session_id == session_id),
+        models.StorySegment,
+        user_id,
+    ).count()
     order_index = existing_count + 1
 
-    # 计算累积字数
-    last_segment = (
-        db.query(models.StorySegment)
-        .filter(models.StorySegment.session_id == session_id)
-        .order_by(models.StorySegment.order_index.desc())
-        .first()
-    )
+    last_segment = owner_only(
+        db.query(models.StorySegment).filter(models.StorySegment.session_id == session_id),
+        models.StorySegment,
+        user_id,
+    ).order_by(models.StorySegment.order_index.desc()).first()
+
     cumulative_word_count = (last_segment.cumulative_word_count if last_segment else 0) + paragraph_word_count
 
-    # 提取各部分内容
-    def extract_tag_content(text, tag_name):
-        pattern = rf'<{tag_name}>(.*?)</{tag_name}>'
-        match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-        return None
+    base_segment_id = f"{session_id}_{order_index}"
+    segment_id = base_segment_id
+    if db.query(models.StorySegment).filter(models.StorySegment.segment_id == segment_id).first():
+        owner_part = user_id or "public"
+        segment_id = f"{base_segment_id}__{owner_part}"
+        suffix = 1
+        while db.query(models.StorySegment).filter(models.StorySegment.segment_id == segment_id).first():
+            suffix += 1
+            segment_id = f"{base_segment_id}__{owner_part}_{suffix}"
 
-    content_thinking = extract_tag_content(story_text, '思考过程')
-    content_story = extract_tag_content(story_text, '正文部分')
-    content_summary = extract_tag_content(story_text, '内容总结')
-    content_actions = extract_tag_content(story_text, '行动选项')
+    parts = extract_story_parts(story_text)
 
-    print(f"[DEBUG] 目前已执行orchestrator.persist_story_segment:其中user_id={user_id}")
-
-    seg = models.StorySegment(
-        segment_id=f"{session_id}_{order_index}",
+    segment = models.StorySegment(
+        segment_id=segment_id,
         session_id=session_id,
         user_id=user_id,
         order_index=order_index,
         user_input=user_input,
         text=story_text,
-        dungeon_id=st.current_dungeon_id,
-        dungeon_node_id=st.current_node_id,
+        dungeon_id=state.current_dungeon_id,
+        dungeon_node_id=state.current_node_id,
         paragraph_word_count=paragraph_word_count,
         cumulative_word_count=cumulative_word_count,
         frontend_duration=frontend_duration,
         backend_duration=backend_duration,
-        content_thinking=content_thinking,
-        content_story=content_story,
-        content_summary=content_summary,
-        content_actions=content_actions,
+        content_thinking=parts["thinking"],
+        content_story=parts["story"],
+        content_summary=parts["summary"],
+        content_actions=parts["actions"],
         created_at=datetime.utcnow(),
     )
-    db.add(seg)
+    db.add(segment)
 
-    st.total_word_count = (st.total_word_count or 0) + paragraph_word_count
+    state.total_word_count = (state.total_word_count or 0) + paragraph_word_count
     db.commit()
 
     return order_index

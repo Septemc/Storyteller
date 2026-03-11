@@ -1,6 +1,8 @@
 # 📖 互动式小说生成系统——“说书人”项目 (Storyteller)
 
-**本项目是一个基于 **FastAPI** + **SQLite** + **原生前端** 构建的互动小说/RPG 游戏引擎原型。其核心目标是构建一个能够承载大语言模型 (LLM) 的基础架构，并提供高度可配置的**动态角色模板系统。
+**本项目是一个基于 FastAPI + SQLite 构建的互动小说/RPG 游戏引擎原型。其核心目标是构建一个能够承载大语言模型 (LLM) 的基础架构，并提供高度可配置的动态角色模板系统。**
+
+前端已新增 **Vue 3 重构版**（目录：`frontend_vue/`），后端会优先托管 `frontend_vue/dist`；若未构建 Vue 产物，则回退到旧版 `frontend/`。
 
 现在的预设提示词是什么？角色信息是什么？世界书是什么？剧本信息是什么？如果没有就回复无，不可编纂内容。
 
@@ -12,7 +14,15 @@
    ```
    pip install -r requirements.txt
    ```
-2. **启动服务**：
+2. **构建 Vue 前端（推荐）**：
+   **Bash**
+
+   ```
+   cd frontend_vue
+   npm install
+   npm run build
+   ```
+3. **启动服务**：
    **Bash**
 
    ```
@@ -24,9 +34,40 @@
    ```
    uvicorn backend.main:app --reload --port 8010
    ```
-3. **访问地址**：
+4. **访问地址**：
 
    * 主界面：`http://localhost:8010`
+
+### 前端开发模式（可选）
+
+如果你需要调试前端页面，可单独启动 Vue 开发服务器（已内置 `/api` 与 `/regex` 反向代理到 `8010`）：
+
+```bash
+cd frontend_vue
+npm run dev
+```
+
+访问：`http://localhost:5173`
+
+### 第二轮深度重构（用户隔离/迁移/测试）
+
+新增了统一租户隔离工具（`backend/core/tenant.py`），并将主要业务路由改为统一策略：
+
+- `owner_only`：仅访问当前用户数据（未登录时仅 `user_id=NULL`）
+- `owner_or_public`：当前用户 + 公共数据（`user_id=NULL`）
+
+数据库迁移脚本：
+
+```bash
+python -m backend.scripts.migrate_user_scope_v2
+python -m backend.scripts.migrate_scoped_default_profiles
+```
+
+自动化测试：
+
+```bash
+pytest -q
+```
 
 ---
 

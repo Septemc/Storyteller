@@ -10,6 +10,7 @@ from ..db.base import get_db
 from ..db.models import DBPreset
 from ..core import prompts
 from ..core.auth import get_current_user_sync, User as AuthUser
+from ..core.tenant import current_user_id, owner_only, resolve_scoped_id, scoped_default_id
 
 router = APIRouter()
 
@@ -24,13 +25,8 @@ def load_default_preset_from_file() -> Dict[str, Any]:
     return prompts.default_preset("默认预设")
 
 
-def ensure_default_preset_in_db(db: Session, user_id: Optional[int] = None) -> DBPreset:
-    query = db.query(DBPreset).filter(DBPreset.is_default == True)
-    if user_id:
-        query = query.filter(DBPreset.user_id == user_id)
-    else:
-        # 未登录用户只能访问系统默认配置
-        query = query.filter(DBPreset.user_id == None)
+def ensure_default_preset_in_db(db: Session, user_id: Optional[str] = None) -> DBPreset:
+    query = owner_only(db.query(DBPreset).filter(DBPreset.is_default == True), DBPreset, user_id)
     default_preset = query.first()
     
     if default_preset:
@@ -38,13 +34,14 @@ def ensure_default_preset_in_db(db: Session, user_id: Optional[int] = None) -> D
     
     file_preset = load_default_preset_from_file()
     
-    preset_id = file_preset.get("id", DEFAULT_PRESET_ID)
+    preset_id = scoped_default_id(file_preset.get("id", DEFAULT_PRESET_ID), user_id)
+    file_preset["id"] = preset_id
     
-    existing_query = db.query(DBPreset).filter(DBPreset.id == preset_id)
-    if user_id:
-        existing_query = existing_query.filter(DBPreset.user_id == user_id)
-    else:
-        existing_query = existing_query.filter(DBPreset.user_id == None)
+    existing_query = owner_only(
+        db.query(DBPreset).filter(DBPreset.id == preset_id),
+        DBPreset,
+        user_id,
+    )
     existing = existing_query.first()
     if existing:
         existing.is_default = True
@@ -85,17 +82,13 @@ class PresetListItem(BaseModel):
 
 @router.get("/presets")
 def list_presets(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
     ensure_default_preset_in_db(db, user_id)
     
-    query = db.query(DBPreset)
-    if user_id:
-        query = query.filter(DBPreset.user_id == user_id)
+    query = owner_only(db.query(DBPreset), DBPreset, user_id)
     rows = query.order_by(DBPreset.is_default.desc(), DBPreset.created_at.asc()).all()
     
-    active_query = db.query(DBPreset).filter(DBPreset.is_active == True)
-    if user_id:
-        active_query = active_query.filter(DBPreset.user_id == user_id)
+    active_query = owner_only(db.query(DBPreset).filter(DBPreset.is_active == True), DBPreset, user_id)
     active_row = active_query.first()
 
     out_list = []
@@ -116,12 +109,14 @@ def list_presets(db: Session = Depends(get_db), current_user: Optional[AuthUser]
 
 @router.get("/presets/{preset_id}", response_model=PresetIn)
 def get_preset(preset_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
     ensure_default_preset_in_db(db, user_id)
     
-    query = db.query(DBPreset).filter(DBPreset.id == preset_id)
-    if user_id:
-        query = query.filter(DBPreset.user_id == user_id)
+    query = owner_only(
+        db.query(DBPreset).filter(DBPreset.id == preset_id),
+        DBPreset,
+        user_id,
+    )
     row = query.first()
     if not row:
         raise HTTPException(status_code=404, detail="preset not found")
@@ -138,11 +133,12 @@ def get_preset(preset_id: str, db: Session = Depends(get_db), current_user: Opti
 
 @router.post("/presets", response_model=PresetIn)
 def create_preset(name: str = "新预设", db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
     ensure_default_preset_in_db(db, user_id)
     
     data = prompts.default_preset(name=name)
-    pid = data["id"]
+    pid = resolve_scoped_id(db, DBPreset, "id", data["id"], user_id)
+    data["id"] = pid
 
     db_obj = DBPreset(
         id=pid,
@@ -161,21 +157,21 @@ def create_preset(name: str = "新预设", db: Session = Depends(get_db), curren
 
 @router.put("/presets/active")
 def set_active(body: Dict[str, str] = Body(...), db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
     ensure_default_preset_in_db(db, user_id)
     
     preset_id = body.get("preset_id")
     
-    query = db.query(DBPreset).filter(DBPreset.id == preset_id)
-    if user_id:
-        query = query.filter(DBPreset.user_id == user_id)
+    query = owner_only(
+        db.query(DBPreset).filter(DBPreset.id == preset_id),
+        DBPreset,
+        user_id,
+    )
     target = query.first()
     if not target:
         raise HTTPException(status_code=404, detail="preset not found")
 
-    update_query = db.query(DBPreset)
-    if user_id:
-        update_query = update_query.filter(DBPreset.user_id == user_id)
+    update_query = owner_only(db.query(DBPreset), DBPreset, user_id)
     update_query.update({DBPreset.is_active: False})
     target.is_active = True
     db.commit()
@@ -185,12 +181,14 @@ def set_active(body: Dict[str, str] = Body(...), db: Session = Depends(get_db), 
 
 @router.put("/presets/{preset_id}")
 def update_preset(preset_id: str, body: PresetIn, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
     ensure_default_preset_in_db(db, user_id)
     
-    query = db.query(DBPreset).filter(DBPreset.id == preset_id)
-    if user_id:
-        query = query.filter(DBPreset.user_id == user_id)
+    query = owner_only(
+        db.query(DBPreset).filter(DBPreset.id == preset_id),
+        DBPreset,
+        user_id,
+    )
     row = query.first()
     if not row:
         raise HTTPException(status_code=404, detail="not found")
@@ -208,12 +206,14 @@ def update_preset(preset_id: str, body: PresetIn, db: Session = Depends(get_db),
 
 @router.delete("/presets/{preset_id}")
 def delete_preset(preset_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
     ensure_default_preset_in_db(db, user_id)
     
-    query = db.query(DBPreset).filter(DBPreset.id == preset_id)
-    if user_id:
-        query = query.filter(DBPreset.user_id == user_id)
+    query = owner_only(
+        db.query(DBPreset).filter(DBPreset.id == preset_id),
+        DBPreset,
+        user_id,
+    )
     row = query.first()
     if not row:
         raise HTTPException(status_code=404, detail="preset not found")
@@ -228,16 +228,15 @@ def delete_preset(preset_id: str, db: Session = Depends(get_db), current_user: O
 
 @router.post("/presets/import")
 def import_any(body: Dict[str, Any], db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
     ensure_default_preset_in_db(db, user_id)
     
     payload = body.get("payload")
     name_hint = body.get("name_hint", "Imported")
 
     data = prompts.import_preset(payload, name_hint)
-    pid = data["id"]
-
-    print(f"[DEBUG] routes_presets.py 中 import_any 被执行 user_id={user_id} preset_id={pid} name_hint={name_hint}")
+    pid = resolve_scoped_id(db, DBPreset, "id", data["id"], user_id)
+    data["id"] = pid
 
     db_obj = DBPreset(
         id=pid,

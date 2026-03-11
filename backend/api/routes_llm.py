@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -11,8 +12,10 @@ from ..db.base import get_db
 from ..db.models import DBLLMConfig
 from ..core.llm_client import LLMError, list_models
 from ..core.auth import get_current_user, User as AuthUser
+from ..core.tenant import current_user_id, owner_only
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # --- Pydantic Models ---
@@ -48,13 +51,14 @@ def get_configs(db: Session = Depends(get_db), current_user: Optional[AuthUser] 
     if not current_user:
         raise HTTPException(status_code=401, detail="需要登录才能访问LLM配置")
     
-    user_id = current_user.user_id
-    query = db.query(DBLLMConfig).filter(DBLLMConfig.user_id == user_id)
+    user_id = current_user_id(current_user)
+    query = owner_only(db.query(DBLLMConfig), DBLLMConfig, user_id)
     rows = query.all()
     
-    active_query = db.query(DBLLMConfig).filter(
-        DBLLMConfig.is_active == True,
-        DBLLMConfig.user_id == user_id
+    active_query = owner_only(
+        db.query(DBLLMConfig).filter(DBLLMConfig.is_active == True),
+        DBLLMConfig,
+        user_id,
     )
     active_row = active_query.first()
 
@@ -85,7 +89,7 @@ def get_configs(db: Session = Depends(get_db), current_user: Optional[AuthUser] 
 @router.post("/llm/configs", response_model=LLMConfigOut)
 def create_config(body: LLMConfigIn, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """创建新的 LLM 配置"""
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
     cid = body.id
     if not cid:
         cid = f"llm_{uuid.uuid4().hex[:10]}"
@@ -105,9 +109,7 @@ def create_config(body: LLMConfigIn, db: Session = Depends(get_db), current_user
     db.commit()
     db.refresh(new_config)
 
-    query = db.query(DBLLMConfig)
-    if user_id:
-        query = query.filter(DBLLMConfig.user_id == user_id)
+    query = owner_only(db.query(DBLLMConfig), DBLLMConfig, user_id)
     total_count = query.count()
     if total_count == 1:
         new_config.is_active = True
@@ -127,10 +129,12 @@ def create_config(body: LLMConfigIn, db: Session = Depends(get_db), current_user
 @router.put("/llm/configs/{config_id}", response_model=LLMConfigOut)
 def update_config(config_id: str, body: LLMConfigIn, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """更新现有的 LLM 配置"""
-    user_id = current_user.user_id if current_user else None
-    query = db.query(DBLLMConfig).filter(DBLLMConfig.id == config_id)
-    if user_id:
-        query = query.filter(DBLLMConfig.user_id == user_id)
+    user_id = current_user_id(current_user)
+    query = owner_only(
+        db.query(DBLLMConfig).filter(DBLLMConfig.id == config_id),
+        DBLLMConfig,
+        user_id,
+    )
     config = query.first()
     if not config:
         raise HTTPException(status_code=404, detail="config not found")
@@ -157,10 +161,12 @@ def update_config(config_id: str, body: LLMConfigIn, db: Session = Depends(get_d
 @router.delete("/llm/configs/{config_id}")
 def delete_config(config_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """删除配置"""
-    user_id = current_user.user_id if current_user else None
-    query = db.query(DBLLMConfig).filter(DBLLMConfig.id == config_id)
-    if user_id:
-        query = query.filter(DBLLMConfig.user_id == user_id)
+    user_id = current_user_id(current_user)
+    query = owner_only(
+        db.query(DBLLMConfig).filter(DBLLMConfig.id == config_id),
+        DBLLMConfig,
+        user_id,
+    )
     config = query.first()
     if not config:
         raise HTTPException(status_code=404, detail="config not found")
@@ -170,9 +176,7 @@ def delete_config(config_id: str, db: Session = Depends(get_db), current_user: O
     db.commit()
 
     if was_active:
-        fallback_query = db.query(DBLLMConfig)
-        if user_id:
-            fallback_query = fallback_query.filter(DBLLMConfig.user_id == user_id)
+        fallback_query = owner_only(db.query(DBLLMConfig), DBLLMConfig, user_id)
         fallback = fallback_query.first()
         if fallback:
             fallback.is_active = True
@@ -184,26 +188,23 @@ def delete_config(config_id: str, db: Session = Depends(get_db), current_user: O
 @router.put("/llm/active")
 def set_active(body: ActiveLLM, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """设置当前激活的配置 ID 及选中的模型"""
-    user_id = current_user.user_id if current_user else None
-    print(body)
+    user_id = current_user_id(current_user)
     if not body.config_id:
-        update_query = db.query(DBLLMConfig)
-        if user_id:
-            update_query = update_query.filter(DBLLMConfig.user_id == user_id)
+        update_query = owner_only(db.query(DBLLMConfig), DBLLMConfig, user_id)
         update_query.update({DBLLMConfig.is_active: False})
         db.commit()
         return {}
 
-    query = db.query(DBLLMConfig).filter(DBLLMConfig.id == body.config_id)
-    if user_id:
-        query = query.filter(DBLLMConfig.user_id == user_id)
+    query = owner_only(
+        db.query(DBLLMConfig).filter(DBLLMConfig.id == body.config_id),
+        DBLLMConfig,
+        user_id,
+    )
     target = query.first()
     if not target:
         raise HTTPException(status_code=404, detail="config not found")
 
-    update_query = db.query(DBLLMConfig)
-    if user_id:
-        update_query = update_query.filter(DBLLMConfig.user_id == user_id)
+    update_query = owner_only(db.query(DBLLMConfig), DBLLMConfig, user_id)
     update_query.update({DBLLMConfig.is_active: False})
 
     target.is_active = True
@@ -224,10 +225,12 @@ def set_active(body: ActiveLLM, db: Session = Depends(get_db), current_user: Opt
 def get_models_for_config(config_id: str, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)):
     """根据配置 ID 获取可用模型列表"""
     try:
-        user_id = current_user.user_id if current_user else None
-        query = db.query(DBLLMConfig).filter(DBLLMConfig.id == config_id)
-        if user_id:
-            query = query.filter(DBLLMConfig.user_id == user_id)
+        user_id = current_user_id(current_user)
+        query = owner_only(
+            db.query(DBLLMConfig).filter(DBLLMConfig.id == config_id),
+            DBLLMConfig,
+            user_id,
+        )
         cfg = query.first()
         if not cfg:
             raise HTTPException(status_code=404, detail="配置不存在")
@@ -249,7 +252,7 @@ def get_models_for_config(config_id: str, db: Session = Depends(get_db), current
         raise
     except Exception as e:
         # 捕获所有其他异常，避免500错误
-        print(f"[ERROR] get_models_for_config 发生未知错误: {str(e)}")
+        logger.exception("get_models_for_config failed unexpectedly: %s", str(e))
         raise HTTPException(status_code=500, detail="服务器内部错误")
 
 
@@ -277,5 +280,5 @@ def list_models_by_credentials(body: ListModelsReq):
         raise
     except Exception as e:
         # 捕获所有其他异常，避免500错误
-        print(f"[ERROR] list_models_by_credentials 发生未知错误: {str(e)}")
+        logger.exception("list_models_by_credentials failed unexpectedly: %s", str(e))
         raise HTTPException(status_code=500, detail="服务器内部错误")

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..db.base import get_db
 from ..db import models
 from ..core.auth import get_current_user, User as AuthUser
+from ..core.tenant import current_user_id, owner_only
 
 router = APIRouter()
 
@@ -25,16 +26,33 @@ class GlobalSettingsPayload(BaseModel):
     default_profiles: Dict[str, Any] = {}
 
 
+def _settings_key(user_id: Optional[str]) -> str:
+    if user_id:
+        return f"global::{user_id}"
+    return "global::public"
+
+
 @router.get("/settings/global", response_model=GlobalSettingsPayload)
 def get_global_settings(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user)) -> GlobalSettingsPayload:
-    user_id = current_user.user_id if current_user else None
-    
-    query = db.query(models.GlobalSetting).filter(
-        models.GlobalSetting.key == "global"
-    )
-    if user_id:
-        query = query.filter(models.GlobalSetting.user_id == user_id)
-    row = query.first()
+    user_id = current_user_id(current_user)
+    key = _settings_key(user_id)
+
+    row = owner_only(
+        db.query(models.GlobalSetting).filter(models.GlobalSetting.key == key),
+        models.GlobalSetting,
+        user_id,
+    ).first()
+
+    if not row:
+        legacy = owner_only(
+            db.query(models.GlobalSetting).filter(models.GlobalSetting.key == "global"),
+            models.GlobalSetting,
+            user_id,
+        ).first()
+        if legacy:
+            legacy.key = key
+            db.commit()
+            row = legacy
     
     import json
 
@@ -57,18 +75,18 @@ def put_global_settings(
     current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> GlobalSettingsPayload:
     import json
-    user_id = current_user.user_id if current_user else None
+    user_id = current_user_id(current_user)
+    key = _settings_key(user_id)
 
-    query = db.query(models.GlobalSetting).filter(
-        models.GlobalSetting.key == "global"
-    )
-    if user_id:
-        query = query.filter(models.GlobalSetting.user_id == user_id)
-    row = query.first()
+    row = owner_only(
+        db.query(models.GlobalSetting).filter(models.GlobalSetting.key == key),
+        models.GlobalSetting,
+        user_id,
+    ).first()
     
     if not row:
         row = models.GlobalSetting(
-            key="global",
+            key=key,
             value_json=json.dumps(payload.dict(), ensure_ascii=False),
             user_id=user_id,
         )
