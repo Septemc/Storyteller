@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Storyteller | 设置</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="assets/js/theme-init.js"></script>
+  <style>
+    /* 内联补充样式，用于主题颜色预览块 */
+    .preview-dark { background: #05060a; }
+    .preview-light { background: linear-gradient(135deg, #f6efe3 0%, #e3d5c1 100%); }
+    .preview-cyberpunk { background: linear-gradient(135deg, #07111f 0%, #142845 100%); border: 1px solid #44d9e6; }
+    .preview-scroll { background: #e6dcc3; }
+    .preview-forest { background: linear-gradient(135deg, #0f1712 0%, #23362b 100%); }
+    .preview-abyss { background: linear-gradient(135deg, #1b0b11 0%, #3a1620 100%); border: 1px solid #d66a6f; }
+    .preview-royal { background: linear-gradient(135deg, #1b1427 0%, #332444 100%); border: 1px solid #c8a86a; }
+    .preview-aurora { background: linear-gradient(135deg, #071c24 0%, #1f5665 55%, #7bc8d6 100%); }
+    .preview-obsidian { background: linear-gradient(135deg, #111215 0%, #2c251d 100%); border: 1px solid #c49b63; }
+    .preview-sakura { background: linear-gradient(135deg, #fbf1f1 0%, #efd8d7 100%); }
+    .preview-glacier { background: linear-gradient(135deg, #e9f1f8 0%, #9fb6cb 100%); }
+    .preview-ember { background: linear-gradient(135deg, #17110d 0%, #5a3b2a 100%); border: 1px solid #d79a5a; }
+
+    .preview-bg-grid { background-image: linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px); background-size: 10px 10px; }
+    .preview-bg-noise { background-color: #222; opacity: 0.8; }
+    .preview-bg-plain { background-color: #222; }
+    .preview-bg-runes { background: radial-gradient(circle, #444 0%, #222 100%); }
+    .preview-bg-circuit { background-image: radial-gradient(#444 20%, transparent 20%); background-size: 5px 5px; }
+    .preview-bg-aurora { background: linear-gradient(135deg, #0a1722 0%, #17384d 50%, #7ce0d6 100%); }
+    .preview-bg-paper { background: repeating-linear-gradient(0deg, #e8dfcf, #e8dfcf 6px, #f2eadc 6px, #f2eadc 12px); }
+    .preview-bg-stardust { background: radial-gradient(circle at 20% 30%, #fff 0 2px, transparent 2px), radial-gradient(circle at 70% 40%, #9ed1ff 0 2px, transparent 2px), linear-gradient(135deg, #0b1020 0%, #171e38 100%); }
+    .preview-bg-hex { background-image: linear-gradient(30deg, #314351 12%, transparent 12.5%, transparent 87%, #314351 87.5%, #314351), linear-gradient(150deg, #314351 12%, transparent 12.5%, transparent 87%, #314351 87.5%, #314351), linear-gradient(90deg, #0f1925 2%, transparent 2.5%, transparent 97%, #0f1925 97.5%, #0f1925); background-size: 18px 32px; background-color: #13202d; }
+    .preview-bg-waves { background: linear-gradient(160deg, #172230 0%, #233549 45%, #7c9bb3 100%); position: relative; overflow: hidden; }
+  </style>
+</head>
+<body data-page="settings">
+
+  <header class="top-nav">
+    <div class="nav-left">
+      <span class="app-title">Storyteller</span>
+      <span class="app-subtitle">说书人·设置</span>
+    </div>
+    <div class="nav-center">
+      <div class="current-save-info" id="current-save-info">
+        <div class="save-name" id="current-save-name">未加载存档</div>
+        <div class="save-id" id="current-save-id">--</div>
+        <button class="save-manager-toggle-btn" id="save-manager-toggle-btn" title="存档管理">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          存档管理
+        </button>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-link">剧情</a>
+      <a href="characters.html" class="nav-link">角色</a>
+      <a href="worldbook.html" class="nav-link">世界书</a>
+      <a href="dungeon.html" class="nav-link">剧本</a>
+      <a href="settings.html" class="nav-link active">设置</a>
+      <div class="nav-user-info">
+        <div class="nav-user-wrapper" id="nav-user-wrapper">
+          <span class="nav-username" id="nav-username">游客</span>
+          <button class="nav-logout-btn" id="nav-logout-btn" title="退出登录" style="display: none;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+          <div class="nav-user-dropdown" id="nav-user-dropdown">
+            <div class="dropdown-item" data-action="profile">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span>个人中心</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" data-action="guide">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+              <span>使用指南</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" data-action="settings">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              <span>账户设置</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item danger" data-action="logout">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              <span>退出登录</span>
+            </div>
+          </div>
+        </div>
+        <a href="login.html" class="nav-login-link" id="nav-login-link">登录</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="settings-container">
+
+    <aside class="settings-sidebar">
+      <button class="settings-tab-btn active" data-target="tab-ui">
+        <span class="icon">🎨</span> 界面与显示
+      </button>
+      <button class="settings-tab-btn" data-target="tab-memory">
+        <span class="icon">🧠</span> 摘要与记忆
+      </button>
+      <button class="settings-tab-btn" data-target="tab-variables">
+        <span class="icon">💡</span> 变量思考
+      </button>
+      <button class="settings-tab-btn" data-target="tab-evolution">
+        <span class="icon">🌍</span> 正文与演化
+      </button>
+      <button class="settings-tab-btn" data-target="tab-presets">
+        <span class="icon">🧩</span> 预设管理
+      </button>
+      <button class="settings-tab-btn" data-target="tab-regex">
+        <span class="icon">🔧</span> 正则化
+      </button>
+      <button class="settings-tab-btn" data-target="tab-api">
+        <span class="icon">🔌</span> API配置
+      </button>
+    </aside>
+
+    <section class="settings-content-area">
+
+      <div class="settings-header-actions">
+        <span id="settings-status" class="small-text muted">就绪</span>
+        <button id="settings-load-btn" class="btn-secondary btn-small">重置/加载</button>
+        <button id="settings-save-btn" class="btn-primary btn-small">保存更改</button>
+      </div>
+
+      <div id="tab-ui" class="tab-pane active">
+        <h2 class="section-title">主题风格 (Theme)</h2>
+        <div class="visual-grid" id="theme-grid">
+          <div class="visual-option" data-value="dark">
+            <div class="color-preview preview-dark"></div>
+            <div class="option-label">深空 (默认)</div>
+          </div>
+          <div class="visual-option" data-value="light">
+            <div class="color-preview preview-light"></div>
+            <div class="option-label">晨曦</div>
+          </div>
+          <div class="visual-option" data-value="cyberpunk">
+            <div class="color-preview preview-cyberpunk"></div>
+            <div class="option-label">赛博霓虹</div>
+          </div>
+          <div class="visual-option" data-value="scroll">
+            <div class="color-preview preview-scroll"></div>
+            <div class="option-label">羊皮卷</div>
+          </div>
+          <div class="visual-option" data-value="forest">
+            <div class="color-preview preview-forest"></div>
+            <div class="option-label">迷雾森林</div>
+          </div>
+          <div class="visual-option" data-value="abyss">
+            <div class="color-preview preview-abyss"></div>
+            <div class="option-label">猩红深渊</div>
+          </div>
+          <div class="visual-option" data-value="royal">
+            <div class="color-preview preview-royal"></div>
+            <div class="option-label">皇家紫金</div>
+          </div>
+          <div class="visual-option" data-value="aurora">
+            <div class="color-preview preview-aurora"></div>
+            <div class="option-label">极光海岸</div>
+          </div>
+          <div class="visual-option" data-value="obsidian">
+            <div class="color-preview preview-obsidian"></div>
+            <div class="option-label">曜石墨金</div>
+          </div>
+          <div class="visual-option" data-value="sakura">
+            <div class="color-preview preview-sakura"></div>
+            <div class="option-label">樱雾茶歇</div>
+          </div>
+          <div class="visual-option" data-value="glacier">
+            <div class="color-preview preview-glacier"></div>
+            <div class="option-label">冰川夜航</div>
+          </div>
+          <div class="visual-option" data-value="ember">
+            <div class="color-preview preview-ember"></div>
+            <div class="option-label">余烬铜辉</div>
+          </div>
+        </div>
+
+        <h2 class="section-title">背景纹理 (Background)</h2>
+        <div class="visual-grid" id="bg-grid">
+          <div class="visual-option" data-value="grid">
+            <div class="color-preview preview-bg-grid"></div>
+            <div class="option-label">全息网格</div>
+          </div>
+          <div class="visual-option" data-value="noise">
+            <div class="color-preview preview-bg-noise"></div>
+            <div class="option-label">胶片噪点</div>
+          </div>
+          <div class="visual-option" data-value="plain">
+            <div class="color-preview preview-bg-plain"></div>
+            <div class="option-label">纯净虚空</div>
+          </div>
+          <div class="visual-option" data-value="runes">
+            <div class="color-preview preview-bg-runes"></div>
+            <div class="option-label">魔法力场</div>
+          </div>
+          <div class="visual-option" data-value="circuit">
+            <div class="color-preview preview-bg-circuit"></div>
+            <div class="option-label">集成电路</div>
+          </div>
+          <div class="visual-option" data-value="aurora">
+            <div class="color-preview preview-bg-aurora"></div>
+            <div class="option-label">极光流幕</div>
+          </div>
+          <div class="visual-option" data-value="paper">
+            <div class="color-preview preview-bg-paper"></div>
+            <div class="option-label">纸纤纹理</div>
+          </div>
+          <div class="visual-option" data-value="stardust">
+            <div class="color-preview preview-bg-stardust"></div>
+            <div class="option-label">星尘夜幕</div>
+          </div>
+          <div class="visual-option" data-value="hex">
+            <div class="color-preview preview-bg-hex"></div>
+            <div class="option-label">蜂巢矩阵</div>
+          </div>
+          <div class="visual-option" data-value="waves">
+            <div class="color-preview preview-bg-waves"></div>
+            <div class="option-label">丝绸波纹</div>
+          </div>
+        </div>
+
+        <h2 class="section-title">字体与字号 (Typography)</h2>
+        <div class="settings-section typography-section">
+          <div class="typography-grid">
+            <div class="typography-row typography-row--header">
+              <div class="typography-col typography-col-label">区域</div>
+              <div class="typography-col">字体样式</div>
+              <div class="typography-col">字体大小</div>
+            </div>
+
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">系统界面</div>
+              <div class="typography-col">
+                <select id="font-ui-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线（默认）</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-ui-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px（默认）</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                  <option value="20px">20px</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">角色详情</div>
+              <div class="typography-col">
+                <select id="font-char-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-char-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px（默认）</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">世界书</div>
+              <div class="typography-col">
+                <select id="font-world-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-world-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px（默认）</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="typography-row">
+              <div class="typography-col typography-col-label">剧本</div>
+              <div class="typography-col">
+                <select id="font-dungeon-family" class="form-select">
+                  <option value="system-ui, -apple-system, 'Segoe UI', sans-serif">系统无衬线</option>
+                  <option value="'Noto Serif SC','Songti SC','SimSun',serif">书卷衬线</option>
+                  <option value="'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif">中文印刷体</option>
+                  <option value="'JetBrains Mono','SF Mono','Consolas',monospace">等宽打字机</option>
+                  <option value="'LXGW WenKai','STKaiti','KaiTi',serif">手写楷体</option>
+                </select>
+              </div>
+              <div class="typography-col">
+                <select id="font-dungeon-size" class="form-select">
+                  <option value="12px">12px</option>
+                  <option value="13px">13px</option>
+                  <option value="14px">14px（默认）</option>
+                  <option value="15px">15px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                </select>
+              </div>
+            </div>
+
+            </div>
+          <div class="small-text muted" style="margin-top:6px;">
+            提示：上方设置仅影响字体样式和基础字号，不改变颜色与行距。
+          </div>
+        </div>
+
+        <h2 class="section-title">开发者功能</h2>
+        <div class="settings-section">
+          <label class="form-check">
+            <input type="checkbox" id="developer-mode-enabled">
+            <span>启用开发者模式</span>
+          </label>
+          <div class="small-text muted" style="margin-left: 22px;">
+            启用后将在剧情界面显示开发者悬浮球，可查看发送给AI的完整请求内容（预设、正则、角色、世界书、剧本等）。
+          </div>
+        </div>
+
+        <div class="settings-section">
+            <label class="form-label">后处理正则规则 (JSON)</label>
+            <textarea id="postprocessing-rules" class="form-textarea" rows="4"
+              placeholder='清洗正文内容的正则，例如：[{"pattern": "...", "replacement": ""}]'></textarea>
+            <div class="small-text muted" style="margin-top:4px">用于在显示前清理 LLM 输出的多余符号。</div>
+        </div>
+      </div>
+
+      <div id="tab-memory" class="tab-pane">
+        <h2 class="section-title">自动摘要与 RAG</h2>
+        <div class="settings-section">
+          <label class="form-check">
+            <input type="checkbox" id="summary-enabled">
+            <span>启用自动剧情摘要</span>
+          </label>
+          <div class="small-text muted" style="margin-left: 22px;">系统将在达到一定字数后自动调用 LLM 总结剧情。</div>
+        </div>
+
+        <div class="half-grid">
+            <div class="settings-section">
+                <label class="form-label">摘要 Profile ID</label>
+                <input id="summary-profile-id" class="form-input" placeholder="如：summary_v1">
+            </div>
+            <div class="settings-section">
+                <label class="form-label">触发频率 (每 N 段对话)</label>
+                <input id="summary-frequency" class="form-input" type="number" min="1" value="1">
+            </div>
+        </div>
+
+        <div class="settings-section">
+          <label class="form-label">历史记忆检索策略 (RAG Config JSON)</label>
+          <textarea id="summary-rag-config" class="form-textarea" rows="6" placeholder='例如：
+              {
+                "scene_top_k": 3,
+                "chapter_top_k": 1,
+                "use_raw_segments": true
+              }'></textarea>
+        </div>
+      </div>
+
+      <div id="tab-variables" class="tab-pane">
+        <h2 class="section-title">数值思考与数据一致性</h2>
+        <div class="settings-section">
+            <label class="form-check">
+              <input type="checkbox" id="variables-enabled">
+              <span>启用变量追踪 (Variable Tracking)</span>
+            </label>
+        </div>
+
+        <div class="half-grid">
+            <div class="settings-section">
+                <label class="form-label">变量思考 Profile ID</label>
+                <input id="variables-profile-id" class="form-input" placeholder="用于分析数值变化的 Prompt">
+            </div>
+            <div class="settings-section">
+                <label class="form-label">独立 API Config ID</label>
+                <input id="variables-api-config-id" class="form-input" placeholder="建议使用廉价高速模型">
+            </div>
+        </div>
+
+        <div class="settings-section" style="margin-top: 20px; border-top: 1px solid var(--border-soft); padding-top: 15px;">
+            <label class="form-check">
+              <input type="checkbox" id="alignment-strict">
+              <span>启用严格对齐检查 (Strict Alignment)</span>
+            </label>
+            <div class="small-text muted" style="margin-left: 22px;">防止生成的数值超出角色模板定义的范围。</div>
+        </div>
+        <div class="settings-section">
+            <label class="form-label">对齐规则 ID</label>
+            <input id="alignment-rule-id" class="form-input" placeholder="如：default_alignment">
+        </div>
+      </div>
+
+      <div id="tab-evolution" class="tab-pane">
+        <h2 class="section-title">文本优化与世界演化</h2>
+
+        <div class="settings-section">
+            <label class="form-check">
+              <input type="checkbox" id="textopt-enabled">
+              <span>启用文笔润色 (Text Polishing)</span>
+            </label>
+            <div class="settings-section" style="margin-top:8px">
+                <label class="form-label">润色 Profile ID</label>
+                <input id="textopt-profile-id" class="form-input" placeholder="如：text_opt_v1">
+            </div>
+        </div>
+
+        <div class="settings-section" style="margin-top: 20px;">
+            <label class="form-check">
+              <input type="checkbox" id="world-evolution-enabled">
+              <span>启用世界动态演化 (World Evolution)</span>
+            </label>
+            <div class="small-text muted" style="margin-left: 22px;">允许 NPC 在玩家不在场时根据世界书规则发生状态变更。</div>
+            <div class="settings-section" style="margin-top:8px">
+                <label class="form-label">演化逻辑 Profile ID</label>
+                <input id="world-evolution-profile-id" class="form-input" placeholder="如：world_evolution_v1">
+            </div>
+        </div>
+        <div>
+            <label class="form-label">Global Default Profiles (JSON)</label>
+            <textarea id="default-profiles" class="form-textarea" rows="12" placeholder='{
+                "story_generation": "story_gen_v2",
+                "npc_chat": "npc_chat_standard",
+                "dungeon_master": "dm_hardcore",
+                "summary": "summary_fast",
+                "variable_thinking": "math_solver"
+              }'></textarea>
+        </div>
+      </div>
+
+      <div id="tab-presets" class="tab-pane tab-pane-presets">
+        <div style="height: calc(100vh - 100px); display: flex; flex-direction: column; overflow: hidden;">
+
+            <div style="flex: 0 0 auto; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:flex-end;">
+              <div>
+                <h2 class="section-title" style="margin-bottom:4px;">预设管理</h2>
+              </div>
+            </div>
+
+            <div style="flex: 1; display:grid; grid-template-columns: 240px 300px 1fr; gap:12px; min-height: 0;">
+
+              <div class="config-panel" style="overflow-y: auto;">
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span class="panel-title">预设文件</span>
+                        <button id="preset-create-btn" class="icon-button" title="新建空白预设" style="width:24px; height:24px; font-weight:bold;">＋</button>
+                    </div>
+
+                    <select id="preset-select" class="config-select"></select>
+
+                    <div class="active-hint-box">
+                        <div class="active-hint-label">当前应用</div>
+                        <div id="preset-active-hint" class="active-hint-value">-</div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="preset-set-active-btn" class="btn-primary btn-small" style="width:100%; justify-content:center;">★ 应用为当前预设</button>
+                    <div class="action-buttons-row">
+                        <label class="btn-secondary btn-small" style="flex:1; text-align:center; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                            📥 导入
+                            <input id="preset-import-file" type="file" accept=".json" style="display:none;" />
+                        </label>
+                        <button id="preset-export-btn" class="btn-secondary btn-small" style="flex:1;">📤 导出</button>
+                    </div>
+                    <div class="action-buttons-row">
+                        <button id="preset-rename-btn" class="btn-secondary btn-small" style="flex:1;">✏️ 重命名</button>
+                        <button id="preset-delete-btn" class="btn-danger btn-small" style="flex:1;">�️ 删除</button>
+                    </div>
+                </div>
+
+              </div>
+
+              <div class="config-panel" style="display:flex; flex-direction:column; overflow:hidden; padding: 12px;">
+                <div class="panel-header" style="margin-bottom: 8px; flex: 0 0 auto;">
+                  <div class="panel-title">结构树</div>
+                  <div style="display:flex; gap:4px;">
+                       <button id="preset-add-group-btn" class="icon-button" title="添加组">📁+</button>
+                       <button id="preset-add-prompt-btn" class="icon-button" title="添加提示词">📝+</button>
+                       <button id="preset-delete-node-btn" class="icon-button danger" title="删除节点">×</button>
+                  </div>
+                </div>
+
+                <div id="preset-tree" class="tree-container">
+                   <div class="empty-hint"><div class="empty-hint-icon">⏳</div><div class="empty-hint-subtitle">加载中...</div></div>
+                </div>
+
+                <div class="small-text muted" style="margin-top:6px; font-size:11px; flex: 0 0 auto; text-align:center;">
+                   提示：点击节点编辑属性
+                </div>
+              </div>
+
+              <div class="node-editor-panel">
+
+                <div class="node-editor-header">
+                  <div class="node-editor-title">节点属性</div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                      <span class="small-text muted">启用</span>
+                      <label class="toggle-switch" title="启用/禁用此节点" style="transform:scale(0.8);">
+                          <input type="checkbox" id="preset-node-enabled">
+                          <span class="slider"></span>
+                      </label>
+                  </div>
+                </div>
+
+                <div id="preset-node-editor-container" style="display:none; flex: 1; flex-direction: column; overflow: hidden;">
+
+                    <div style="padding: 12px 16px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; border-bottom:1px solid var(--border-soft); flex: 0 0 auto;">
+                       <div>
+                          <label class="form-field-label">显示名称 (Name)</label>
+                          <input id="preset-node-title" class="form-field-input" placeholder="节点名称" />
+                       </div>
+                       <div>
+                          <label class="form-field-label">唯一标识 (Identifier)</label>
+                          <input id="preset-node-identifier" class="form-field-input mono" placeholder="Unique ID" />
+                       </div>
+                    </div>
+
+                    <div id="preset-node-prompt-fields" style="display:none; flex: 1; flex-direction: column; min-height: 0;">
+
+                       <div style="flex: 1; display:flex; flex-direction:column; padding: 12px 16px; min-height: 0;">
+                           <div style="display:flex; justify-content:space-between; margin-bottom:6px; flex: 0 0 auto;">
+                              <label class="form-field-label" style="font-weight:600;">提示词内容 (Content)</label>
+                              <span class="small-text muted" style="opacity:0.6; font-size:11px;">支持 Handlebars 语法</span>
+                           </div>
+
+                           <textarea id="preset-node-content" class="form-field-input mono"
+                              style="flex:1; resize:none; font-size:13px; line-height:1.6; overflow-y: auto; padding:10px; min-height: 120px;"
+                              placeholder="在这里输入提示词内容..."></textarea>
+                       </div>
+
+                       <div style="flex: 0 0 auto; padding: 12px 16px; background: rgba(0,0,0,0.02); border-top: 1px solid var(--border-soft);">
+
+                          <div style="display:grid; grid-template-columns: 1.2fr 1.2fr 0.8fr 0.8fr; gap:10px; align-items:center; margin-bottom:12px;">
+                              <div>
+                                  <label class="form-field-label">角色 (Role)</label>
+                                  <select id="preset-node-role" class="form-field-input" style="padding:4px; height:30px;">
+                                    <option value="system">system</option>
+                                    <option value="user">user</option>
+                                    <option value="assistant">assistant</option>
+                                  </select>
+                              </div>
+                              <div>
+                                  <label class="form-field-label">位置 (Pos)</label>
+                                  <select id="preset-node-position" class="form-field-input" style="padding:4px; height:30px;">
+                                      <option value="0">Top (Head)</option>
+                                      <option value="1">User (After)</option>
+                                      <option value="-1">Bottom (Tail)</option>
+                                  </select>
+                              </div>
+                              <div>
+                                  <label class="form-field-label" title="注入顺序">Order</label>
+                                  <input type="number" id="preset-node-order" class="form-field-input" style="padding:4px; height:30px; text-align:center;" />
+                              </div>
+                              <div>
+                                  <label class="form-field-label" title="递归深度">Depth</label>
+                                  <input type="number" id="preset-node-depth" class="form-field-input" style="padding:4px; height:30px; text-align:center;" />
+                              </div>
+                          </div>
+
+                          <div style="display:flex; justify-content:space-between; align-items:center;">
+                              <div style="display:flex; gap:16px;">
+                                   <label class="small-text" style="display:flex; align-items:center; gap:6px; cursor:pointer;" title="作为 System Prompt 发送">
+                                      <input type="checkbox" id="preset-node-system-prompt"> System
+                                   </label>
+                                   <label class="small-text" style="display:flex; align-items:center; gap:6px; cursor:pointer;" title="标记节点，不直接参与生成">
+                                      <input type="checkbox" id="preset-node-marker"> Marker
+                                   </label>
+                                   <label class="small-text" style="display:flex; align-items:center; gap:6px; cursor:pointer;" title="禁止被子节点覆盖">
+                                      <input type="checkbox" id="preset-node-overrides"> Lock
+                                   </label>
+                              </div>
+                              <div style="flex:1; margin-left:20px;">
+                                  <input id="preset-node-triggers" class="form-input" style="padding:4px 8px; height:28px; font-size:11px;" placeholder="触发关键词 (可选, 逗号分隔)" />
+                              </div>
+                          </div>
+
+                       </div>
+                    </div>
+
+                    <div id="prompt-bool-fields" class="group-node-hint">
+                       <div class="group-node-hint-icon">📁</div>
+                       <div class="group-node-hint-title">分组节点</div>
+                       <div class="group-node-hint-desc">包含子节点，自身不存储提示词内容。</div>
+                    </div>
+
+                </div>
+
+                <div id="preset-node-hint" style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:var(--text-secondary); opacity:0.6;">
+                    <div style="font-size:56px; margin-bottom:15px; opacity:0.5;">👈</div>
+                    <div style="font-size:15px;">请在中间栏选择一个节点</div>
+                    <div class="small-text muted">以查看或编辑详细属性</div>
+                </div>
+
+              </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="tab-regex" class="tab-pane tab-pane-presets">
+        <div style="height: calc(100vh - 100px); display: flex; flex-direction: column; overflow: hidden;">
+
+            <div style="flex: 0 0 auto; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:flex-end;">
+              <div>
+                <h2 class="section-title" style="margin-bottom:4px;">正则化管理</h2>
+              </div>
+            </div>
+
+            <div style="flex: 1; display:grid; grid-template-columns: 240px 300px 1fr; gap:12px; min-height: 0;">
+
+              <div class="config-panel" style="overflow-y: auto;">
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span class="panel-title">正则化配置</span>
+                        <button id="regex-create-btn" class="icon-button" title="新建正则化配置" style="width:24px; height:24px; font-weight:bold;">＋</button>
+                    </div>
+
+                    <select id="regex-select" class="config-select"></select>
+
+                    <div class="active-hint-box">
+                        <div class="active-hint-label">当前应用</div>
+                        <div id="regex-active-hint" class="active-hint-value">-</div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="regex-set-active-btn" class="btn-primary btn-small" style="width:100%; justify-content:center;">★ 应用为当前配置</button>
+                    <div class="action-buttons-row">
+                        <label class="btn-secondary btn-small" style="flex:1; text-align:center; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                            📥 导入
+                            <input id="regex-import-file" type="file" accept=".json" style="display:none;" />
+                        </label>
+                        <button id="regex-export-btn" class="btn-secondary btn-small" style="flex:1;">📤 导出</button>
+                    </div>
+                    <div class="action-buttons-row">
+                        <button id="regex-rename-btn" class="btn-secondary btn-small" style="flex:1;">✏️ 重命名</button>
+                        <button id="regex-delete-btn" class="btn-danger btn-small" style="flex:1;">�️ 删除</button>
+                    </div>
+                </div>
+
+              </div>
+
+              <div class="config-panel" style="display:flex; flex-direction:column; overflow:hidden; padding: 12px;">
+                <div class="panel-header" style="margin-bottom: 8px; flex: 0 0 auto;">
+                  <div class="panel-title">规则结构树</div>
+                  <div style="display:flex; gap:4px;">
+                       <button id="regex-add-group-btn" class="icon-button" title="添加规则组">📁+</button>
+                       <button id="regex-add-rule-btn" class="icon-button" title="添加正则规则">🔧+</button>
+                       <button id="regex-delete-node-btn" class="icon-button danger" title="删除节点">×</button>
+                  </div>
+                </div>
+
+                <div id="regex-tree" class="tree-container">
+                   <div class="empty-hint"><div class="empty-hint-icon">⏳</div><div class="empty-hint-subtitle">加载中...</div></div>
+                </div>
+
+                <div class="small-text muted" style="margin-top:6px; font-size:11px; flex: 0 0 auto; text-align:center;">
+                   提示：点击节点编辑规则属性
+                </div>
+              </div>
+
+              <div class="node-editor-panel">
+
+                <div class="node-editor-header">
+                  <div class="node-editor-title">规则属性</div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                      <span class="small-text muted">启用</span>
+                      <label class="toggle-switch" title="启用/禁用此规则" style="transform:scale(0.8);">
+                          <input type="checkbox" id="regex-node-enabled">
+                          <span class="slider"></span>
+                      </label>
+                  </div>
+                </div>
+
+                <div id="regex-node-editor-container" style="display:none; flex: 1; flex-direction: column; overflow: hidden;">
+
+                    <div style="padding: 12px 16px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; border-bottom:1px solid var(--border-soft); flex: 0 0 auto;">
+                       <div>
+                          <label class="form-field-label">标题</label>
+                          <input id="regex-node-title" class="form-field-input" />
+                       </div>
+                       <div>
+                          <label class="form-field-label">标识符</label>
+                          <input id="regex-node-identifier" class="form-field-input mono" />
+                       </div>
+                    </div>
+
+                    <div id="regex-node-rule-fields" style="display:none; flex: 1; flex-direction: column; min-height: 0;">
+
+                       <div class="node-editor-content">
+                           <div class="form-field-group">
+                              <label class="form-field-label">正则表达式 (Pattern)</label>
+                              <input id="regex-node-pattern" class="form-field-input mono" placeholder="例如：<思考过程>([\s\S]*?)</思考过程>" />
+                           </div>
+                           
+                           <div class="form-field-group">
+                              <label class="form-field-label">替换文本 (Replacement)</label>
+                              <input id="regex-node-replacement" class="form-field-input mono" placeholder="留空表示删除匹配内容" />
+                           </div>
+                           
+                           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                              <div class="form-field-group" style="margin-bottom:0;">
+                                 <label class="form-field-label">提取分组</label>
+                                 <input id="regex-node-extract-group" class="form-field-input" type="number" min="0" value="0" />
+                              </div>
+                              <div class="form-field-group" style="margin-bottom:0;">
+                                 <label class="form-field-label">应用目标</label>
+                                 <select id="regex-node-apply-to" class="form-field-input">
+                                    <option value="body">正文</option>
+                                    <option value="thinking">思考过程</option>
+                                    <option value="summary">内容总结</option>
+                                    <option value="actions">行动选项</option>
+                                    <option value="all">全部</option>
+                                 </select>
+                              </div>
+                           </div>
+                           
+                           <div class="form-field-group">
+                              <label class="form-field-label">描述</label>
+                              <textarea id="regex-node-description" class="form-field-input" rows="2" placeholder="规则用途说明..."></textarea>
+                           </div>
+                       </div>
+
+                    </div>
+
+                    <div id="regex-group-hint" class="group-node-hint">
+                       <div class="group-node-hint-icon">📁</div>
+                       <div class="group-node-hint-title">分组节点</div>
+                       <div class="group-node-hint-desc">包含子节点，自身不存储正则规则内容。</div>
+                    </div>
+
+                </div>
+
+                <div id="regex-node-empty-hint" class="empty-hint">
+                    <div class="empty-hint-icon">👈</div>
+                    <div class="empty-hint-title">请在中间栏选择一个节点</div>
+                    <div class="empty-hint-subtitle">以查看或编辑规则属性</div>
+                </div>
+
+              </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="tab-api" class="tab-pane">
+        <h2 class="section-title">API配置（大模型）</h2>
+        <div class="small-text muted" style="margin-bottom: 12px;">
+          支持多个 OpenAI 兼容接口：填写 base_url 与 api_key 后，可检索可用模型；并支持流式输出开关。
+        </div>
+
+        <div class="settings-section" style="display:grid;grid-template-columns: 280px 1fr;gap:14px;align-items:start;">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">配置列表</div>
+                <div class="panel-subtitle" id="llm-active-hint">当前：-</div>
+              </div>
+              <div class="panel-header-right">
+                <button id="llm-new-btn" class="btn-secondary btn-small">新建</button>
+              </div>
+            </div>
+            <div id="llm-config-list" class="list"></div>
+            <div class="settings-section small-text muted" id="llm-status">就绪</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">配置编辑</div>
+                <div class="panel-subtitle">保存后可检索模型。</div>
+              </div>
+              <div class="panel-header-right">
+                <button id="llm-set-active-btn" class="btn-primary btn-small">设为当前</button>
+                <button id="llm-save-btn" class="btn-secondary btn-small">保存</button>
+                <button id="llm-delete-btn" class="btn-danger btn-small">删除</button>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <label class="form-label">名称</label>
+              <input id="llm-name" class="form-input" placeholder="例如：OpenAI / 本地 vLLM / Kimi ..." />
+
+              <label class="form-label" style="margin-top:10px;">Base URL</label>
+              <input id="llm-base-url" class="form-input" placeholder="https://api.openai.com 或 http://localhost:8000" />
+
+              <label class="form-label" style="margin-top:10px;">API Key</label>
+              <input id="llm-api-key" class="form-input" placeholder="sk-..." />
+
+              <div class="settings-section" style="margin-top:10px;">
+                <label class="form-check">
+                  <input type="checkbox" id="llm-stream" checked>
+                  <span>启用流式输出（Streaming）</span>
+                </label>
+              </div>
+
+              <div class="settings-section" style="display:grid;grid-template-columns: 1fr auto;gap:10px;align-items:end;">
+                <div>
+                  <label class="form-label">可用模型</label>
+                  <select id="llm-model-select" class="form-select"></select>
+                </div>
+                <button id="llm-refresh-models-btn" class="btn-secondary btn-small">检索模型</button>
+              </div>
+
+              <div class="settings-section" style="margin-top:10px;">
+                <label class="form-label">默认模型（可选）</label>
+                <input id="llm-default-model" class="form-input" placeholder="为空则使用上方选择" />
+              </div>
+
+              <div class="small-text muted" style="margin-top:10px;">
+                说明：如果 base_url 已包含 /v1 也可直接填写；系统会自动补齐。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- 存档管理弹窗 -->
+  <div id="save-manager-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-window save-manager-window">
+      <div class="modal-header">
+        <h3 class="modal-title">存档管理</h3>
+        <button id="save-manager-close" class="modal-close-btn" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body save-manager-body">
+        <div class="save-list-panel">
+          <div class="save-list-header">
+            <span class="save-list-title">所有存档</span>
+            <button id="new-save-btn" class="btn-primary btn-small">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" style="margin-right: 4px;">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              新建存档
+            </button>
+          </div>
+          <div class="save-list" id="save-list">
+            <div class="save-list-empty">
+              <div class="empty-icon">📂</div>
+              <div class="empty-text">暂无存档</div>
+            </div>
+          </div>
+        </div>
+        <div class="save-detail-panel">
+          <div class="save-detail-header">
+            <span class="save-detail-title">存档详情</span>
+          </div>
+          <div class="save-detail-content" id="save-detail-content">
+            <div class="save-detail-empty">
+              <div class="empty-icon">📄</div>
+              <div class="empty-text">选择一个存档查看详情</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="save-manager-cancel" class="btn-secondary">关闭</button>
+        <button id="load-save-btn" class="btn-primary" disabled>加载存档</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 存档重命名弹窗 -->
+  <div id="rename-save-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-window" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">重命名存档</h3>
+        <button id="rename-modal-close" class="modal-close-btn" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field-group">
+          <label class="form-field-label">存档名称</label>
+          <input type="text" id="rename-input" class="form-field-input" placeholder="输入新的存档名称">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="rename-cancel" class="btn-secondary">取消</button>
+        <button id="rename-confirm" class="btn-primary">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/save-manager.js"></script>
+  <script src="assets/js/regex.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/account.js"></script>
+  <script src="assets/js/settings.js"></script>
+</body>
+</html>
