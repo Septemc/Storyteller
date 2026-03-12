@@ -14,4 +14,11 @@ app.use(router);
 const authStore = useAuthStore();
 authStore.bootstrap();
 
-app.mount('#app');
+async function bootstrapApp() {
+  if (authStore.token) {
+    await authStore.fetchMe();
+  }
+  app.mount('#app');
+}
+
+bootstrapApp();
