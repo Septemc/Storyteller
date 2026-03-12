@@ -32,7 +32,14 @@
           <span class="worldbook-status-label">当前启用：</span>
           <span>{{ appliedWorldSummary }}</span>
         </div>
-        <div id="import-status" class="small-text muted worldbook-status-line">{{ statusText }}</div>
+        <div class="worldbook-status-line">
+          <span class="worldbook-status-label">数据总览：</span>
+          <span>{{ worldStats.totalWorlds }} 本世界书 / {{ worldStats.totalEntries }} 条条目 / {{ worldStats.totalModules }} 个模块</span>
+        </div>
+        <div v-if="selectedWorld" class="worldbook-status-line">
+          <span class="worldbook-status-label">当前世界书：</span>
+          <span>{{ selectedWorldStatsText }}</span>
+        </div>
       </div>
 
       <div class="settings-section worldbook-filter-card">
@@ -82,20 +89,6 @@
       </div>
 
       <div class="worldbook-tree-shell">
-        <div v-if="selectedWorld" class="worldbook-root-card" :class="{ disabled: !selectedWorldApplied }">
-          <div class="worldbook-root-title">
-            {{ metaMap[selectedWorld.id]?.name || selectedWorld.id }}
-          </div>
-          <div class="worldbook-root-meta">
-            <span>{{ selectedWorld.entries.length }} 条</span>
-            <span>{{ selectedWorldModules.length }} 个模块</span>
-            <span>{{ selectedWorldApplied ? '已启用' : '未启用' }}</span>
-          </div>
-          <div v-if="metaMap[selectedWorld.id]?.description" class="worldbook-root-description">
-            {{ metaMap[selectedWorld.id]?.description }}
-          </div>
-        </div>
-
         <div id="tree-root" class="worldbook-tree-container worldbook-module-list">
           <template v-if="selectedWorldModules.length">
             <article
@@ -177,7 +170,7 @@
             <div class="form-label">世界书名称</div>
             <input class="form-input" :value="metaMap[selectedWorld.id]?.name || selectedWorld.id" @input="updateWorldMeta('name', $event.target.value)">
             <div class="form-label" style="margin-top: 10px;">世界书描述</div>
-            <textarea class="form-textarea" rows="6" :value="metaMap[selectedWorld.id]?.description || ''" @input="updateWorldMeta('description', $event.target.value)"></textarea>
+            <textarea class="form-textarea" rows="6" :value="metaMap[selectedWorld.id]?.description || selectedWorldDescription" @input="updateWorldMeta('description', $event.target.value)"></textarea>
           </div>
           <div v-else class="placeholder-text" style="color: var(--text-secondary); padding: 20px;">请从左侧选择世界书、模块或条目...</div>
         </div>
@@ -253,14 +246,15 @@ const {
   mode,
   saveDetail,
   searchKeyword,
+  selectedCategory,
   selectedEntry,
   selectedEntryId,
   selectedWorld,
   selectedWorldApplied,
+  selectedWorldStatsText,
   selectedWorldId,
   selectedWorldModules,
   setCategoryEnabled,
-  statusText,
   toggleCategoryExpanded,
   toggleEntryEnabled,
   toggleSelectedWorldApplied,
@@ -268,10 +262,20 @@ const {
   updateWorldMeta,
   useSemanticSearch,
   worldOptions,
+  worldStats,
 } = useWorldbookPage();
 
 function selectModule(module) {
+  const isActiveModule = selectedCategory.value === module.name;
+  const shouldCollapse = module.isExpanded && isActiveModule;
+
   toggleCategoryExpanded(module.name);
+
+  if (shouldCollapse) {
+    applySelection(selectedWorldId.value, '', '');
+    return;
+  }
+
   applySelection(selectedWorldId.value, module.name);
 }
 
@@ -295,12 +299,14 @@ onMounted(async () => {
 <style scoped>
 .worldbook-page {
   gap: 18px;
+  grid-template-columns: minmax(400px, 1.28fr) minmax(0, 1.72fr);
 }
 
 .worldbook-sidebar {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-height: 0;
 }
 
 .worldbook-toolbar-card,
@@ -354,40 +360,7 @@ onMounted(async () => {
   gap: 12px;
   min-height: 0;
   flex: 1;
-}
-
-.worldbook-root-card {
-  padding: 14px 16px;
-  border: 1px solid var(--border-soft);
-  border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
-    rgba(0, 0, 0, 0.04);
-}
-
-.worldbook-root-card.disabled {
-  opacity: 0.75;
-}
-
-.worldbook-root-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.worldbook-root-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  margin-top: 8px;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-.worldbook-root-description {
-  margin-top: 10px;
-  color: var(--text-secondary);
-  line-height: 1.6;
+  overflow: hidden;
 }
 
 .worldbook-module-list {
@@ -395,6 +368,12 @@ onMounted(async () => {
   flex-direction: column;
   gap: 12px;
   padding: 2px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  align-items: stretch;
+  align-content: flex-start;
 }
 
 .worldbook-module-card {
@@ -405,6 +384,7 @@ onMounted(async () => {
     rgba(0, 0, 0, 0.05);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.04);
   overflow: hidden;
+  flex: 0 0 auto;
 }
 
 .worldbook-module-card.active {
@@ -463,6 +443,7 @@ onMounted(async () => {
   flex-direction: column;
   gap: 8px;
   padding: 0 12px 12px 12px;
+  flex: 0 0 auto;
 }
 
 .worldbook-entry-card {
@@ -477,6 +458,7 @@ onMounted(async () => {
   padding: 11px 12px;
   cursor: pointer;
   transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+  flex: 0 0 auto;
 }
 
 .worldbook-entry-card:hover {
