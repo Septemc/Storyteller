@@ -46,6 +46,13 @@ describe('useWorldbookPage', () => {
     expect(page.selectedWorldId.value).toBe('Wabc1234');
     expect(page.selectedWorldModules.value).toHaveLength(2);
     expect(page.selectedWorldModules.value.map((module) => module.name)).toEqual(['地理', '人物']);
+    expect(page.worldStats.value).toEqual({
+      totalWorlds: 2,
+      totalEntries: 3,
+      totalModules: 3,
+    });
+    expect(page.selectedWorldDescription.value).toContain('2 条条目');
+    expect(page.selectedWorldDescription.value).toContain('2 个模块');
   });
 
   it('supports enabling multiple worldbooks at the same time', async () => {

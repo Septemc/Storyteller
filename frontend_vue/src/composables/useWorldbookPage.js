@@ -44,6 +44,13 @@ function writeCategorySwitchMap(map) {
   writeJson(CATEGORY_SWITCH_STORAGE_KEY, map);
 }
 
+function normalizeAppliedWorldIds(ids, validWorldIds = []) {
+  const validSet = new Set(validWorldIds.filter(Boolean));
+  const normalized = Array.isArray(ids) ? ids.filter((id) => validSet.has(id)) : [];
+  if (!normalized.length) return [];
+  return [normalized[normalized.length - 1]];
+}
+
 function normalizeEntry(item = {}) {
   const meta = item.meta && typeof item.meta === 'object' ? item.meta : {};
   const enabled = item.enabled !== undefined ? Boolean(item.enabled) : meta.enabled !== false;
@@ -354,6 +361,15 @@ export function useWorldbookPage() {
 
   const selectedWorld = computed(() => worlds.value.find((item) => item.id === selectedWorldId.value) || null);
   const selectedWorldApplied = computed(() => appliedWorldIds.value.includes(selectedWorldId.value));
+  const worldStats = computed(() => {
+    const totalEntries = worlds.value.reduce((sum, world) => sum + (world.entries?.length || 0), 0);
+    const totalModules = worlds.value.reduce((sum, world) => sum + Object.keys(world.categories || {}).length, 0);
+    return {
+      totalWorlds: worlds.value.length,
+      totalEntries,
+      totalModules,
+    };
+  });
   const worldOptions = computed(() =>
     worlds.value.map((world) => ({
       id: world.id,
@@ -380,6 +396,27 @@ export function useWorldbookPage() {
     if (selectedCategory.value) return selectedCategory.value;
     if (selectedWorld.value) return metaMap.value[selectedWorld.value.id]?.name || selectedWorld.value.id;
     return '内容预览';
+  });
+  const selectedWorldDescription = computed(() => {
+    const world = selectedWorld.value;
+    if (!world) return '';
+
+    const savedDescription = metaMap.value[world.id]?.description?.trim();
+    if (savedDescription) {
+      return savedDescription;
+    }
+
+    const entryCount = world.entries?.length || 0;
+    const moduleCount = Object.keys(world.categories || {}).length;
+    return `当前世界书包含 ${entryCount} 条条目，${moduleCount} 个模块。`;
+  });
+  const selectedWorldStatsText = computed(() => {
+    const world = selectedWorld.value;
+    if (!world) return '';
+    const entryCount = world.entries?.length || 0;
+    const moduleCount = Object.keys(world.categories || {}).length;
+    const enabledText = selectedWorldApplied.value ? '已启用' : '未启用';
+    return `${entryCount} 条 / ${moduleCount} 个模块 / ${enabledText}`;
   });
   const selectedWorldModules = computed(() => {
     const world = selectedWorld.value;
@@ -456,13 +493,7 @@ export function useWorldbookPage() {
   }
 
   function setWorldApplied(worldId, enabled) {
-    const next = new Set(appliedWorldIds.value);
-    if (enabled) {
-      next.add(worldId);
-    } else {
-      next.delete(worldId);
-    }
-    appliedWorldIds.value = [...next];
+    appliedWorldIds.value = enabled && worldId ? [worldId] : [];
     persistAppliedWorldIds();
     statusText.value = enabled ? `已启用世界书 ${metaMap.value[worldId]?.name || worldId}` : `已停用世界书 ${metaMap.value[worldId]?.name || worldId}`;
   }
@@ -577,6 +608,10 @@ export function useWorldbookPage() {
       worlds.value = groupEntries(collected);
     }
 
+    const validWorldIds = worlds.value.map((item) => item.id);
+    appliedWorldIds.value = normalizeAppliedWorldIds(appliedWorldIds.value, validWorldIds);
+    persistAppliedWorldIds();
+
     if (!selectedWorldId.value && worlds.value[0]) {
       selectedWorldId.value = worlds.value[0].id;
     }
@@ -596,13 +631,7 @@ export function useWorldbookPage() {
       syncDraftForScope('', '');
       return;
     }
-
-    if (category) {
-      expandedCategoryKeys.value = {
-        ...expandedCategoryKeys.value,
-        [`${selectedWorldId.value}::${category}`]: true,
-      };
-    }
+    setWorldApplied(selectedWorldId.value, true);
 
     if (entryId) {
       const detail = await worldbookApi.getWorldbookEntry(entryId);
@@ -880,7 +909,7 @@ export function useWorldbookPage() {
     if (selectedWorldId.value) {
       await applySelection(selectedWorldId.value);
     }
-    statusText.value = `当前启用：${appliedWorldSummary.value}`;
+    statusText.value = `已加载 ${worldStats.value.totalWorlds} 本世界书，共 ${worldStats.value.totalEntries} 条条目`;
   }
 
   return {
@@ -918,7 +947,10 @@ export function useWorldbookPage() {
     updateMetaText,
     updateWorldMeta,
     useSemanticSearch,
+    selectedWorldDescription,
+    selectedWorldStatsText,
     worldOptions,
+    worldStats,
     worlds,
     applySelection,
   };
