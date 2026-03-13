@@ -15,38 +15,43 @@
 
       <div v-show="activeTab === 'tab-ui'" id="tab-ui" class="tab-pane active">
         <h2 class="section-title">主题风格</h2>
-        <div class="settings-section half-grid">
-          <div>
-            <label class="form-label">主题</label>
-            <select v-model="globalSettings.ui.theme" class="form-select">
-              <option value="dark">深空（默认）</option>
-              <option value="light">晨曦</option>
-              <option value="cyberpunk">赛博霓虹</option>
-              <option value="scroll">羊皮卷轴</option>
-              <option value="forest">迷雾森林</option>
-              <option value="abyss">猩红深渊</option>
-              <option value="royal">皇家紫金</option>
-              <option value="aurora">极光海岸</option>
-              <option value="obsidian">曜石墨金</option>
-              <option value="sakura">樱雾茶歇</option>
-              <option value="glacier">冰川夜航</option>
-              <option value="ember">余烬铜辉</option>
-            </select>
+        <div class="settings-section">
+          <label class="form-label">背景主题</label>
+          <div class="theme-card-grid">
+            <button
+              v-for="theme in themeOptions"
+              :key="theme.value"
+              type="button"
+              :class="['theme-option-card', { active: globalSettings.ui.theme === theme.value }]"
+              @click="globalSettings.ui.theme = theme.value"
+            >
+              <span class="theme-option-preview" :style="{ background: theme.preview }">
+                <span
+                  v-for="(chip, index) in theme.chips"
+                  :key="`${theme.value}-${index}`"
+                  class="theme-option-chip"
+                  :style="{ background: chip }"
+                />
+              </span>
+              <span class="theme-option-name">{{ theme.label }}</span>
+              <span class="theme-option-desc">{{ theme.description }}</span>
+            </button>
           </div>
-          <div>
-            <label class="form-label">背景纹理</label>
-            <select v-model="globalSettings.ui.background" class="form-select">
-              <option value="grid">全息网格</option>
-              <option value="noise">胶片噪点</option>
-              <option value="plain">纯净虚空</option>
-              <option value="runes">魔法力场</option>
-              <option value="circuit">集成电路</option>
-              <option value="aurora">极光流幕</option>
-              <option value="paper">纸纤纹理</option>
-              <option value="stardust">星尘夜幕</option>
-              <option value="hex">蜂巢矩阵</option>
-              <option value="waves">丝绸波纹</option>
-            </select>
+        </div>
+        <div class="settings-section">
+          <label class="form-label">背景纹理</label>
+          <div class="theme-card-grid texture-grid">
+            <button
+              v-for="background in backgroundOptions"
+              :key="background.value"
+              type="button"
+              :class="['theme-option-card', 'texture-option-card', { active: globalSettings.ui.background === background.value }]"
+              @click="globalSettings.ui.background = background.value"
+            >
+              <span class="theme-option-preview texture-preview" :style="{ backgroundImage: background.preview }" />
+              <span class="theme-option-name">{{ background.label }}</span>
+              <span class="theme-option-desc">{{ background.description }}</span>
+            </button>
           </div>
         </div>
         <div class="settings-section">
@@ -184,7 +189,12 @@
 <script setup>
 import { onMounted, watch } from 'vue';
 import { useSettingsPage } from '../composables/useSettingsPage';
-import { initThemePage } from '../page_logic/theme-init.module';
+import {
+  applyThemeSettings,
+  BACKGROUND_OPTIONS,
+  initThemePage,
+  THEME_OPTIONS,
+} from '../page_logic/theme-init.module';
 
 const tabs = [
   { id: 'tab-ui', icon: '配', label: '界面与显示' },
@@ -227,6 +237,9 @@ const {
   statusText,
 } = useSettingsPage();
 
+const themeOptions = THEME_OPTIONS;
+const backgroundOptions = BACKGROUND_OPTIONS;
+
 function jsonText(value) {
   return JSON.stringify(value || {}, null, 2);
 }
@@ -248,6 +261,15 @@ function syncSelectedLlm() {
 
 watch(selectedLlmId, syncSelectedLlm);
 
+watch(
+  () => [globalSettings.ui?.theme, globalSettings.ui?.background],
+  ([theme, background]) => {
+    if (!theme && !background) return;
+    applyThemeSettings({ theme, background });
+  },
+  { immediate: true },
+);
+
 onMounted(async () => {
   document.title = 'Storyteller | 设置';
   document.body.setAttribute('data-page', 'settings');
@@ -255,3 +277,78 @@ onMounted(async () => {
   await bootstrap();
 });
 </script>
+
+<style scoped>
+.theme-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.theme-option-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  text-align: left;
+}
+
+.theme-option-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-soft));
+}
+
+.theme-option-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent), var(--shadow-soft);
+}
+
+.theme-option-preview {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  width: 100%;
+  height: 84px;
+  padding: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 72%, transparent);
+}
+
+.theme-option-chip {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.theme-option-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.theme-option-desc {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.texture-grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.texture-preview {
+  background-color: color-mix(in srgb, var(--bg-elevated-alt) 82%, white 18%);
+  background-size: 22px 22px, 22px 22px, cover;
+}
+</style>

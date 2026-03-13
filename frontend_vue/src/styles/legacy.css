@@ -67,6 +67,12 @@
   --scrollbar-thumb: rgba(255, 255, 255, 0.2);
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 
 /* 1. 婵犵數鍎戠紞鈧ù婊庡墴閸?(Deep Space - Default) */
 [data-theme="dark"] {
@@ -124,6 +130,51 @@
   --accent: #a0522d;
   --accent-soft: rgba(160, 82, 45, 0.15);
   --danger: #800000;
+}
+
+[data-theme="ink"] {
+  --bg-main: #0b0d12;
+  --bg-elevated: #121720;
+  --bg-elevated-alt: #19212d;
+  --border-soft: #2a3342;
+  --text-primary: #eef4ff;
+  --text-secondary: #97a8c1;
+  --accent: #78a9ff;
+  --accent-soft: rgba(120, 169, 255, 0.16);
+  --danger: #ff7a7a;
+  --shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.26);
+  --scrollbar-bg: #0b0d12;
+  --scrollbar-thumb: #2a3342;
+}
+
+[data-theme="snow"] {
+  --bg-main: #edf3fa;
+  --bg-elevated: #ffffff;
+  --bg-elevated-alt: #f4f8fd;
+  --border-soft: #d5e0ec;
+  --text-primary: #233142;
+  --text-secondary: #68809d;
+  --accent: #5d8fd6;
+  --accent-soft: rgba(93, 143, 214, 0.12);
+  --danger: #df6d6d;
+  --shadow-soft: 0 8px 20px rgba(85, 112, 147, 0.10);
+  --scrollbar-bg: #edf3fa;
+  --scrollbar-thumb: #c7d6e8;
+}
+
+[data-theme="mist"] {
+  --bg-main: #e3eaf1;
+  --bg-elevated: #eef3f8;
+  --bg-elevated-alt: #d7e0ea;
+  --border-soft: #bcc9d7;
+  --text-primary: #29384a;
+  --text-secondary: #60758f;
+  --accent: #55779e;
+  --accent-soft: rgba(85, 119, 158, 0.14);
+  --danger: #d56a6a;
+  --shadow-soft: 0 8px 18px rgba(74, 96, 120, 0.10);
+  --scrollbar-bg: #e3eaf1;
+  --scrollbar-thumb: #bcc9d7;
 }
 
 /* 5. 闂佸搫顦弲婵嬪礂濡ソ鐟拔熸担鏇熺洴椤㈡瑩鎮剧仦鑲╃泿 (Forest Glade) */
@@ -251,6 +302,28 @@ body.bg-circuit {
   radial-gradient(var(--border-soft) 15%, transparent 16%);
   background-size: 20px 20px;
   background-position: 0 0, 10px 10px;
+}
+
+body.bg-grid-soft {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--border-soft) 46%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border-soft) 46%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: center top;
+}
+
+body.bg-dots-soft {
+  background-image: radial-gradient(color-mix(in srgb, var(--accent) 20%, transparent) 1.1px, transparent 1.4px);
+  background-size: 18px 18px;
+}
+
+body.bg-blueprint {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--accent) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 62%, transparent), transparent 70%);
+  background-size: 30px 30px, 30px 30px, cover;
+  background-position: center top, center top, center center;
 }
 
 /* =========================================
@@ -993,6 +1066,40 @@ body[data-page="index"] .input-container {
   display: flex;
   flex-direction: column;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+[data-theme="snow"] body[data-page="index"] .input-container,
+[data-theme="mist"] body[data-page="index"] .input-container,
+[data-theme="light"] body[data-page="index"] .input-container {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 98%, white 2%), color-mix(in srgb, var(--bg-elevated-alt) 94%, transparent));
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--border-soft));
+  box-shadow: 0 -10px 30px rgba(104, 128, 157, 0.10), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+[data-theme="snow"] body[data-page="index"] .action-suggestions,
+[data-theme="mist"] body[data-page="index"] .action-suggestions,
+[data-theme="light"] body[data-page="index"] .action-suggestions {
+  background: color-mix(in srgb, var(--bg-elevated-alt) 88%, white 12%);
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border-soft));
+}
+
+[data-theme="snow"] body[data-page="index"] .suggestion-chip,
+[data-theme="mist"] body[data-page="index"] .suggestion-chip,
+[data-theme="light"] body[data-page="index"] .suggestion-chip {
+  background: color-mix(in srgb, var(--bg-elevated) 94%, white 6%);
+  color: var(--text-secondary);
+}
+
+[data-theme="snow"] body[data-page="index"] .progress-bar-wrapper,
+[data-theme="mist"] body[data-page="index"] .progress-bar-wrapper,
+[data-theme="light"] body[data-page="index"] .progress-bar-wrapper,
+[data-theme="snow"] body[data-page="index"] .progress-hint,
+[data-theme="mist"] body[data-page="index"] .progress-hint,
+[data-theme="light"] body[data-page="index"] .progress-hint,
+[data-theme="snow"] body[data-page="index"] .env-item,
+[data-theme="mist"] body[data-page="index"] .env-item,
+[data-theme="light"] body[data-page="index"] .env-item {
+  background: color-mix(in srgb, var(--bg-elevated-alt) 76%, white 24%);
 }
 
 /* [婵犵數鍋為崹鍫曞箰婵犳艾绠板Δ锝呭暙閺嬩線鏌曢崼婵囶棤闁崇懓绉甸妵鍕籍閸屾瀚涘┑陇灏欓挅?闂傚倸鍊峰ù鍥涢崟顖涘亱闁糕剝渚楅弫瀣亜閺囨浜鹃梺鎼炲妽閸庢娊鈥﹂妸鈺佸窛妞ゆ牗绮庨幗宀勬⒒娴ｈ銇熼柣鎾崇墦瀹曚即寮借閺?(scroll)闂傚倷鑳堕崑銊╁磿閼碱剚宕查柛宀€鍋涚粻顖毭归崗鍏肩稇闁诲繗娅曠换婵囩節閸屾凹浠鹃梺缁樼缚閸婃繈寮?(light)闂傚倷鑳堕崑銊╁磿閼碱剚宕查柍褜鍓熼幃妤呮濞戞瑦鎷遍梺鎸庣⊕閸旀洝鐏掗梺绋跨箺閸嬫劙寮抽悩缁樷拺缂備焦锕╁▓姗€鏌熼搹顐ｅ暗闁逞屽墮閻忔岸鎮￠垾鎰佸殨闁芥ê顦遍弳瀣煙濞堝灝鏋ゆい?*/
@@ -3813,38 +3920,6 @@ input:checked + .slider:before {
   box-shadow: 0 0 12px rgba(78, 140, 255, 0.3);
 }
 
-.current-save-info::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.15),
-    transparent
-  );
-  transition: left 0.5s ease;
-}
-
-.current-save-info:hover::before {
-  left: 100%;
-}
-
-@keyframes shimmer {
-  0% {
-    left: -100%;
-  }
-  100% {
-    left: 100%;
-  }
-}
-
-.current-save-info.shimmer::before {
-  animation: shimmer 1.5s infinite;
-}
 
 .save-name {
   font-size: 14px;
@@ -5128,7 +5203,7 @@ body.bg-waves {
 }
 
 .current-save-info::before {
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--nav-center-glow) 62%, white 10%), transparent);
+  content: none;
 }
 
 .save-name {
@@ -5334,6 +5409,7 @@ body[data-page="dungeon"] #tree-root {
 
 body[data-page="settings"] .settings-content-area {
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 @media (max-width: 1200px) {

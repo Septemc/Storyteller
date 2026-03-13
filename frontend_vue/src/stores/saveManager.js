@@ -26,6 +26,27 @@ export const useSaveManagerStore = defineStore('saveManager', {
     },
   },
   actions: {
+    ensureSaveInList(detail) {
+      if (!detail?.session_id) return;
+      const existing = this.saves.find((item) => item.session_id === detail.session_id);
+      if (existing) {
+        Object.assign(existing, {
+          display_name: detail.display_name || detail.session_id,
+          updated_at: detail.updated_at || existing.updated_at,
+          segment_count: detail.segment_count ?? existing.segment_count ?? 0,
+          total_word_count: detail.total_word_count ?? existing.total_word_count ?? 0,
+        });
+        return;
+      }
+
+      this.saves.unshift({
+        session_id: detail.session_id,
+        display_name: detail.display_name || detail.session_id,
+        updated_at: detail.updated_at || null,
+        segment_count: detail.segment_count ?? 0,
+        total_word_count: detail.total_word_count ?? 0,
+      });
+    },
     setCurrentSave(displayName, sessionId) {
       this.currentDisplayId = sessionId || '--';
       this.currentDisplayName = displayName || fallbackDisplayName(sessionId);
@@ -40,6 +61,7 @@ export const useSaveManagerStore = defineStore('saveManager', {
 
       try {
         const detail = await storyApi.saveDetail(sessionId);
+        this.ensureSaveInList(detail);
         this.setCurrentSave(detail?.display_name, sessionId);
       } catch {
         this.setCurrentSave(null, sessionId);
@@ -60,6 +82,7 @@ export const useSaveManagerStore = defineStore('saveManager', {
         return;
       }
       this.currentDetail = await storyApi.saveDetail(sessionId);
+      this.ensureSaveInList(this.currentDetail);
     },
     async openModal() {
       this.modalOpen = true;
@@ -67,6 +90,8 @@ export const useSaveManagerStore = defineStore('saveManager', {
       const sessionStore = useSessionStore();
       if (sessionStore.currentSessionId) {
         await this.selectSave(sessionStore.currentSessionId);
+      } else if (this.saves[0]?.session_id) {
+        await this.selectSave(this.saves[0].session_id);
       }
     },
     closeModal() {
@@ -85,6 +110,7 @@ export const useSaveManagerStore = defineStore('saveManager', {
       const created = await storyApi.createSave();
       await this.loadSaves();
       await this.selectSave(created.session_id);
+      this.setCurrentSave(this.currentDetail?.display_name, created.session_id);
       return created;
     },
     async renameSelected() {
@@ -112,6 +138,10 @@ export const useSaveManagerStore = defineStore('saveManager', {
       if (sessionStore.currentSessionId === deletedId) {
         sessionStore.reset();
         await this.syncCurrentSession();
+      }
+
+      if (!this.currentDetail && this.saves[0]?.session_id) {
+        await this.selectSave(this.saves[0].session_id);
       }
     },
     async loadSelectedIntoSession() {

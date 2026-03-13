@@ -2,8 +2,6 @@
 __pycache__/
 *.py[cod]
 *$py.class
-*.pyc
-*.pyo
 
 # Python tooling caches
 .pytest_cache/
@@ -65,6 +63,7 @@ pnpm-debug.log*
 *.orig
 
 # Databases and runtime state
+data/db.sqlite
 *.db-wal
 *.db-shm
 *.sqlite-journal
