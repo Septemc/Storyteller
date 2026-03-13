@@ -4,6 +4,7 @@ import * as worldbookApi from '../services/modules/worldbook';
 const META_STORAGE_KEY = 'storyteller_worldbook_meta_v2';
 const APPLIED_WORLD_IDS_STORAGE_KEY = 'storyteller_applied_world_ids_v1';
 const CATEGORY_SWITCH_STORAGE_KEY = 'storyteller_worldbook_category_switches_v1';
+const LEGACY_WORLDBOOK_STORAGE_KEY = 'st_worldbooks_data';
 
 function readJson(storageKey, fallback) {
   try {
@@ -19,7 +20,34 @@ function writeJson(storageKey, value) {
 }
 
 function readMetaMap() {
-  return readJson(META_STORAGE_KEY, {});
+  const current = readJson(META_STORAGE_KEY, {});
+  if (current && typeof current === 'object' && Object.keys(current).length) {
+    return current;
+  }
+
+  const legacyWorlds = readJson(LEGACY_WORLDBOOK_STORAGE_KEY, []);
+  if (!Array.isArray(legacyWorlds) || !legacyWorlds.length) {
+    return {};
+  }
+
+  const migrated = legacyWorlds.reduce((result, world) => {
+    const worldId = String(world?.id || '').trim();
+    if (!worldId) return result;
+    const name = String(world?.name || '').trim();
+    const description = String(world?.description || '').trim();
+    if (!name && !description) return result;
+
+    result[worldId] = {
+      name: name || worldId,
+      description,
+    };
+    return result;
+  }, {});
+
+  if (Object.keys(migrated).length) {
+    writeMetaMap(migrated);
+  }
+  return migrated;
 }
 
 function writeMetaMap(map) {
@@ -631,7 +659,6 @@ export function useWorldbookPage() {
       syncDraftForScope('', '');
       return;
     }
-    setWorldApplied(selectedWorldId.value, true);
 
     if (entryId) {
       const detail = await worldbookApi.getWorldbookEntry(entryId);
