@@ -1,5 +1,6 @@
 import { reactive, ref } from 'vue';
 import * as settingsApi from '../services/modules/settings';
+import { applyThemeSettings, DEFAULT_BACKGROUND, DEFAULT_THEME } from '../page_logic/theme-init.module';
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -11,6 +12,44 @@ function safeParseJson(text, fallback) {
   } catch {
     throw new Error('JSON 格式无效');
   }
+}
+
+function normalizeGlobalSettings(response) {
+  let localTheme = DEFAULT_THEME;
+  let localBackground = DEFAULT_BACKGROUND;
+
+  try {
+    localTheme = localStorage.getItem('app_theme') || DEFAULT_THEME;
+    localBackground = localStorage.getItem('app_bg') || DEFAULT_BACKGROUND;
+  } catch {
+  }
+
+  const merged = {
+    ui: {},
+    text: {},
+    summary: {},
+    variables: {},
+    text_opt: {},
+    world_evolution: {},
+    default_profiles: {},
+    ...(response || {}),
+  };
+
+  merged.ui = {
+    theme: localTheme,
+    background: localBackground,
+    ...(merged.ui || {}),
+  };
+
+  if (localTheme) {
+    merged.ui.theme = localTheme;
+  }
+
+  if (localBackground) {
+    merged.ui.background = localBackground;
+  }
+
+  return merged;
 }
 
 export function useSettingsPage() {
@@ -61,16 +100,8 @@ export function useSettingsPage() {
 
   async function loadGlobalSettings() {
     const response = await settingsApi.getGlobalSettings();
-    Object.assign(globalSettings, {
-      ui: {},
-      text: {},
-      summary: {},
-      variables: {},
-      text_opt: {},
-      world_evolution: {},
-      default_profiles: {},
-      ...(response || {}),
-    });
+    Object.assign(globalSettings, normalizeGlobalSettings(response));
+    applyThemeSettings(globalSettings.ui);
   }
 
   async function loadPresets() {
@@ -129,6 +160,7 @@ export function useSettingsPage() {
 
   async function saveGlobalSettings() {
     await settingsApi.putGlobalSettings(clone(globalSettings));
+    applyThemeSettings(globalSettings.ui);
     statusText.value = '全局设置已保存';
   }
 

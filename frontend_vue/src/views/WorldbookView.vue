@@ -314,6 +314,11 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 98%, white 2%), color-mix(in srgb, var(--bg-elevated-alt) 94%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border-soft));
+  box-shadow: 0 10px 24px rgba(86, 110, 140, 0.06);
 }
 
 .worldbook-top-row,
@@ -333,12 +338,15 @@ onMounted(async () => {
   line-height: 1.32;
   font-size: 12px;
   margin-top: -1px;
+  padding: 2px 0;
 }
 
 .worldbook-status-label {
   color: var(--text-primary);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 12px;
+  display: inline-block;
+  min-width: 72px;
 }
 
 .worldbook-search {
@@ -365,6 +373,11 @@ onMounted(async () => {
   flex: 1;
   overflow: hidden;
   margin-top: -4px;
+  padding: 10px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 97%, white 3%), color-mix(in srgb, var(--bg-elevated-alt) 96%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border-soft));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.28);
 }
 
 .worldbook-module-list {
@@ -372,6 +385,7 @@ onMounted(async () => {
   flex-direction: column;
   gap: 8px;
   padding: 0;
+  padding-right: 4px;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto !important;
@@ -384,16 +398,15 @@ onMounted(async () => {
   border: 1px solid var(--border-soft);
   border-radius: 15px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
-    rgba(0, 0, 0, 0.05);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.035);
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 97%, white 3%), color-mix(in srgb, var(--bg-elevated-alt) 94%, transparent));
+  box-shadow: 0 10px 24px rgba(90, 112, 142, 0.06);
   overflow: hidden;
   flex: 0 0 auto;
 }
 
 .worldbook-module-card.active {
   border-color: color-mix(in srgb, var(--accent) 42%, var(--border-soft));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent), 0 12px 24px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent), 0 14px 28px rgba(92, 126, 174, 0.08);
 }
 
 .worldbook-module-card.disabled {
@@ -405,7 +418,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 14px 16px;
 }
 
 .worldbook-module-main {
@@ -422,8 +435,9 @@ onMounted(async () => {
 }
 
 .worldbook-module-arrow {
-  font-size: 15px;
-  min-width: 14px;
+  font-size: 18px;
+  line-height: 1;
+  min-width: 18px;
   transition: transform 0.18s ease;
   color: var(--text-secondary);
 }
@@ -433,21 +447,24 @@ onMounted(async () => {
 }
 
 .worldbook-module-name {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
 .worldbook-module-count {
   color: var(--text-secondary);
   font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elevated-alt) 78%, white 22%);
 }
 
 .worldbook-entry-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 0 10px 10px 10px;
+  gap: 8px;
+  padding: 0 12px 12px 12px;
   flex: 0 0 auto;
 }
 
@@ -457,10 +474,10 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 10px;
   width: 100%;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 8%, var(--border-soft));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-elevated) 94%, white 6%);
+  padding: 10px 12px;
   cursor: pointer;
   transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
   flex: 0 0 auto;
@@ -469,11 +486,12 @@ onMounted(async () => {
 .worldbook-entry-card:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
 }
 
 .worldbook-entry-card.active {
   border-color: color-mix(in srgb, var(--accent) 44%, var(--border-soft));
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated));
 }
 
 .worldbook-entry-card.disabled {
@@ -488,8 +506,8 @@ onMounted(async () => {
 }
 
 .worldbook-entry-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -505,8 +523,23 @@ onMounted(async () => {
 }
 
 .worldbook-empty-state {
-  padding: 24px 16px;
+  padding: 32px 18px;
   text-align: center;
+}
+
+:deep(#detail-panel) {
+  border-radius: 24px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 97%, white 3%), color-mix(in srgb, var(--bg-elevated-alt) 95%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border-soft));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.28);
+  padding: 14px;
+}
+
+:deep(#detail-panel .settings-section) {
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg-elevated-alt) 74%, white 26%);
+  border: 1px solid color-mix(in srgb, var(--accent) 8%, var(--border-soft));
+  padding: 16px;
 }
 
 .world-switch,
