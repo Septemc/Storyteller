@@ -29,6 +29,7 @@ describe('useSettingsPage', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
+    localStorage.clear();
 
     const settingsApi = await import('../../services/modules/settings');
     settingsApi.getGlobalSettings.mockResolvedValue({
@@ -102,5 +103,24 @@ describe('useSettingsPage', () => {
       config_id: 'llm_1',
       model: 'gpt-test',
     });
+  });
+
+  it('syncs theme settings to localStorage and document', async () => {
+    const settingsApi = await import('../../services/modules/settings');
+    const page = useSettingsPage();
+
+    await page.bootstrap();
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe('scroll');
+
+    page.globalSettings.ui.theme = 'snow';
+    page.globalSettings.ui.background = 'blueprint';
+    await page.saveCurrentTab('tab-ui');
+
+    expect(settingsApi.putGlobalSettings).toHaveBeenCalled();
+    expect(localStorage.getItem('app_theme')).toBe('snow');
+    expect(localStorage.getItem('app_bg')).toBe('blueprint');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('snow');
+    expect(document.body.className).toContain('bg-blueprint');
   });
 });

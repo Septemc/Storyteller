@@ -9,20 +9,6 @@
       <div class="current-save-info" id="current-save-info" @click="openSaveManager">
         <div class="save-name" id="current-save-name">{{ saveStore.currentDisplayName }}</div>
         <div class="save-id" id="current-save-id">{{ saveStore.currentDisplayId }}</div>
-        <button
-          class="save-manager-toggle-btn visible"
-          id="save-manager-toggle-btn"
-          title="打开存档管理"
-          type="button"
-          @click.stop="openSaveManager"
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-            <polyline points="7 3 7 8 15 8"></polyline>
-          </svg>
-          存档管理
-        </button>
       </div>
     </div>
 
