@@ -217,3 +217,87 @@ def test_worldbook_import_accepts_legacy_category_container(client, db_session):
     rows = db_session.query(models.WorldbookEntry).filter(models.WorldbookEntry.user_id == user.user_id).all()
     assert len(rows) == 2
     assert sorted(row.category for row in rows) == ["人物", "地理"]
+
+def test_worldbook_import_updates_public_entry_without_forking_scope(client, db_session):
+    user = _create_user(db_session, "u_worldbook_public_edit", "wb_public_editor")
+    public_entry = models.WorldbookEntry(
+        worldbook_id="Wpub0001",
+        entry_id="wb_public_1",
+        user_id=None,
+        category="lore",
+        title="Public Lore",
+        content="Before",
+        importance=0.5,
+        meta_json=json.dumps({"enabled": True, "disable": False}, ensure_ascii=False),
+    )
+    db_session.add(public_entry)
+    db_session.commit()
+
+    resp = client.post(
+        "/api/worldbook/import?sync_embeddings=false",
+        headers=_auth_headers(user.user_id),
+        json={
+            "worldbook_id": "Wpub0001",
+            "entries": [
+                {
+                    "entry_id": "wb_public_1",
+                    "category": "lore",
+                    "title": "Public Lore",
+                    "content": "After",
+                    "meta": {"enabled": False, "disable": True},
+                }
+            ],
+        },
+    )
+
+    assert resp.status_code == 200
+
+    rows = db_session.query(models.WorldbookEntry).filter(models.WorldbookEntry.worldbook_id == "Wpub0001").all()
+    assert len(rows) == 1
+    assert rows[0].entry_id == "wb_public_1"
+    assert rows[0].user_id is None
+    assert rows[0].content == "After"
+    assert json.loads(rows[0].meta_json) == {"enabled": False, "disable": True}
+
+
+def test_worldbook_delete_all_can_remove_public_worldbook_for_logged_in_user(client, db_session):
+    user = _create_user(db_session, "u_worldbook_public_delete", "wb_public_deleter")
+    db_session.add_all(
+        [
+            models.WorldbookEntry(
+                worldbook_id="Wpubdel1",
+                entry_id="wb_public_delete_1",
+                user_id=None,
+                category="lore",
+                title="Entry 1",
+                content="One",
+                importance=0.5,
+                meta_json=json.dumps({"enabled": True}, ensure_ascii=False),
+            ),
+            models.WorldbookEntry(
+                worldbook_id="Wpubdel1",
+                entry_id="wb_public_delete_2",
+                user_id=None,
+                category="lore",
+                title="Entry 2",
+                content="Two",
+                importance=0.5,
+                meta_json=json.dumps({"enabled": True}, ensure_ascii=False),
+            ),
+        ]
+    )
+    db_session.commit()
+
+    resp = client.delete(
+        "/api/worldbook/all?confirm=true&worldbook_id=Wpubdel1",
+        headers=_auth_headers(user.user_id),
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["deleted"] == 2
+    assert (
+        db_session.query(models.WorldbookEntry)
+        .filter(models.WorldbookEntry.worldbook_id == "Wpubdel1")
+        .count()
+        == 0
+    )

@@ -7,7 +7,7 @@
 
       <div class="settings-section worldbook-toolbar-card">
         <div class="worldbook-top-row">
-          <select id="world-selector" v-model="selectedWorldId" class="form-select worldbook-select" @change="applySelection(selectedWorldId)">
+          <select id="world-selector" v-model="selectedWorldId" class="form-select worldbook-select" @change="applySelection($event.target.value)">
             <option v-for="world in worldOptions" :key="world.id" :value="world.id">
               {{ world.name }} ({{ world.count }} 条)
             </option>
@@ -305,7 +305,7 @@ onMounted(async () => {
 .worldbook-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   min-height: 0;
 }
 
@@ -313,7 +313,7 @@ onMounted(async () => {
 .worldbook-filter-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .worldbook-top-row,
@@ -330,12 +330,15 @@ onMounted(async () => {
 }
 
 .worldbook-status-line {
-  line-height: 1.5;
+  line-height: 1.32;
+  font-size: 12px;
+  margin-top: -1px;
 }
 
 .worldbook-status-label {
   color: var(--text-primary);
   font-weight: 600;
+  font-size: 12px;
 }
 
 .worldbook-search {
@@ -350,24 +353,25 @@ onMounted(async () => {
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .worldbook-tree-shell {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   min-height: 0;
   flex: 1;
   overflow: hidden;
+  margin-top: -4px;
 }
 
 .worldbook-module-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 2px;
+  gap: 8px;
+  padding: 0;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto !important;
@@ -378,11 +382,11 @@ onMounted(async () => {
 
 .worldbook-module-card {
   border: 1px solid var(--border-soft);
-  border-radius: 18px;
+  border-radius: 15px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
     rgba(0, 0, 0, 0.05);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.035);
   overflow: hidden;
   flex: 0 0 auto;
 }
@@ -400,14 +404,14 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 10px 12px;
 }
 
 .worldbook-module-main {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 1;
   background: transparent;
   border: 0;
@@ -418,7 +422,8 @@ onMounted(async () => {
 }
 
 .worldbook-module-arrow {
-  font-size: 12px;
+  font-size: 15px;
+  min-width: 14px;
   transition: transform 0.18s ease;
   color: var(--text-secondary);
 }
@@ -428,21 +433,21 @@ onMounted(async () => {
 }
 
 .worldbook-module-name {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .worldbook-module-count {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .worldbook-entry-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 0 12px 12px 12px;
+  gap: 6px;
+  padding: 0 10px 10px 10px;
   flex: 0 0 auto;
 }
 
@@ -450,12 +455,12 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 14px;
+  border-radius: 11px;
   background: rgba(255, 255, 255, 0.05);
-  padding: 11px 12px;
+  padding: 8px 10px;
   cursor: pointer;
   transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
   flex: 0 0 auto;
@@ -478,12 +483,12 @@ onMounted(async () => {
 .worldbook-entry-main {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 
 .worldbook-entry-title {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
@@ -493,7 +498,7 @@ onMounted(async () => {
 
 .worldbook-entry-tags {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -508,7 +513,7 @@ onMounted(async () => {
 .mini-switch {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
   user-select: none;
 }
@@ -562,25 +567,25 @@ onMounted(async () => {
 }
 
 .world-switch-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
 .mini-switch-track {
-  width: 36px;
-  height: 20px;
+  width: 32px;
+  height: 18px;
   border-radius: 999px;
 }
 
 .mini-switch-track::after {
   left: 2px;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .mini-switch.active .mini-switch-track::after {
-  left: 18px;
+  left: 16px;
 }
 
 @media (max-width: 900px) {

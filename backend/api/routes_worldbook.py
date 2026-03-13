@@ -130,6 +130,23 @@ def _apply_worldbook_filters(query, user_id: Optional[str], worldbook_id: Option
     return scoped_query
 
 
+def _apply_worldbook_write_filters(query, model, user_id: Optional[str], worldbook_id: Optional[str] = None):
+    scoped_query = owner_or_public(query, model, user_id)
+    if worldbook_id and hasattr(model, "worldbook_id"):
+        scoped_query = scoped_query.filter(getattr(model, "worldbook_id") == worldbook_id)
+    return scoped_query
+
+
+def _find_writable_entry(db: Session, entry_id: Optional[str], user_id: Optional[str]) -> Optional[models.WorldbookEntry]:
+    if not entry_id:
+        return None
+    return owner_or_public(
+        db.query(models.WorldbookEntry).filter(models.WorldbookEntry.entry_id == entry_id),
+        models.WorldbookEntry,
+        user_id,
+    ).first()
+
+
 def _parse_entries_payload(payload: Any) -> tuple[List[Dict[str, Any]], Optional[str]]:
     def _extract_entries_from_container(container: Any, fallback_category: Optional[str] = None) -> List[Dict[str, Any]]:
         normalized: List[Dict[str, Any]] = []
@@ -233,12 +250,14 @@ def import_worldbook(
             continue
 
         preferred_entry_id = raw.get("entry_id") or f"WB_{uuid.uuid4().hex[:10]}"
-        entry_id = resolve_scoped_id(db, models.WorldbookEntry, "entry_id", preferred_entry_id, user_id)
-        existing = owner_only(
-            db.query(models.WorldbookEntry).filter(models.WorldbookEntry.entry_id == entry_id),
+        existing = _find_writable_entry(db, preferred_entry_id, user_id)
+        entry_id = existing.entry_id if existing else resolve_scoped_id(
+            db,
             models.WorldbookEntry,
+            "entry_id",
+            preferred_entry_id,
             user_id,
-        ).first()
+        )
 
         category = raw.get("category") or None
         tags_str = _extract_tags(raw.get("tags"))
@@ -454,24 +473,26 @@ def delete_worldbook_category(
 ) -> Dict[str, Any]:
     user_id = current_user_id(current_user)
     normalized_worldbook_id = _normalize_worldbook_id(worldbook_id)
-    query = owner_only(
+    query = _apply_worldbook_write_filters(
         db.query(models.WorldbookEntry).filter(models.WorldbookEntry.category == category),
         models.WorldbookEntry,
         user_id,
+        normalized_worldbook_id,
     )
-    if normalized_worldbook_id:
-        query = query.filter(models.WorldbookEntry.worldbook_id == normalized_worldbook_id)
 
     entries = query.all()
     if not entries:
         return {"success": True, "deleted": 0}
 
     entry_ids = [entry.entry_id for entry in entries]
-    delete_embeddings = owner_only(db.query(models.WorldbookEmbedding), models.WorldbookEmbedding, user_id).filter(
+    delete_embeddings = _apply_worldbook_write_filters(
+        db.query(models.WorldbookEmbedding),
+        models.WorldbookEmbedding,
+        user_id,
+        normalized_worldbook_id,
+    ).filter(
         models.WorldbookEmbedding.entry_id.in_(entry_ids)
     )
-    if normalized_worldbook_id:
-        delete_embeddings = delete_embeddings.filter(models.WorldbookEmbedding.worldbook_id == normalized_worldbook_id)
     delete_embeddings.delete(synchronize_session=False)
 
     deleted_count = query.delete(synchronize_session=False)
@@ -491,21 +512,28 @@ def delete_all_worldbook_entries(
 
     user_id = current_user_id(current_user)
     normalized_worldbook_id = _normalize_worldbook_id(worldbook_id)
-    query = owner_only(db.query(models.WorldbookEntry), models.WorldbookEntry, user_id)
-    if normalized_worldbook_id:
-        query = query.filter(models.WorldbookEntry.worldbook_id == normalized_worldbook_id)
+    query = _apply_worldbook_write_filters(
+        db.query(models.WorldbookEntry),
+        models.WorldbookEntry,
+        user_id,
+        normalized_worldbook_id,
+    )
 
     entries = query.all()
-    if not entries:
-        return {"success": True, "deleted": 0, "worldbook_id": normalized_worldbook_id}
-
-    entry_ids = [entry.entry_id for entry in entries]
-    delete_embeddings = owner_only(db.query(models.WorldbookEmbedding), models.WorldbookEmbedding, user_id).filter(
-        models.WorldbookEmbedding.entry_id.in_(entry_ids)
+    delete_embeddings = _apply_worldbook_write_filters(
+        db.query(models.WorldbookEmbedding),
+        models.WorldbookEmbedding,
+        user_id,
+        normalized_worldbook_id,
     )
-    if normalized_worldbook_id:
-        delete_embeddings = delete_embeddings.filter(models.WorldbookEmbedding.worldbook_id == normalized_worldbook_id)
+    if entries and not normalized_worldbook_id:
+        entry_ids = [entry.entry_id for entry in entries]
+        delete_embeddings = delete_embeddings.filter(models.WorldbookEmbedding.entry_id.in_(entry_ids))
     delete_embeddings.delete(synchronize_session=False)
+
+    if not entries:
+        db.commit()
+        return {"success": True, "deleted": 0, "worldbook_id": normalized_worldbook_id}
 
     deleted_count = query.delete(synchronize_session=False)
     db.commit()
@@ -519,7 +547,7 @@ def delete_worldbook_entry(
     current_user: Optional[AuthUser] = Depends(get_current_user),
 ) -> Dict[str, Any]:
     user_id = current_user_id(current_user)
-    entry = owner_only(
+    entry = owner_or_public(
         db.query(models.WorldbookEntry).filter(models.WorldbookEntry.entry_id == entry_id),
         models.WorldbookEntry,
         user_id,
@@ -527,11 +555,11 @@ def delete_worldbook_entry(
     if not entry:
         raise HTTPException(status_code=404, detail="worldbook entry not found")
 
-    owner_only(
+    owner_or_public(
         db.query(models.WorldbookEmbedding).filter(models.WorldbookEmbedding.entry_id == entry_id),
         models.WorldbookEmbedding,
         user_id,
-    ).filter(models.WorldbookEmbedding.worldbook_id == entry.worldbook_id).delete(synchronize_session=False)
+    ).delete(synchronize_session=False)
 
     db.delete(entry)
     db.commit()
