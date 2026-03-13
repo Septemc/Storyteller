@@ -196,6 +196,9 @@ def _rebuild_worldbook_embeddings() -> None:
 
 
 def run_migration() -> None:
+    if engine.dialect.name != "sqlite":
+        print(f"skip worldbook isolation migration for dialect={engine.dialect.name}")
+        return
     print("start worldbook isolation migration")
     _rebuild_worldbook()
     _rebuild_worldbook_embeddings()

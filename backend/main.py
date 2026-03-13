@@ -18,7 +18,9 @@ from .api import (
     routes_templates,
     routes_worldbook,
 )
+from .db.crud.worldbook import cleanup_orphan_worldbook_embeddings
 from .db.base import Base, engine
+from .db.base import SessionLocal
 from .scripts.migrate_worldbook_ids import run_migration
 
 
@@ -51,6 +53,11 @@ def on_startup() -> None:
     Base.metadata.create_all(bind=engine)
     run_migration()
     Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        cleanup_orphan_worldbook_embeddings(db)
+    finally:
+        db.close()
 
 
 app.include_router(routes_story.router, prefix="/api", tags=["story"])

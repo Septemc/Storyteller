@@ -1,15 +1,28 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """
-    全局配置。后续可以扩展更多字段，例如各类 API key。
-    """
-    # 注意：路径是相对项目根目录的 ./data/db.sqlite
+    """Global application settings."""
+
     database_url: str = "sqlite:///./data/db.sqlite"
 
-    # Pydantic v2 的配置方式
-    model_config = SettingsConfigDict(env_prefix="NOVEL_")
+    model_config = SettingsConfigDict(
+        env_prefix="NOVEL_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    @property
+    def resolved_database_url(self) -> str:
+        database_url = self.database_url.strip()
+        if database_url.startswith("sqlite:///"):
+            sqlite_path = database_url.removeprefix("sqlite:///")
+            normalized = Path(sqlite_path).as_posix()
+            return f"sqlite:///{normalized}"
+        return database_url
 
 
 settings = Settings()

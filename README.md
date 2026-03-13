@@ -34,6 +34,12 @@
    ```
    uvicorn backend.main:app --reload --port 8010
    ```
+
+   ```
+   uvicorn backend.main:app --reload --host 0.0.0.0 --port 8010
+   pm2 start "uvicorn backend.main:app --host 0.0.0.0 --port 8010" --name storyteller
+   pm2 start "uvicorn backend.main:app --host 0.0.0.0 --port 8010 --workers 4" --name storyteller
+   ```
 4. **访问地址**：
 
    * 主界面：`http://localhost:8010`

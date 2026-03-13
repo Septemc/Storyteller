@@ -63,9 +63,24 @@ describe('useWorldbookPage', () => {
     await page.applySelection('Wxyz5678');
     page.toggleSelectedWorldApplied(true);
 
-    expect(page.appliedWorldIds.value).toEqual(expect.arrayContaining(['Wabc1234', 'Wxyz5678']));
-    expect(page.appliedWorldSummary.value).toContain('Wabc1234');
+    expect(page.appliedWorldIds.value).toEqual(['Wxyz5678']);
+    expect(page.appliedWorldSummary.value).not.toContain('Wabc1234');
     expect(page.appliedWorldSummary.value).toContain('Wxyz5678');
+  });
+
+  it('does not auto-enable a worldbook after switching away and back', async () => {
+    const page = useWorldbookPage();
+
+    await page.bootstrap();
+    page.toggleSelectedWorldApplied(false);
+
+    await page.applySelection('Wxyz5678');
+    expect(page.selectedWorldId.value).toBe('Wxyz5678');
+    expect(page.selectedWorldApplied.value).toBe(false);
+
+    await page.applySelection('Wabc1234');
+    expect(page.selectedWorldId.value).toBe('Wabc1234');
+    expect(page.selectedWorldApplied.value).toBe(false);
   });
 
   it('keeps entry enabled state in memory when category is turned off', async () => {
@@ -137,5 +152,23 @@ describe('useWorldbookPage', () => {
     );
     expect(page.selectedWorldId.value).toBe('Wnew1234');
     expect(page.metaMap.value.Wnew1234.name).toBe('旧设定集');
+  });
+  it('migrates legacy localStorage world names into the new meta map', async () => {
+    localStorage.setItem(
+      'st_worldbooks_data',
+      JSON.stringify([
+        { id: 'Wabc1234', name: '旧世界书名称', description: '旧描述' },
+        { id: 'Wxyz5678', name: '第二本世界书', description: '' },
+      ]),
+    );
+
+    const page = useWorldbookPage();
+    await page.bootstrap();
+
+    expect(page.metaMap.value.Wabc1234).toEqual({
+      name: '旧世界书名称',
+      description: '旧描述',
+    });
+    expect(page.worldOptions.value.find((item) => item.id === 'Wabc1234')?.name).toBe('旧世界书名称');
   });
 });
