@@ -11,6 +11,12 @@ vi.mock('../../services/modules/worldbook', () => ({
   deleteAllWorldbook: vi.fn(),
 }));
 
+
+vi.mock('../../services/modules/settings', () => ({
+  getGlobalSettings: vi.fn(),
+  putGlobalSettings: vi.fn(),
+}));
+
 describe('useWorldbookPage', () => {
   beforeEach(async () => {
     localStorage.clear();
@@ -18,6 +24,9 @@ describe('useWorldbookPage', () => {
     vi.clearAllMocks();
 
     const api = await import('../../services/modules/worldbook');
+    const settingsApi = await import('../../services/modules/settings');
+    settingsApi.getGlobalSettings.mockResolvedValue({ worldbook: {} });
+    settingsApi.putGlobalSettings.mockResolvedValue({ success: true });
     api.listWorldbook.mockResolvedValue({
       items: [
         { worldbook_id: 'Wabc1234', entry_id: 'e1', category: '地理', title: '王城', content: '中心城市', tags: ['城池'], enabled: true, disable: false },

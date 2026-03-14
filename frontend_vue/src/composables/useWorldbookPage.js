@@ -1,5 +1,6 @@
-import { computed, ref } from 'vue';
+﻿import { computed, ref } from 'vue';
 import * as worldbookApi from '../services/modules/worldbook';
+import * as settingsApi from '../services/modules/settings';
 
 const META_STORAGE_KEY = 'storyteller_worldbook_meta_v2';
 const APPLIED_WORLD_IDS_STORAGE_KEY = 'storyteller_applied_world_ids_v1';
@@ -70,6 +71,16 @@ function readCategorySwitchMap() {
 
 function writeCategorySwitchMap(map) {
   writeJson(CATEGORY_SWITCH_STORAGE_KEY, map);
+}
+
+function normalizeServerWorldbookSettings(response) {
+  const worldbook = response && typeof response.worldbook === 'object' ? response.worldbook : {};
+  return {
+    activeWorldbookId: String(worldbook.active_worldbook_id || '').trim(),
+    categorySwitches: worldbook.category_switches && typeof worldbook.category_switches === 'object'
+      ? worldbook.category_switches
+      : {},
+  };
 }
 
 function normalizeAppliedWorldIds(ids, validWorldIds = []) {
@@ -363,6 +374,7 @@ function confirmAction(message) {
 
 export function useWorldbookPage() {
   const worlds = ref([]);
+  const loadingWorlds = ref(false);
   const selectedWorldId = ref('');
   const appliedWorldIds = ref(readAppliedWorldIds());
   const categorySwitchMap = ref(readCategorySwitchMap());
@@ -386,6 +398,7 @@ export function useWorldbookPage() {
   const statusText = ref('');
   const metaMap = ref(readMetaMap());
   const expandedCategoryKeys = ref({});
+  let loadWorldsRequestId = 0;
 
   const selectedWorld = computed(() => worlds.value.find((item) => item.id === selectedWorldId.value) || null);
   const selectedWorldApplied = computed(() => appliedWorldIds.value.includes(selectedWorldId.value));
@@ -512,17 +525,32 @@ export function useWorldbookPage() {
     metaText.value = '{}';
   }
 
+  async function persistWorldbookStateToServer() {
+    const currentSettings = await settingsApi.getGlobalSettings().catch(() => ({}));
+    const nextSettings = {
+      ...(currentSettings || {}),
+      worldbook: {
+        ...((currentSettings && currentSettings.worldbook) || {}),
+        active_worldbook_id: appliedWorldIds.value[0] || '',
+        category_switches: { ...categorySwitchMap.value },
+      },
+    };
+    await settingsApi.putGlobalSettings(nextSettings);
+  }
+
   function persistAppliedWorldIds() {
     writeAppliedWorldIds(appliedWorldIds.value);
+    return persistWorldbookStateToServer();
   }
 
   function persistCategorySwitchMap() {
     writeCategorySwitchMap(categorySwitchMap.value);
+    return persistWorldbookStateToServer();
   }
 
   function setWorldApplied(worldId, enabled) {
     appliedWorldIds.value = enabled && worldId ? [worldId] : [];
-    persistAppliedWorldIds();
+    void persistAppliedWorldIds();
     statusText.value = enabled ? `已启用世界书 ${metaMap.value[worldId]?.name || worldId}` : `已停用世界书 ${metaMap.value[worldId]?.name || worldId}`;
   }
 
@@ -537,7 +565,7 @@ export function useWorldbookPage() {
       ...categorySwitchMap.value,
       [`${selectedWorldId.value}::${categoryName}`]: enabled,
     };
-    persistCategorySwitchMap();
+    void persistCategorySwitchMap();
     statusText.value = enabled ? `已启用模块 ${categoryName}` : `已停用模块 ${categoryName}`;
   }
 
@@ -610,43 +638,60 @@ export function useWorldbookPage() {
   }
 
   async function loadWorlds(keyword = searchKeyword.value.trim()) {
-    if (useSemanticSearch.value && keyword) {
-      const result = await worldbookApi.semanticSearchWorldbook({
-        query: keyword,
-        top_k: 100,
-        use_hybrid: true,
-      });
-      worlds.value = groupEntries(result.results || []);
-    } else {
-      let page = 1;
-      let totalPages = 1;
-      const collected = [];
+    const requestId = ++loadWorldsRequestId;
+    loadingWorlds.value = true;
 
-      do {
-        const result = await worldbookApi.listWorldbook({
-          page,
-          page_size: 100,
-          keyword,
+    try {
+      let nextWorlds = [];
+
+      if (useSemanticSearch.value && keyword) {
+        const result = await worldbookApi.semanticSearchWorldbook({
+          query: keyword,
+          top_k: 100,
+          use_hybrid: true,
         });
-        collected.push(...(result.items || []));
-        totalPages = Number(result.total_pages || 1);
-        page += 1;
-      } while (page <= totalPages);
+        nextWorlds = groupEntries(result.results || []);
+      } else {
+        let page = 1;
+        let totalPages = 1;
+        const collected = [];
 
-      worlds.value = groupEntries(collected);
-    }
+        do {
+          const result = await worldbookApi.listWorldbook({
+            page,
+            page_size: 1000,
+            keyword,
+          });
+          collected.push(...(result.items || []));
+          totalPages = Number(result.total_pages || 1);
+          page += 1;
+        } while (page <= totalPages);
 
-    const validWorldIds = worlds.value.map((item) => item.id);
-    appliedWorldIds.value = normalizeAppliedWorldIds(appliedWorldIds.value, validWorldIds);
-    persistAppliedWorldIds();
+        nextWorlds = groupEntries(collected);
+      }
 
-    if (!selectedWorldId.value && worlds.value[0]) {
-      selectedWorldId.value = worlds.value[0].id;
-    }
-    if (selectedWorldId.value && !worlds.value.find((item) => item.id === selectedWorldId.value)) {
-      selectedWorldId.value = worlds.value[0]?.id || '';
-      selectedCategory.value = '';
-      selectedEntryId.value = '';
+      if (requestId !== loadWorldsRequestId) {
+        return;
+      }
+
+      worlds.value = nextWorlds;
+
+      const validWorldIds = worlds.value.map((item) => item.id);
+      appliedWorldIds.value = normalizeAppliedWorldIds(appliedWorldIds.value, validWorldIds);
+      void persistAppliedWorldIds();
+
+      if (!selectedWorldId.value && worlds.value[0]) {
+        selectedWorldId.value = worlds.value[0].id;
+      }
+      if (selectedWorldId.value && !worlds.value.find((item) => item.id === selectedWorldId.value)) {
+        selectedWorldId.value = worlds.value[0]?.id || '';
+        selectedCategory.value = '';
+        selectedEntryId.value = '';
+      }
+    } finally {
+      if (requestId === loadWorldsRequestId) {
+        loadingWorlds.value = false;
+      }
     }
   }
 
@@ -819,7 +864,7 @@ export function useWorldbookPage() {
     writeMetaMap(metaMap.value);
 
     appliedWorldIds.value = appliedWorldIds.value.filter((id) => id !== deletingWorldId);
-    persistAppliedWorldIds();
+    void persistAppliedWorldIds();
 
     selectedWorldId.value = '';
     selectedCategory.value = '';
@@ -929,8 +974,20 @@ export function useWorldbookPage() {
   }
 
   async function bootstrap() {
+    const settingsResponse = await settingsApi.getGlobalSettings().catch(() => ({}));
+    const serverState = normalizeServerWorldbookSettings(settingsResponse);
+    if (serverState.activeWorldbookId) {
+      appliedWorldIds.value = [serverState.activeWorldbookId];
+    }
+    categorySwitchMap.value = {
+      ...categorySwitchMap.value,
+      ...serverState.categorySwitches,
+    };
+
     await loadWorlds();
-    if (!selectedWorldId.value && worlds.value[0]) {
+    if (appliedWorldIds.value[0] && worlds.value.find((item) => item.id === appliedWorldIds.value[0])) {
+      selectedWorldId.value = appliedWorldIds.value[0];
+    } else if (!selectedWorldId.value && worlds.value[0]) {
       selectedWorldId.value = worlds.value[0].id;
     }
     if (selectedWorldId.value) {
@@ -953,6 +1010,7 @@ export function useWorldbookPage() {
     exportCurrentSelection,
     exportCurrentWorld,
     importFiles,
+    loadingWorlds,
     loadWorlds,
     metaMap,
     metaText,
@@ -982,3 +1040,7 @@ export function useWorldbookPage() {
     applySelection,
   };
 }
+
+
+
+

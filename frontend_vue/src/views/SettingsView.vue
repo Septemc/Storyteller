@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="settings-container">
     <aside class="settings-sidebar">
       <button v-for="tab in tabs" :key="tab.id" :class="['settings-tab-btn', { active: activeTab === tab.id }]" @click="activeTab = tab.id">
@@ -14,9 +14,9 @@
       </div>
 
       <div v-show="activeTab === 'tab-ui'" id="tab-ui" class="tab-pane active">
-        <h2 class="section-title">主题风格</h2>
+        <h2 class="section-title">涓婚椋庢牸</h2>
         <div class="settings-section">
-          <label class="form-label">背景主题</label>
+          <label class="form-label">鑳屾櫙涓婚</label>
           <div class="theme-card-grid">
             <button
               v-for="theme in themeOptions"
@@ -39,7 +39,7 @@
           </div>
         </div>
         <div class="settings-section">
-          <label class="form-label">背景纹理</label>
+          <label class="form-label">鑳屾櫙绾圭悊</label>
           <div class="theme-card-grid texture-grid">
             <button
               v-for="background in backgroundOptions"
@@ -55,7 +55,7 @@
           </div>
         </div>
         <div class="settings-section">
-          <label class="form-label">后处理正则规则 (JSON)</label>
+          <label class="form-label">鍚庡鐞嗘鍒欒鍒?(JSON)</label>
           <textarea v-model="globalSettings.text.postprocessing_rules" id="postprocessing-rules" class="form-textarea" rows="6"></textarea>
         </div>
       </div>
@@ -63,14 +63,14 @@
       <div v-show="activeTab === 'tab-memory'" id="tab-memory" class="tab-pane active">
         <h2 class="section-title">摘要与记忆</h2>
         <div class="settings-section">
-          <label class="form-check"><input v-model="globalSettings.summary.enabled" id="summary-enabled" type="checkbox"><span>启用自动剧情摘要</span></label>
+          <label class="form-check"><input v-model="globalSettings.summary.enabled" id="summary-enabled" type="checkbox"><span>鍚敤鑷姩鍓ф儏鎽樿</span></label>
         </div>
         <div class="half-grid">
-          <div class="settings-section"><label class="form-label">摘要 Profile ID</label><input v-model="globalSettings.summary.profile_id" id="summary-profile-id" class="form-input"></div>
-          <div class="settings-section"><label class="form-label">触发频率</label><input v-model.number="globalSettings.summary.frequency" id="summary-frequency" class="form-input" type="number"></div>
+          <div class="settings-section"><label class="form-label">鎽樿 Profile ID</label><input v-model="globalSettings.summary.profile_id" id="summary-profile-id" class="form-input"></div>
+          <div class="settings-section"><label class="form-label">瑙﹀彂棰戠巼</label><input v-model.number="globalSettings.summary.frequency" id="summary-frequency" class="form-input" type="number"></div>
         </div>
         <div class="settings-section">
-          <label class="form-label">历史记忆检索策略 (JSON)</label>
+          <label class="form-label">鍘嗗彶璁板繂妫€绱㈢瓥鐣?(JSON)</label>
           <textarea :value="jsonText(globalSettings.summary.rag_config)" id="summary-rag-config" class="form-textarea" rows="8" @input="assignJson(globalSettings.summary, 'rag_config', $event.target.value)"></textarea>
         </div>
       </div>
@@ -78,24 +78,24 @@
       <div v-show="activeTab === 'tab-variables'" id="tab-variables" class="tab-pane active">
         <h2 class="section-title">变量思考</h2>
         <div class="settings-section">
-          <label class="form-check"><input v-model="globalSettings.variables.enabled" id="variables-enabled" type="checkbox"><span>启用变量追踪</span></label>
+          <label class="form-check"><input v-model="globalSettings.variables.enabled" id="variables-enabled" type="checkbox"><span>鍚敤鍙橀噺杩借釜</span></label>
         </div>
         <div class="half-grid">
-          <div class="settings-section"><label class="form-label">变量思考 Profile ID</label><input v-model="globalSettings.variables.profile_id" id="variables-profile-id" class="form-input"></div>
-          <div class="settings-section"><label class="form-label">独立 API Config ID</label><input v-model="globalSettings.variables.api_config_id" id="variables-api-config-id" class="form-input"></div>
+          <div class="settings-section"><label class="form-label">鍙橀噺鎬濊€?Profile ID</label><input v-model="globalSettings.variables.profile_id" id="variables-profile-id" class="form-input"></div>
+          <div class="settings-section"><label class="form-label">鐙珛 API Config ID</label><input v-model="globalSettings.variables.api_config_id" id="variables-api-config-id" class="form-input"></div>
         </div>
       </div>
 
       <div v-show="activeTab === 'tab-evolution'" id="tab-evolution" class="tab-pane active">
         <h2 class="section-title">正文与演化</h2>
         <div class="settings-section">
-          <label class="form-check"><input v-model="globalSettings.text_opt.enabled" id="textopt-enabled" type="checkbox"><span>启用文笔润色</span></label>
-          <label class="form-label">润色 Profile ID</label>
+          <label class="form-check"><input v-model="globalSettings.text_opt.enabled" id="textopt-enabled" type="checkbox"><span>鍚敤鏂囩瑪娑﹁壊</span></label>
+          <label class="form-label">娑﹁壊 Profile ID</label>
           <input v-model="globalSettings.text_opt.profile_id" id="textopt-profile-id" class="form-input">
         </div>
         <div class="settings-section">
           <label class="form-check"><input v-model="globalSettings.world_evolution.enabled" id="world-evolution-enabled" type="checkbox"><span>启用世界动态演化</span></label>
-          <label class="form-label">演化逻辑 Profile ID</label>
+          <label class="form-label">婕斿寲閫昏緫 Profile ID</label>
           <input v-model="globalSettings.world_evolution.profile_id" id="world-evolution-profile-id" class="form-input">
         </div>
         <div class="settings-section">
@@ -105,24 +105,24 @@
       </div>
 
       <div v-show="activeTab === 'tab-presets'" id="tab-presets" class="tab-pane active">
-        <h2 class="section-title">预设管理</h2>
+        <h2 class="section-title">棰勮绠＄悊</h2>
         <div class="half-grid">
           <div class="settings-section">
-            <label class="form-label">预设文件</label>
+            <label class="form-label">棰勮鏂囦欢</label>
             <select v-model="selectedPresetId" id="preset-select" class="form-select" @change="selectPreset(selectedPresetId)">
               <option v-for="preset in presets" :key="preset.id" :value="preset.id">{{ preset.name }}</option>
             </select>
-            <div class="small-text muted" style="margin-top: 8px;">当前应用：{{ presetActiveId || '-' }}</div>
+            <div class="small-text muted" style="margin-top: 8px;">褰撳墠搴旂敤锛歿{ presetActiveId || '-' }}</div>
             <div class="toolbar-actions" style="display: flex; gap: 8px; margin-top: 10px;">
-              <button id="preset-create-btn" class="btn-secondary btn-small" @click="createPreset">新建</button>
-              <button id="preset-set-active-btn" class="btn-primary btn-small" @click="activatePreset">应用</button>
-              <button id="preset-delete-btn" class="btn-secondary btn-small" style="color: var(--danger);" @click="deletePreset">删除</button>
+              <button id="preset-create-btn" class="btn-secondary btn-small" @click="createPreset">鏂板缓</button>
+              <button id="preset-set-active-btn" class="btn-primary btn-small" @click="activatePreset">搴旂敤</button>
+              <button id="preset-delete-btn" class="btn-secondary btn-small" style="color: var(--danger);" @click="deletePreset">鍒犻櫎</button>
             </div>
           </div>
           <div class="settings-section">
-            <label class="form-label">预设名称</label>
+            <label class="form-label">棰勮名称</label>
             <input v-model="presetDraft.name" class="form-input">
-            <label class="form-label" style="margin-top: 12px;">版本</label>
+            <label class="form-label" style="margin-top: 12px;">鐗堟湰</label>
             <input v-model.number="presetDraft.version" class="form-input" type="number">
           </div>
         </div>
@@ -137,27 +137,27 @@
       </div>
 
       <div v-show="activeTab === 'tab-regex'" id="tab-regex" class="tab-pane active">
-        <h2 class="section-title">正则管理</h2>
+        <h2 class="section-title">姝ｅ垯绠＄悊</h2>
         <div class="half-grid">
           <div class="settings-section">
-            <label class="form-label">配置文件</label>
+            <label class="form-label">閰嶇疆鏂囦欢</label>
             <select v-model="selectedRegexId" class="form-select" @change="selectRegex(selectedRegexId)">
               <option v-for="profile in regexProfiles" :key="profile.id" :value="profile.id">{{ profile.name }}</option>
             </select>
-            <div class="small-text muted" style="margin-top: 8px;">当前应用：{{ activeRegexId || '-' }}</div>
+            <div class="small-text muted" style="margin-top: 8px;">褰撳墠搴旂敤锛歿{ activeRegexId || '-' }}</div>
             <div class="toolbar-actions" style="display: flex; gap: 8px; margin-top: 10px;">
-              <button class="btn-secondary btn-small" @click="createRegex">新建</button>
-              <button class="btn-primary btn-small" @click="activateRegex">应用</button>
-              <button class="btn-secondary btn-small" style="color: var(--danger);" @click="deleteRegex">删除</button>
+              <button class="btn-secondary btn-small" @click="createRegex">鏂板缓</button>
+              <button class="btn-primary btn-small" @click="activateRegex">搴旂敤</button>
+              <button class="btn-secondary btn-small" style="color: var(--danger);" @click="deleteRegex">鍒犻櫎</button>
             </div>
           </div>
           <div class="settings-section">
-            <label class="form-label">配置名称</label>
+            <label class="form-label">閰嶇疆名称</label>
             <input v-model="regexDraft.name" class="form-input">
           </div>
         </div>
         <div class="settings-section">
-          <label class="form-label">配置 JSON</label>
+          <label class="form-label">閰嶇疆 JSON</label>
           <textarea v-model="regexDraft.configText" class="form-textarea" rows="18"></textarea>
         </div>
       </div>
@@ -271,7 +271,7 @@ watch(
 );
 
 onMounted(async () => {
-  document.title = 'Storyteller | 设置';
+  document.title = 'Storyteller | 璁剧疆';
   document.body.setAttribute('data-page', 'settings');
   initThemePage();
   await bootstrap();
@@ -352,3 +352,6 @@ onMounted(async () => {
   background-size: 22px 22px, 22px 22px, cover;
 }
 </style>
+
+
+

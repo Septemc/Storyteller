@@ -12,13 +12,22 @@ app.use(pinia);
 app.use(router);
 
 const authStore = useAuthStore();
-authStore.bootstrap();
+try {
+  authStore.bootstrap();
+} catch (error) {
+  console.error('[bootstrap] auth bootstrap failed', error);
+}
 
 async function bootstrapApp() {
-  if (authStore.token) {
-    await authStore.fetchMe();
+  try {
+    if (authStore.token) {
+      await authStore.fetchMe();
+    }
+  } catch (error) {
+    console.error('[bootstrap] app prefetch failed', error);
+  } finally {
+    app.mount('#app');
   }
-  app.mount('#app');
 }
 
 bootstrapApp();

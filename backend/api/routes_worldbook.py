@@ -343,7 +343,7 @@ def import_worldbook(
 @router.get("/worldbook/list", response_model=WorldbookListResponse)
 def list_worldbook(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=500),
+    page_size: int = Query(20, ge=1, le=2000),
     keyword: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     worldbook_id: Optional[str] = Query(None),

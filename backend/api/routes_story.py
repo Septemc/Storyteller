@@ -301,12 +301,19 @@ def update_session_context(
     """更新会话上下文并返回会话摘要。"""
     user_id = current_user_id(current_user)
 
-    session_query = owner_only(
-        db.query(models.SessionState).filter(models.SessionState.session_id == req.session_id),
-        models.SessionState,
-        user_id,
-    )
-    session_state = session_query.first()
+    existing = db.query(models.SessionState).filter(models.SessionState.session_id == req.session_id).first()
+    if existing:
+        existing_owner = getattr(existing, "user_id", None)
+        if existing_owner is None and user_id is not None:
+            existing.user_id = user_id
+            session_state = existing
+        elif existing_owner == user_id or (existing_owner is None and user_id is None):
+            session_state = existing
+        else:
+            raise HTTPException(status_code=409, detail="session_id already belongs to another user")
+    else:
+        session_state = None
+
     if not session_state:
         session_state = models.SessionState(
             session_id=req.session_id,

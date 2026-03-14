@@ -13,9 +13,13 @@ export const useSessionStore = defineStore('session', {
   }),
   actions: {
     bootstrap() {
-      const cached = localStorage.getItem(STORAGE_KEYS.sessionId);
-      this.currentSessionId = cached || createSessionId();
-      localStorage.setItem(STORAGE_KEYS.sessionId, this.currentSessionId);
+      try {
+        const cached = localStorage.getItem(STORAGE_KEYS.sessionId);
+        this.currentSessionId = cached || createSessionId();
+        localStorage.setItem(STORAGE_KEYS.sessionId, this.currentSessionId);
+      } catch {
+        this.currentSessionId = createSessionId();
+      }
     },
     setSessionId(sessionId) {
       this.currentSessionId = sessionId;

@@ -1,4 +1,15 @@
 import { request, toQuery } from '../http';
+import { STORAGE_KEYS } from '../../constants/storage';
+
+function sanitizeStoryErrorMessage(message) {
+  const raw = String(message || '').trim();
+  if (!raw) return '??????????';
+  const lowered = raw.toLowerCase();
+  if (lowered.includes('<!doctype html') || lowered.includes('<html') || lowered.includes('cloudflare') || lowered.includes('error code 520')) {
+    return '????????????HTTP 520???????????????';
+  }
+  return raw.replace(/\s+/g, ' ').slice(0, 220);
+}
 
 export function generate(payload) {
   return request('/api/story/generate', {
@@ -8,14 +19,20 @@ export function generate(payload) {
 }
 
 export async function generateStream(payload, handlers = {}) {
+  const token = localStorage.getItem(STORAGE_KEYS.token);
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const resp = await fetch('/api/story/generate_stream', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(payload),
   });
 
   if (!resp.ok) {
-    throw new Error(await resp.text());
+    throw new Error(sanitizeStoryErrorMessage(await resp.text()));
   }
 
   const reader = resp.body.getReader();
@@ -34,6 +51,12 @@ export async function generateStream(payload, handlers = {}) {
       const dataRaw = chunk.match(/^data:\s*([\s\S]+)$/m)?.[1];
       if (!event || !dataRaw) continue;
       const data = JSON.parse(dataRaw);
+      if (event === 'error' && data && typeof data.message === 'string') {
+        data.message = sanitizeStoryErrorMessage(data.message);
+      }
+      if (event === 'empty' && data && typeof data.message === 'string') {
+        data.message = sanitizeStoryErrorMessage(data.message);
+      }
       handlers.onEvent?.(event, data);
     }
     buffer = packets[packets.length - 1];

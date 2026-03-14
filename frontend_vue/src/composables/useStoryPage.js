@@ -299,7 +299,10 @@ export function useStoryPage() {
               backendDuration.value = Number((data?.duration_ms || 0) / 1000);
             }
             if (event === 'error') {
-              throw new Error(data?.message || 'story generate failed');
+              throw new Error(data?.message || '??????????');
+            }
+            if (event === 'empty') {
+              throw new Error(data?.message || '???????????????????');
             }
           },
         },

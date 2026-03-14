@@ -1,1 +1,1 @@
-SELECT * FROM presets;
+SELECT * FROM worldbook;

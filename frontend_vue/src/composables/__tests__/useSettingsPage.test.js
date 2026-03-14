@@ -60,8 +60,11 @@ describe('useSettingsPage', () => {
       config: {},
     });
     settingsApi.listLlmConfigs.mockResolvedValue({
-      configs: [{ id: 'llm_1', name: '测试配置', base_url: '', api_key: '', stream: true, default_model: 'gpt-test' }],
+      configs: [{ id: 'llm_1', name: '测试配置', base_url: 'https://api.example.com', api_key: 'sk-old', stream: true, default_model: 'gpt-test' }],
       active: { config_id: 'llm_1', model: 'gpt-test' },
+    });
+    settingsApi.createLlmConfig.mockResolvedValue({
+      id: 'llm_new', name: '未命名配置', base_url: 'https://api.example.com', api_key: 'sk-test', stream: true, default_model: 'gpt-test',
     });
   });
 
@@ -94,6 +97,8 @@ describe('useSettingsPage', () => {
 
     page.activeTab.value = 'tab-api';
     page.llmDraft.name = '已修改配置';
+    page.llmDraft.base_url = 'https://api.example.com';
+    page.llmDraft.api_key = 'sk-new';
     await page.saveCurrentTab();
     expect(settingsApi.updateLlmConfig).toHaveBeenCalledWith(
       'llm_1',
@@ -122,5 +127,28 @@ describe('useSettingsPage', () => {
     expect(localStorage.getItem('app_bg')).toBe('blueprint');
     expect(document.documentElement.getAttribute('data-theme')).toBe('snow');
     expect(document.body.className).toContain('bg-blueprint');
+  });
+
+  it('creates api config on save when nothing is selected', async () => {
+    const settingsApi = await import('../../services/modules/settings');
+    settingsApi.listLlmConfigs.mockResolvedValueOnce({ configs: [], active: { config_id: '', model: '' } });
+
+    const page = useSettingsPage();
+    await page.bootstrap();
+
+    page.activeTab.value = 'tab-api';
+    page.llmDraft.name = '我的配置';
+    page.llmDraft.base_url = 'https://api.example.com';
+    page.llmDraft.api_key = 'sk-test';
+    page.llmDraft.default_model = 'gpt-test';
+
+    await page.saveCurrentTab();
+
+    expect(settingsApi.createLlmConfig).toHaveBeenCalledWith(expect.objectContaining({
+      name: '我的配置',
+      base_url: 'https://api.example.com',
+      api_key: 'sk-test',
+      default_model: 'gpt-test',
+    }));
   });
 });

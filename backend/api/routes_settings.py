@@ -24,6 +24,7 @@ class GlobalSettingsPayload(BaseModel):
     text_opt: Dict[str, Any] = {}
     world_evolution: Dict[str, Any] = {}
     default_profiles: Dict[str, Any] = {}
+    worldbook: Dict[str, Any] = {}
 
 
 def _settings_key(user_id: Optional[str]) -> str:

@@ -29,6 +29,18 @@
    python -m backend.main
    ```
 
+   Windows 一键重启后端（会自动清理占用 `8010` 的旧进程再启动）：
+
+   ```powershell
+   .\scripts\restart_backend.ps1
+   ```
+
+   或直接双击：
+
+   ```
+   start_storyteller.bat
+   ```
+
    或
 
    ```

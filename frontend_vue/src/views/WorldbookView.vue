@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="two-column-layout worldbook-page">
     <section class="left-panel worldbook-sidebar">
       <div class="panel-header">
@@ -8,6 +8,8 @@
       <div class="settings-section worldbook-toolbar-card">
         <div class="worldbook-top-row">
           <select id="world-selector" v-model="selectedWorldId" class="form-select worldbook-select" @change="applySelection($event.target.value)">
+            <option v-if="loadingWorlds" value="">正在加载世界书...</option>
+            <option v-else-if="!worldOptions.length" value="">暂无世界书</option>
             <option v-for="world in worldOptions" :key="world.id" :value="world.id">
               {{ world.name }} ({{ world.count }} 条)
             </option>
@@ -66,7 +68,7 @@
             <input id="semantic-search-toggle" v-model="useSemanticSearch" type="checkbox">
             <span>语义</span>
           </label>
-          <button id="btn-search" class="btn-secondary btn-small" @click="loadWorlds()">搜</button>
+          <button id="btn-search" class="btn-secondary btn-small" @click="loadWorlds()">搜索</button>
         </div>
 
         <div class="worldbook-action-row">
@@ -84,13 +86,15 @@
         </div>
 
         <div class="small-text muted worldbook-status-line">
-          {{ useSemanticSearch ? '当前使用语义检索结果显示模块与条目' : '当前使用关键词搜索' }}
+          {{ useSemanticSearch ? '当前使用语义搜索结果显示模块与条目' : '当前使用关键词搜索' }}
         </div>
+        <div v-if="loadingWorlds" class="small-text muted worldbook-status-line">正在从数据库加载世界书，请稍候...</div>
       </div>
 
       <div class="worldbook-tree-shell">
         <div id="tree-root" class="worldbook-tree-container worldbook-module-list">
-          <template v-if="selectedWorldModules.length">
+          <div v-if="loadingWorlds" class="placeholder-text worldbook-empty-state">正在加载世界书内容...</div>
+          <template v-else-if="selectedWorldModules.length">
             <article
               v-for="module in selectedWorldModules"
               :key="module.key"
@@ -240,6 +244,7 @@ const {
   exportCurrentSelection,
   exportCurrentWorld,
   importFiles,
+  loadingWorlds,
   loadWorlds,
   metaMap,
   metaText,
@@ -637,3 +642,13 @@ onMounted(async () => {
   }
 }
 </style>
+
+
+
+
+
+
+
+
+
+

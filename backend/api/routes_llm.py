@@ -12,7 +12,7 @@ from ..db.base import get_db
 from ..db.models import DBLLMConfig
 from ..core.llm_client import LLMError, list_models
 from ..core.auth import get_current_user, User as AuthUser
-from ..core.tenant import current_user_id, owner_only
+from ..core.tenant import current_user_id, owner_only, owner_or_public
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -52,15 +52,19 @@ def get_configs(db: Session = Depends(get_db), current_user: Optional[AuthUser] 
         raise HTTPException(status_code=401, detail="需要登录才能访问LLM配置")
     
     user_id = current_user_id(current_user)
-    query = owner_only(db.query(DBLLMConfig), DBLLMConfig, user_id)
+    query = owner_or_public(db.query(DBLLMConfig), DBLLMConfig, user_id)
     rows = query.all()
+    rows = sorted(rows, key=lambda row: (getattr(row, "user_id", None) != user_id, row.name or row.id))
     
-    active_query = owner_only(
+    active_query = owner_or_public(
         db.query(DBLLMConfig).filter(DBLLMConfig.is_active == True),
         DBLLMConfig,
         user_id,
     )
-    active_row = active_query.first()
+    active_rows = active_query.all()
+    active_row = next((item for item in active_rows if getattr(item, "user_id", None) == user_id), None)
+    if active_row is None:
+        active_row = next((item for item in active_rows if getattr(item, "user_id", None) is None), None)
 
     configs_out = []
     for r in rows:

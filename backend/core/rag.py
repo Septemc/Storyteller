@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -18,11 +18,13 @@ class RAGRetriever:
         embedding_config: Optional[EmbeddingConfig] = None,
         user_id: Optional[str] = None,
         worldbook_id: Optional[str] = None,
+        disabled_categories: Optional[Set[str]] = None,
     ):
         self.db = db
         self.embedding_config = embedding_config or EmbeddingConfig()
         self.user_id = user_id
         self.worldbook_id = worldbook_id
+        self.disabled_categories = set(disabled_categories or set())
         self._engine: Optional[EmbeddingEngine] = None
 
     @property
@@ -43,6 +45,29 @@ class RAGRetriever:
             models.WorldbookEmbedding.user_id == entry.user_id,
             models.WorldbookEmbedding.worldbook_id == entry.worldbook_id,
         )
+
+
+    def _entry_enabled(self, entry: models.WorldbookEntry) -> bool:
+        try:
+            meta = json.loads(entry.meta_json) if entry.meta_json else {}
+        except Exception:
+            meta = {}
+        if not isinstance(meta, dict):
+            meta = {}
+        enabled = meta.get('enabled', True) is not False
+        disabled = bool(meta.get('disable') or meta.get('disabled'))
+        if not enabled or disabled:
+            return False
+        category_name = (entry.category or '').strip()
+        if category_name and category_name in self.disabled_categories:
+            return False
+        return True
+
+    def _filtered_entries(self, category_filter: Optional[str] = None) -> List[models.WorldbookEntry]:
+        query = self._entry_query()
+        if category_filter:
+            query = query.filter(models.WorldbookEntry.category == category_filter)
+        return [entry for entry in query.all() if self._entry_enabled(entry)]
 
     def _get_embedding_cache(
         self,
@@ -132,7 +157,7 @@ class RAGRetriever:
         if self.embedding_config.provider != "tfidf":
             return
 
-        entries = self._entry_query().all()
+        entries = self._filtered_entries()
         if not entries:
             return
 
@@ -146,7 +171,7 @@ class RAGRetriever:
         limit: int = 100,
     ) -> int:
         entries: List[models.WorldbookEntry] = []
-        for entry in self._entry_query().all():
+        for entry in self._filtered_entries():
             if self._embedding_query(entry).first() is None:
                 entries.append(entry)
             if len(entries) >= limit:
@@ -186,11 +211,7 @@ class RAGRetriever:
         min_similarity: float = 0.0,
         category_filter: Optional[str] = None,
     ) -> List[Tuple[models.WorldbookEntry, float]]:
-        candidate_query = self._entry_query()
-        if category_filter:
-            candidate_query = candidate_query.filter(models.WorldbookEntry.category == category_filter)
-
-        candidates = candidate_query.all()
+        candidates = self._filtered_entries(category_filter=category_filter)
         if not candidates:
             return []
 
@@ -306,18 +327,19 @@ def create_retriever(
     db: Session,
     user_id: Optional[str] = None,
     worldbook_id: Optional[str] = None,
+    disabled_categories: Optional[Set[str]] = None,
 ) -> RAGRetriever:
     try:
         config = EmbeddingConfig(
             provider="sentence_transformers",
             model="paraphrase-multilingual-MiniLM-L12-v2",
         )
-        retriever = RAGRetriever(db, config, user_id=user_id, worldbook_id=worldbook_id)
+        retriever = RAGRetriever(db, config, user_id=user_id, worldbook_id=worldbook_id, disabled_categories=disabled_categories)
         _ = retriever.engine
         return retriever
     except Exception:
         fallback = EmbeddingConfig(provider="tfidf")
-        return RAGRetriever(db, fallback, user_id=user_id, worldbook_id=worldbook_id)
+        return RAGRetriever(db, fallback, user_id=user_id, worldbook_id=worldbook_id, disabled_categories=disabled_categories)
 
 
 def retrieve_worldbook_context(
@@ -326,6 +348,7 @@ def retrieve_worldbook_context(
     top_k: int = 8,
     user_id: Optional[str] = None,
     worldbook_id: Optional[str] = None,
+    disabled_categories: Optional[Set[str]] = None,
 ) -> List[Dict[str, Any]]:
-    retriever = create_retriever(db, user_id=user_id, worldbook_id=worldbook_id)
+    retriever = create_retriever(db, user_id=user_id, worldbook_id=worldbook_id, disabled_categories=disabled_categories)
     return retriever.retrieve_for_story(query, top_k=top_k)

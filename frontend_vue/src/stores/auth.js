@@ -14,10 +14,17 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     bootstrap() {
-      const token = localStorage.getItem(STORAGE_KEYS.token) || '';
-      const userRaw = localStorage.getItem(STORAGE_KEYS.user);
-      this.token = token;
-      this.user = userRaw ? JSON.parse(userRaw) : null;
+      try {
+        const token = localStorage.getItem(STORAGE_KEYS.token) || '';
+        const userRaw = localStorage.getItem(STORAGE_KEYS.user);
+        this.token = token;
+        this.user = userRaw ? JSON.parse(userRaw) : null;
+      } catch {
+        this.token = '';
+        this.user = null;
+        localStorage.removeItem(STORAGE_KEYS.token);
+        localStorage.removeItem(STORAGE_KEYS.user);
+      }
     },
     persist() {
       if (this.token) {

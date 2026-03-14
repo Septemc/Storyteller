@@ -11,7 +11,7 @@ import json
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 from ..db import models
-from .tenant import owner_only
+from .tenant import owner_only, owner_or_public
 
 # --- Helper ---
 
@@ -25,7 +25,8 @@ def _parse_preset_config(json_str: str) -> Dict[str, Any]:
 
 def list_llm_configs(db: Session, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """从 DBLLMConfig 表读取所有配置"""
-    rows = owner_only(db.query(models.DBLLMConfig), models.DBLLMConfig, user_id).all()
+    rows = owner_or_public(db.query(models.DBLLMConfig), models.DBLLMConfig, user_id).all()
+    rows = sorted(rows, key=lambda row: (getattr(row, "user_id", None) != user_id, row.name or row.id))
     out = []
     for r in rows:
         out.append({
@@ -41,16 +42,21 @@ def list_llm_configs(db: Session, user_id: Optional[str] = None) -> List[Dict[st
 
 def get_active_llm_config(db: Session, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """获取当前激活的 LLM 配置 (详细信息)"""
-    query = owner_only(
+    query = owner_or_public(
         db.query(models.DBLLMConfig).filter(models.DBLLMConfig.is_active == True),
         models.DBLLMConfig,
         user_id,
     )
-    row = query.first()
+    rows = query.all()
+    row = next((item for item in rows if getattr(item, "user_id", None) == user_id), None)
+    if row is None:
+        row = next((item for item in rows if getattr(item, "user_id", None) is None), None)
     
     if not row:
-        query = owner_only(db.query(models.DBLLMConfig), models.DBLLMConfig, user_id)
-        row = query.first()
+        rows = owner_or_public(db.query(models.DBLLMConfig), models.DBLLMConfig, user_id).all()
+        row = next((item for item in rows if getattr(item, "user_id", None) == user_id), None)
+        if row is None:
+            row = next((item for item in rows if getattr(item, "user_id", None) is None), None)
 
     if not row:
         return None

@@ -46,6 +46,34 @@ class LLMError(RuntimeError):
     pass
 
 
+
+def _clean_error_body(body: str, limit: int = 180) -> str:
+    text = (body or '').strip()
+    if not text:
+        return ''
+    lowered = text.lower()
+    if '<!doctype html' in lowered or '<html' in lowered:
+        title_start = lowered.find('<title>')
+        title_end = lowered.find('</title>')
+        if title_start != -1 and title_end != -1 and title_end > title_start:
+            title = text[title_start + 7:title_end].strip()
+            return title[:limit]
+        return '??????? HTML ???'
+    text = re.sub(r'\s+', ' ', text)
+    return text[:limit]
+
+
+def _summarize_http_error(status_code: int, body: str, *, stream: bool = False) -> str:
+    prefix = '????????' if stream else '??????'
+    cleaned = _clean_error_body(body)
+    lowered = (body or '').lower()
+    if status_code == 520 or 'cloudflare' in lowered:
+        return f'{prefix}: ??????????? (HTTP {status_code})????????? base_url?'
+    if cleaned:
+        return f'{prefix}: HTTP {status_code}: {cleaned}'
+    return f'{prefix}: HTTP {status_code}'
+
+
 def list_models(base_url: str, api_key: str, timeout_s: float = 20.0) -> List[str]:
     """获取可用模型列表，包含完整的异常处理"""
     try:

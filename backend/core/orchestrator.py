@@ -54,11 +54,74 @@ def _first_non_empty(data: Dict[str, Any], keys: List[str]) -> Optional[str]:
     return None
 
 
+def _settings_key(user_id: Optional[str]) -> str:
+    if user_id:
+        return f"global::{user_id}"
+    return "global::public"
+
+
+def _load_worldbook_runtime_state(db: Session, user_id: Optional[str]) -> Tuple[Optional[str], Dict[str, bool]]:
+    row = owner_only(
+        db.query(models.GlobalSetting).filter(models.GlobalSetting.key == _settings_key(user_id)),
+        models.GlobalSetting,
+        user_id,
+    ).first()
+    if not row and user_id:
+        row = owner_only(
+            db.query(models.GlobalSetting).filter(models.GlobalSetting.key == "global"),
+            models.GlobalSetting,
+            user_id,
+        ).first()
+
+    data = _safe_json_loads(row.value_json if row else None, {})
+    worldbook = data.get('worldbook') if isinstance(data, dict) else {}
+    if not isinstance(worldbook, dict):
+        worldbook = {}
+
+    active_worldbook_id = str(worldbook.get('active_worldbook_id') or '').strip() or None
+    raw_switches = worldbook.get('category_switches') if isinstance(worldbook.get('category_switches'), dict) else {}
+    category_switches: Dict[str, bool] = {}
+    for key, value in raw_switches.items():
+        normalized_key = str(key).strip()
+        if normalized_key:
+            category_switches[normalized_key] = value is not False
+    return active_worldbook_id, category_switches
+
+
+def _entry_enabled_for_story(entry: models.WorldbookEntry, category_switches: Optional[Dict[str, bool]] = None) -> bool:
+    meta = _safe_json_loads(entry.meta_json, {})
+    if not isinstance(meta, dict):
+        meta = {}
+    enabled = meta.get('enabled', True) is not False
+    disabled = bool(meta.get('disable') or meta.get('disabled'))
+    if not enabled or disabled:
+        return False
+    if category_switches:
+        category_key = f"{entry.worldbook_id}::{(entry.category or '').strip()}"
+        if category_switches.get(category_key, True) is False:
+            return False
+    return True
+
+
 def _get_or_create_session_state(
     db: Session,
     session_id: str,
     user_id: Optional[str] = None,
 ) -> models.SessionState:
+    existing = db.query(models.SessionState).filter(models.SessionState.session_id == session_id).first()
+    if existing:
+        existing_owner = getattr(existing, "user_id", None)
+        if existing_owner == user_id:
+            return existing
+        if existing_owner is None and user_id is not None:
+            existing.user_id = user_id
+            db.commit()
+            db.refresh(existing)
+            return existing
+        if user_id is None and existing_owner is None:
+            return existing
+        raise ValueError(f"session_id '{session_id}' already belongs to another user")
+
     query = owner_only(
         db.query(models.SessionState).filter(models.SessionState.session_id == session_id),
         models.SessionState,
@@ -209,12 +272,24 @@ def _worldbook_snippets(
     user_id: Optional[str],
     context_text: Optional[str] = None,
     limit: int = 8,
+    active_worldbook_id: Optional[str] = None,
+    category_switches: Optional[Dict[str, bool]] = None,
 ) -> List[Dict[str, Any]]:
     if context_text:
         try:
             from .rag import create_retriever
 
-            retriever = create_retriever(db, user_id=user_id)
+            disabled_categories = {
+                key.split("::", 1)[1]
+                for key, enabled in (category_switches or {}).items()
+                if active_worldbook_id and key.startswith(f"{active_worldbook_id}::") and enabled is False and "::" in key
+            }
+            retriever = create_retriever(
+                db,
+                user_id=user_id,
+                worldbook_id=active_worldbook_id,
+                disabled_categories=disabled_categories,
+            )
             results = retriever.retrieve_for_story(context_text, top_k=limit, use_hybrid=True)
             filtered = []
             for result in results:
@@ -225,18 +300,23 @@ def _worldbook_snippets(
                 entry_query = db.query(models.WorldbookEntry).filter(models.WorldbookEntry.entry_id == entry_id)
                 if worldbook_id:
                     entry_query = entry_query.filter(models.WorldbookEntry.worldbook_id == worldbook_id)
+                if active_worldbook_id:
+                    entry_query = entry_query.filter(models.WorldbookEntry.worldbook_id == active_worldbook_id)
                 entry = owner_or_public(entry_query, models.WorldbookEntry, user_id).first()
-                if entry:
+                if entry and _entry_enabled_for_story(entry, category_switches):
                     filtered.append(result)
             if filtered:
                 return filtered
         except Exception:
             pass
 
-    rows = owner_or_public(db.query(models.WorldbookEntry), models.WorldbookEntry, user_id).order_by(
+    rows_query = owner_or_public(db.query(models.WorldbookEntry), models.WorldbookEntry, user_id)
+    if active_worldbook_id:
+        rows_query = rows_query.filter(models.WorldbookEntry.worldbook_id == active_worldbook_id)
+    rows = rows_query.order_by(
         models.WorldbookEntry.importance.desc(),
         models.WorldbookEntry.updated_at.desc(),
-    ).limit(limit).all()
+    ).limit(limit * 3).all()
 
     return [
         {
@@ -247,7 +327,8 @@ def _worldbook_snippets(
             "content": (row.content or "")[:800],
         }
         for row in rows
-    ]
+        if _entry_enabled_for_story(row, category_switches)
+    ][:limit]
 
 
 def _dungeon_context(
@@ -461,6 +542,7 @@ def generate_story_text(
     runtime = build_session_runtime_context(db, session_id, user_id=user_id)
     recent_history = _recent_story(db, session_id, user_id=user_id, limit=4)
     rag_context = " ".join([item[-500:] for item in recent_history]) + f" {user_input}"
+    active_worldbook_id, category_switches = _load_worldbook_runtime_state(db, user_id)
 
     context: Dict[str, Any] = {
         "main_character": runtime.get("main_character"),
@@ -471,7 +553,7 @@ def generate_story_text(
             context_text=user_input,
             exclude_character_id=(runtime.get("main_character") or {}).get("character_id"),
         ),
-        "worldbook": _worldbook_snippets(db, user_id=user_id, context_text=rag_context, limit=6),
+        "worldbook": _worldbook_snippets(db, user_id=user_id, context_text=rag_context, limit=6, active_worldbook_id=active_worldbook_id, category_switches=category_switches),
         "dungeon": runtime.get("dungeon"),
     }
 
