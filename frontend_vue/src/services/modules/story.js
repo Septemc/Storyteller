@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from '../../constants/storage';
 import { request, toQuery } from '../http';
 
 export function generate(payload) {
@@ -8,9 +9,13 @@ export function generate(payload) {
 }
 
 export async function generateStream(payload, handlers = {}) {
+  const token = localStorage.getItem(STORAGE_KEYS.token);
   const resp = await fetch('/api/story/generate_stream', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(payload),
   });
 

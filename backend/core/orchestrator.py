@@ -11,6 +11,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from ..db import models
+from .session_state import ensure_session_state
 from . import prompts, storage
 from .llm_client import LLMError, chat_completion
 from .tenant import owner_only, owner_or_public
@@ -59,26 +60,7 @@ def _get_or_create_session_state(
     session_id: str,
     user_id: Optional[str] = None,
 ) -> models.SessionState:
-    query = owner_only(
-        db.query(models.SessionState).filter(models.SessionState.session_id == session_id),
-        models.SessionState,
-        user_id,
-    )
-    state = query.first()
-    if state:
-        return state
-
-    state = models.SessionState(
-        session_id=session_id,
-        current_dungeon_id=None,
-        current_node_id=None,
-        total_word_count=0,
-        user_id=user_id,
-    )
-    db.add(state)
-    db.commit()
-    db.refresh(state)
-    return state
+    return ensure_session_state(db, session_id, user_id=user_id)
 
 
 def _character_profile_from_row(row: models.Character) -> Dict[str, Any]:
