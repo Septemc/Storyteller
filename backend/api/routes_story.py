@@ -13,6 +13,11 @@ from ..db.base import get_db
 from ..db import models
 from ..core import orchestrator
 from ..core.auth import get_current_user_sync, User as AuthUser
+from ..core.session_state import (
+    SessionStateConflictError,
+    build_unique_session_id,
+    ensure_session_state,
+)
 from ..core.tenant import current_user_id, owner_only
 
 router = APIRouter()
@@ -150,19 +155,7 @@ def _to_character_summary(ch: models.Character) -> SessionSummaryCharacter:
 
 
 def _ensure_session_state(db: Session, session_id: str, user_id: Optional[str] = None) -> models.SessionState:
-    st = owner_only(
-        db.query(models.SessionState).filter(models.SessionState.session_id == session_id),
-        models.SessionState,
-        user_id,
-    ).first()
-    if st:
-        return st
-
-    st = models.SessionState(session_id=session_id, total_word_count=0, user_id=user_id)
-    db.add(st)
-    db.commit()
-    db.refresh(st)
-    return st
+    return ensure_session_state(db, session_id, user_id=user_id)
 
 
 @router.post("/story/generate", response_model=StoryGenerateResponse)
@@ -170,13 +163,19 @@ def generate_story(req: StoryGenerateRequest, db: Session = Depends(get_db), cur
     """非流式生成（兼容原前端）。"""
     user_id = current_user_id(current_user)
     
-    story_text, meta_obj, gen, dev_log_info = orchestrator.generate_story_text(
-        db=db,
-        session_id=req.session_id,
-        user_input=req.user_input,
-        force_stream=False,
-        user_id=user_id,
-    )
+    try:
+        story_text, meta_obj, gen, dev_log_info = orchestrator.generate_story_text(
+            db=db,
+            session_id=req.session_id,
+            user_input=req.user_input,
+            force_stream=False,
+            user_id=user_id,
+        )
+    except SessionStateConflictError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="当前存档属于另一用户作用域。请重新登录后刷新页面，或切换到当前账号自己的存档。",
+        ) from exc
 
     if gen is not None:
         story_text = "".join(list(gen))
@@ -286,6 +285,8 @@ def generate_story_stream(req: StoryGenerateRequest, db: Session = Depends(get_d
             )
 
             yield _sse("done", {})
+        except SessionStateConflictError:
+            yield _sse("error", {"message": "当前存档属于另一用户作用域。请重新登录后刷新页面，或切换到当前账号自己的存档。"})
         except Exception as e:
             yield _sse("error", {"message": str(e)})
 
@@ -301,26 +302,13 @@ def update_session_context(
     """更新会话上下文并返回会话摘要。"""
     user_id = current_user_id(current_user)
 
-    existing = db.query(models.SessionState).filter(models.SessionState.session_id == req.session_id).first()
-    if existing:
-        existing_owner = getattr(existing, "user_id", None)
-        if existing_owner is None and user_id is not None:
-            existing.user_id = user_id
-            session_state = existing
-        elif existing_owner == user_id or (existing_owner is None and user_id is None):
-            session_state = existing
-        else:
-            raise HTTPException(status_code=409, detail="session_id already belongs to another user")
-    else:
-        session_state = None
-
-    if not session_state:
-        session_state = models.SessionState(
-            session_id=req.session_id,
-            total_word_count=0,
-            user_id=user_id,
-        )
-        db.add(session_state)
+    try:
+        session_state = ensure_session_state(db, req.session_id, user_id=user_id)
+    except SessionStateConflictError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="session belongs to another user scope; please refresh after re-login or switch to your own save",
+        ) from exc
 
     provided_fields = getattr(req, "model_fields_set", set())
     if "current_script_id" in provided_fields:
@@ -751,12 +739,7 @@ def rename_save(req: SaveRenameRequest, db: Session = Depends(get_db), current_u
 def create_new_save(db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     """创建新存档"""
     user_id = current_user_id(current_user)
-    import time
-    timestamp = int(time.time() * 1000)
-    time_suffix = time.strftime("%H%M%S")
-    session_id = f"S_{timestamp}_{time_suffix}"
-    if user_id:
-        session_id = f"{session_id}_{str(user_id)[:8]}"
+    session_id = build_unique_session_id(user_id=user_id)
     
     session = models.SessionState(
         session_id=session_id,
@@ -853,7 +836,6 @@ class CopySaveFromSegmentRequest(BaseModel):
 @router.post("/story/saves/copy_from_segment")
 def copy_save_from_segment(req: CopySaveFromSegmentRequest, db: Session = Depends(get_db), current_user: Optional[AuthUser] = Depends(get_current_user_sync)):
     """从指定段创建副本存档（包含从第1段到指定段的所有内容）"""
-    import time
     import json
     user_id = current_user_id(current_user)
 
@@ -880,9 +862,7 @@ def copy_save_from_segment(req: CopySaveFromSegmentRequest, db: Session = Depend
     if not source_segments:
         return {"success": False, "message": "没有可复制的段"}
     
-    timestamp = int(time.time() * 1000)
-    time_suffix = time.strftime("%H%M%S")
-    new_session_id = f"S_{timestamp}_{time_suffix}"
+    new_session_id = build_unique_session_id(user_id=user_id)
     
     new_session = models.SessionState(
         session_id=new_session_id,

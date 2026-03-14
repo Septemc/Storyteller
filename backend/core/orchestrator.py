@@ -11,6 +11,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from ..db import models
+from .session_state import ensure_session_state
 from . import prompts, storage
 from .llm_client import LLMError, chat_completion
 from .tenant import owner_only, owner_or_public
@@ -108,40 +109,7 @@ def _get_or_create_session_state(
     session_id: str,
     user_id: Optional[str] = None,
 ) -> models.SessionState:
-    existing = db.query(models.SessionState).filter(models.SessionState.session_id == session_id).first()
-    if existing:
-        existing_owner = getattr(existing, "user_id", None)
-        if existing_owner == user_id:
-            return existing
-        if existing_owner is None and user_id is not None:
-            existing.user_id = user_id
-            db.commit()
-            db.refresh(existing)
-            return existing
-        if user_id is None and existing_owner is None:
-            return existing
-        raise ValueError(f"session_id '{session_id}' already belongs to another user")
-
-    query = owner_only(
-        db.query(models.SessionState).filter(models.SessionState.session_id == session_id),
-        models.SessionState,
-        user_id,
-    )
-    state = query.first()
-    if state:
-        return state
-
-    state = models.SessionState(
-        session_id=session_id,
-        current_dungeon_id=None,
-        current_node_id=None,
-        total_word_count=0,
-        user_id=user_id,
-    )
-    db.add(state)
-    db.commit()
-    db.refresh(state)
-    return state
+    return ensure_session_state(db, session_id, user_id=user_id)
 
 
 def _character_profile_from_row(row: models.Character) -> Dict[str, Any]:

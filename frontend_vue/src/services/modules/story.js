@@ -1,12 +1,12 @@
-import { request, toQuery } from '../http';
 import { STORAGE_KEYS } from '../../constants/storage';
+import { request, toQuery } from '../http';
 
 function sanitizeStoryErrorMessage(message) {
   const raw = String(message || '').trim();
-  if (!raw) return '??????????';
+  if (!raw) return 'generate failed, please retry';
   const lowered = raw.toLowerCase();
   if (lowered.includes('<!doctype html') || lowered.includes('<html') || lowered.includes('cloudflare') || lowered.includes('error code 520')) {
-    return '????????????HTTP 520???????????????';
+    return 'upstream model service is temporarily unavailable (HTTP 520); please retry later or switch base_url';
   }
   return raw.replace(/\s+/g, ' ').slice(0, 220);
 }
@@ -28,6 +28,7 @@ export async function generateStream(payload, handlers = {}) {
   const resp = await fetch('/api/story/generate_stream', {
     method: 'POST',
     headers,
+
     body: JSON.stringify(payload),
   });
 
