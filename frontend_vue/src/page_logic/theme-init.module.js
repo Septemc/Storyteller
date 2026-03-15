@@ -17,103 +17,45 @@ const FONT_CONFIG = [
 ];
 
 export const THEME_OPTIONS = [
-  {
-    value: 'scroll',
-    label: '羊皮卷轴',
-    description: '暖米色与棕色描边，适合古典叙事。',
-    preview: 'linear-gradient(135deg, #f4ece0 0%, #e6dcc3 58%, #ded3b6 100%)',
-    chips: ['#f4ece0', '#c2b280', '#a0522d'],
-  },
-  {
-    value: 'ink',
-    label: '墨夜黑蓝',
-    description: '接近纯黑，带一点冷蓝高光。',
-    preview: 'linear-gradient(135deg, #0b0d12 0%, #111722 62%, #1b2b44 100%)',
-    chips: ['#0b0d12', '#111722', '#4f7cff'],
-  },
-  {
-    value: 'snow',
-    label: '雪纸白蓝',
-    description: '极简白底，辅以轻微蓝灰层次。',
-    preview: 'linear-gradient(135deg, #ffffff 0%, #f5f9ff 58%, #dce8f7 100%)',
-    chips: ['#ffffff', '#dce8f7', '#5d8fd6'],
-  },
-  {
-    value: 'mist',
-    label: '雾灰蓝影',
-    description: '中性灰蓝，适合长时间阅读。',
-    preview: 'linear-gradient(135deg, #eef2f7 0%, #dfe7f2 52%, #b9c9df 100%)',
-    chips: ['#eef2f7', '#dfe7f2', '#55779e'],
-  },
+  { value: 'scroll', label: '羊皮卷轴', description: '暖米色与棕色描边，保持古典叙事的沉浸感。', preview: 'linear-gradient(135deg, #f4ece0 0%, #e6dcc3 58%, #ded3b6 100%)', chips: ['#f4ece0', '#c2b280', '#a0522d'] },
+  { value: 'ink', label: '墨夜黑蓝', description: '沉静通透的深空蓝灰，富有太空控制台的现代感。', preview: 'linear-gradient(135deg, #0D1117 0%, #161B22 62%, #1F2937 100%)', chips: ['#0D1117', '#161B22', '#3B82F6'] },
+  { value: 'snow', label: '雪纸白蓝', description: '纯净微悬浮白，极简现代的北欧风格。', preview: 'linear-gradient(135deg, #F8F9FA 0%, #FFFFFF 58%, #E2E8F0 100%)', chips: ['#F8F9FA', '#FFFFFF', '#2563EB'] },
+  { value: 'mist', label: '雾灰蓝影', description: '被浓雾包裹的阴冷灰底，适合悬疑与电影感叙事。', preview: 'linear-gradient(135deg, #1C1F26 0%, #282C34 52%, #3F4A5E 100%)', chips: ['#1C1F26', '#282C34', '#60A5FA'] },
+  { value: 'abyss', label: '深渊暗红', description: '暗黑系紫红交织，适合克苏鲁与诡秘剧本。', preview: 'linear-gradient(135deg, #0A090C 0%, #151115 58%, #2B1818 100%)', chips: ['#0A090C', '#151115', '#991B1B'] },
+  { value: 'cyber', label: '霓虹赛博', description: '极客青蓝搭配午夜黑，低光污染废土未来感。', preview: 'linear-gradient(135deg, #05050A 0%, #0E0F19 62%, #192534 100%)', chips: ['#05050A', '#0E0F19', '#06B6D4'] },
+  { value: 'forest', label: '秘林幽影', description: '深邃的苔藓黑绿配以暗金高光，适配西幻设定。', preview: 'linear-gradient(135deg, #0A110D 0%, #111C15 58%, #1D3124 100%)', chips: ['#0A110D', '#111C15', '#D4AF37'] },
 ];
 
 export const BACKGROUND_OPTIONS = [
-  {
-    value: 'paper',
-    label: '羊皮纤维',
-    description: '保留纸张纤维感，适配卷轴主题。',
-    preview: 'linear-gradient(180deg, rgba(255,255,255,0.32), rgba(0,0,0,0.04)), repeating-linear-gradient(90deg, rgba(120,92,56,0.10) 0 1px, transparent 1px 24px)',
-  },
-  {
-    value: 'plain',
-    label: '纯净留白',
-    description: '完全简洁，没有附加纹理。',
-    preview: 'linear-gradient(135deg, rgba(255,255,255,0.28), rgba(255,255,255,0.06))',
-  },
-  {
-    value: 'grid-soft',
-    label: '细线网格',
-    description: '轻量规整的阅读辅助线。',
-    preview: 'linear-gradient(rgba(110,130,160,0.14) 1px, transparent 1px), linear-gradient(90deg, rgba(110,130,160,0.14) 1px, transparent 1px)',
-  },
-  {
-    value: 'dots-soft',
-    label: '微点肌理',
-    description: '柔和颗粒点阵，减少单调感。',
-    preview: 'radial-gradient(circle at 1px 1px, rgba(100,120,150,0.22) 1px, transparent 1.2px)',
-  },
-  {
-    value: 'blueprint',
-    label: '蓝线图纸',
-    description: '很淡的蓝线与角标感。',
-    preview: 'linear-gradient(rgba(96,140,210,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(96,140,210,0.12) 1px, transparent 1px), linear-gradient(135deg, rgba(96,140,210,0.08), transparent 70%)',
-  },
+  { value: 'paper', label: '羊皮纸纹', description: '保留纸张纤维感，适配卷轴主题。', preview: 'linear-gradient(180deg, rgba(255,255,255,0.32), rgba(0,0,0,0.04)), repeating-linear-gradient(90deg, rgba(120,92,56,0.10) 0 1px, transparent 1px 24px)' },
+  { value: 'plain', label: '纯净留白', description: '完全简洁，没有附加纹理。', preview: 'linear-gradient(135deg, rgba(255,255,255,0.28), rgba(255,255,255,0.06))' },
+  { value: 'grid-soft', label: '细线网格', description: '轻量规整的阅读辅助线。', preview: 'linear-gradient(rgba(110,130,160,0.14) 1px, transparent 1px), linear-gradient(90deg, rgba(110,130,160,0.14) 1px, transparent 1px)' },
+  { value: 'dots-soft', label: '微点肌理', description: '柔和颗粒点阵，减少单调感。', preview: 'radial-gradient(circle at 1px 1px, rgba(100,120,150,0.22) 1px, transparent 1.2px)' },
+  { value: 'blueprint', label: '蓝线图纸', description: '很淡的蓝线与角标感。', preview: 'linear-gradient(rgba(96,140,210,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(96,140,210,0.12) 1px, transparent 1px), linear-gradient(135deg, rgba(96,140,210,0.08), transparent 70%)' },
 ];
 
 function safeLocalStorageGet(key, fallback) {
-  try {
-    return localStorage.getItem(key) || fallback;
-  } catch {
-    return fallback;
-  }
+  try { return localStorage.getItem(key) || fallback; } catch { return fallback; }
 }
 
 function safeLocalStorageSet(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-  }
+  try { localStorage.setItem(key, value); } catch {}
 }
 
 function applyFonts() {
   const rootStyle = document.documentElement.style;
   FONT_CONFIG.forEach((item) => {
     const savedVal = safeLocalStorageGet(item.storage, '');
-    if (savedVal) {
-      rootStyle.setProperty(item.css, savedVal);
-    }
+    if (savedVal) rootStyle.setProperty(item.css, savedVal);
   });
 }
 
 export function applyThemeSettings({ theme, background } = {}) {
   const nextTheme = theme || safeLocalStorageGet('app_theme', DEFAULT_THEME);
   const nextBackground = background || safeLocalStorageGet('app_bg', DEFAULT_BACKGROUND);
-
   safeLocalStorageSet('app_theme', nextTheme);
   safeLocalStorageSet('app_bg', nextBackground);
-
   document.documentElement.setAttribute('data-theme', nextTheme);
-
   if (document.body) {
     document.body.className = document.body.className.replace(/\bbg-\S+/g, '').trim();
     document.body.classList.add(`bg-${nextBackground}`);
@@ -124,4 +66,3 @@ export function initThemePage() {
   applyFonts();
   applyThemeSettings();
 }
-

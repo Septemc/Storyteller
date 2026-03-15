@@ -1,11 +1,11 @@
 import { request, toQuery } from '../http';
 
-export function listCharacters(q = '') {
-  return request(`/api/characters${toQuery({ q })}`);
+export function listCharacters(sessionId, q = '') {
+  return request(`/api/characters${toQuery({ session_id: sessionId, q })}`);
 }
 
-export function getCharacter(characterId) {
-  return request(`/api/characters/${encodeURIComponent(characterId)}`);
+export function getCharacter(sessionId, characterId) {
+  return request(`/api/characters/${encodeURIComponent(characterId)}${toQuery({ session_id: sessionId })}`);
 }
 
 export function importCharacters(payload) {
@@ -22,19 +22,19 @@ export function updateCharacter(characterId, payload) {
   });
 }
 
-export function deleteCharacter(characterId) {
-  return request(`/api/characters/${encodeURIComponent(characterId)}`, {
+export function deleteCharacter(sessionId, characterId) {
+  return request(`/api/characters/${encodeURIComponent(characterId)}${toQuery({ session_id: sessionId })}`, {
     method: 'DELETE',
   });
 }
 
-export function clearAllCharacters() {
-  return request('/api/characters/clear_all', {
+export function clearAllCharacters(sessionId) {
+  return request(`/api/characters/clear_all${toQuery({ session_id: sessionId })}`, {
     method: 'DELETE',
   });
 }
 
-export function exportAllCharacters() {
-  return request('/api/characters/export/all');
+export function exportAllCharacters(sessionId) {
+  return request(`/api/characters/export/all${toQuery({ session_id: sessionId })}`);
 }
 

@@ -1,1 +1,1 @@
-SELECT * FROM worldbook;
+SELECT * FROM StorySegment;

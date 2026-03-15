@@ -3,9 +3,9 @@
    ========================================= */
 :root {
   /* --- 闂備胶纭堕弲鐐测枍閿濆鈧線宕ㄩ娆戝墾闂佸憡绻傜€氱兘宕甸悢灏佹闁圭偓濞婇妤呮煟閳瑥瀚刊?--- */
-  --radius-xl: 24px;    /* 闂備礁鎼崐鐟邦熆濮椻偓璺柛鎰靛枟閺咁剚鎱ㄥΟ铏癸紞鐎涙繃绻濋姀鐘靛灮闁告劏鏅涢々顒勬煟?*/
-  --radius-lg: 18px;    /* 闁诲骸婀遍…鍫濐嚕鐠虹尨鑰垮〒姘ｅ亾闁轰礁绉撮～婵嬵敄閸欍儲鎹ｉ梻渚€娼荤粻鎴澪涘鍫稏?*/
-  --radius-md: 12px;    /* 闁诲骸婀遍…鍫濐嚕鐠虹尨鑰垮〒姘ｅ亾闁轰礁绉撮～婵嬵敃閵夈儱绠戠紓鍌欑劍缁嬫垿藝椤栨哎鈧帡宕滆閸?*/
+  --radius-xl: 28px;    /* 闂備礁鎼崐鐟邦熆濮椻偓璺柛鎰靛枟閺咁剚鎱ㄥΟ铏癸紞鐎涙繃绻濋姀鐘靛灮闁告劏鏅涢々顒勬煟?*/
+  --radius-lg: 20px;    /* 闁诲骸婀遍…鍫濐嚕鐠虹尨鑰垮〒姘ｅ亾闁轰礁绉撮～婵嬵敄閸欍儲鎹ｉ梻渚€娼荤粻鎴澪涘鍫稏?*/
+  --radius-md: 14px;    /* 闁诲骸婀遍…鍫濐嚕鐠虹尨鑰垮〒姘ｅ亾闁轰礁绉撮～婵嬵敃閵夈儱绠戠紓鍌欑劍缁嬫垿藝椤栨哎鈧帡宕滆閸?*/
   --radius-sm: 8px;     /* 闁诲骸婀遍…鍫濐嚕鐠虹尨鑰垮〒姘ｅ亾闁轰礁绉撮～婵嬵敆閸屾稓妲楅梻渚€娼荤粻鎴澪涘鍫稏?*/
   --radius-xs: 6px;     /* 闂備礁鎼崐鐟邦熆濮椻偓璺柛鎰靛枟閺咁剚鎱ㄥΟ铏癸紞鐎涙繈鏌ｈ箛鎾剁缂佺粯鍔曢妴鎺楀礈瑜庨崰?*/
   --radius-xxs: 2px;    /* 闂備礁鎲￠悷顖炲垂閸洖鐒垫い鎺嗗亾妞ぱ€鍋撶紓浣稿綁閸楀啿顕ｉ崨濠冨闁告縿鍎查惁鎾绘⒑闂堚晝鐣辨俊顐ｇ矒閿?*/
@@ -106,20 +106,21 @@ body {
 }
 
 /* 3. 闂佽崵濮嶉崟顓涙閻庤娲忛崕闈浳涙笟鈧獮妯兼喆閸曞吀鍝?(Cyberpunk) */
-[data-theme="cyberpunk"] {
-  --bg-main: #020204;
-  --bg-elevated: #0a0a0e;
-  --bg-elevated-alt: #121218;
-  --border-soft: #330033;
-  --text-primary: #00f3ff;
-  --text-secondary: #b000ff;
-  --accent: #ff0055;
-  --accent-soft: rgba(255, 0, 85, 0.2);
-  --danger: #ff9900;
-  --shadow-soft: 0 0 20px rgba(0, 243, 255, 0.1);
+[data-theme="cyber"] {
+  --bg-main: #05050A;
+  --bg-elevated: rgba(14, 15, 25, 0.8);
+  --bg-elevated-alt: rgba(20, 22, 35, 0.85);
+  --border-soft: rgba(6, 182, 212, 0.15);
+  --text-primary: #E2E8F0;
+  --text-secondary: #64748B;
+  --accent: #06B6D4;
+  --accent-soft: rgba(6, 182, 212, 0.2);
+  --danger: #F43F5E;
+  --shadow-soft: 0 0 12px rgba(6, 182, 212, 0.2);
+  --scrollbar-bg: #05050A;
+  --scrollbar-thumb: rgba(6, 182, 212, 0.3);
 }
 
-/* 4. 缂傚倸鍊稿ú銈夋晝閿曗偓琚欏┑鐘叉搐绾偓?(Ancient Scroll) */
 [data-theme="scroll"] {
   --bg-main: #e6dcc3;
   --bg-elevated: #f4ece0;
@@ -130,90 +131,82 @@ body {
   --accent: #a0522d;
   --accent-soft: rgba(160, 82, 45, 0.15);
   --danger: #800000;
+  --shadow-soft: 0 12px 32px rgba(75, 54, 33, 0.08);
 }
 
 [data-theme="ink"] {
-  --bg-main: #0b0d12;
-  --bg-elevated: #121720;
-  --bg-elevated-alt: #19212d;
-  --border-soft: #2a3342;
-  --text-primary: #eef4ff;
-  --text-secondary: #97a8c1;
-  --accent: #78a9ff;
-  --accent-soft: rgba(120, 169, 255, 0.16);
-  --danger: #ff7a7a;
-  --shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.26);
-  --scrollbar-bg: #0b0d12;
-  --scrollbar-thumb: #2a3342;
+  --bg-main: #0D1117;
+  --bg-elevated: rgba(22, 27, 34, 0.75);
+  --bg-elevated-alt: rgba(31, 41, 55, 0.8);
+  --border-soft: rgba(255, 255, 255, 0.05);
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --accent: #3B82F6;
+  --accent-soft: rgba(59, 130, 246, 0.15);
+  --danger: #EF4444;
+  --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --scrollbar-bg: #0D1117;
+  --scrollbar-thumb: #1F2937;
 }
 
 [data-theme="snow"] {
-  --bg-main: #edf3fa;
-  --bg-elevated: #ffffff;
-  --bg-elevated-alt: #f4f8fd;
-  --border-soft: #d5e0ec;
-  --text-primary: #233142;
-  --text-secondary: #68809d;
-  --accent: #5d8fd6;
-  --accent-soft: rgba(93, 143, 214, 0.12);
-  --danger: #df6d6d;
-  --shadow-soft: 0 8px 20px rgba(85, 112, 147, 0.10);
-  --scrollbar-bg: #edf3fa;
-  --scrollbar-thumb: #c7d6e8;
+  --bg-main: #F8F9FA;
+  --bg-elevated: #FFFFFF;
+  --bg-elevated-alt: #F1F5F9;
+  --border-soft: rgba(15, 23, 42, 0.06);
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --accent: #2563EB;
+  --accent-soft: rgba(37, 99, 235, 0.1);
+  --danger: #DC2626;
+  --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.06);
+  --scrollbar-bg: #F8F9FA;
+  --scrollbar-thumb: #CBD5E1;
 }
 
 [data-theme="mist"] {
-  --bg-main: #e3eaf1;
-  --bg-elevated: #eef3f8;
-  --bg-elevated-alt: #d7e0ea;
-  --border-soft: #bcc9d7;
-  --text-primary: #29384a;
-  --text-secondary: #60758f;
-  --accent: #55779e;
-  --accent-soft: rgba(85, 119, 158, 0.14);
-  --danger: #d56a6a;
-  --shadow-soft: 0 8px 18px rgba(74, 96, 120, 0.10);
-  --scrollbar-bg: #e3eaf1;
-  --scrollbar-thumb: #bcc9d7;
+  --bg-main: #1C1F26;
+  --bg-elevated: rgba(40, 44, 52, 0.85);
+  --bg-elevated-alt: rgba(55, 65, 81, 0.85);
+  --border-soft: rgba(255, 255, 255, 0.06);
+  --text-primary: #E2E8F0;
+  --text-secondary: #94A3B8;
+  --accent: #60A5FA;
+  --accent-soft: rgba(96, 165, 250, 0.15);
+  --danger: #F87171;
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.3);
+  --scrollbar-bg: #1C1F26;
+  --scrollbar-thumb: #374151;
 }
 
-/* 5. 闂佸搫顦弲婵嬪礂濡ソ鐟拔熸担鏇熺洴椤㈡瑩鎮剧仦鑲╃泿 (Forest Glade) */
-[data-theme="forest"] {
-  --bg-main: #0b1410;
-  --bg-elevated: #14241e;
-  --bg-elevated-alt: #1c3028;
-  --border-soft: #2d4a3e;
-  --text-primary: #e0f2e9;
-  --text-secondary: #8da696;
-  --accent: #42b983;
-  --accent-soft: rgba(66, 185, 131, 0.2);
-  --danger: #ff6b6b;
-}
-
-/* 6. 闂備胶绮崺鍐疾濠靛牃鍋撳☉鎺撴珔閼挎劙寮堕崼娑樺闁?(Abyssal Red) */
 [data-theme="abyss"] {
-  --bg-main: #0a0000;
-  --bg-elevated: #1a0505;
-  --bg-elevated-alt: #2b0a0a;
-  --border-soft: #4a1010;
-  --text-primary: #ffcccc;
-  --text-secondary: #a66666;
-  --accent: #ff0000;
-  --accent-soft: rgba(255, 0, 0, 0.15);
-  --danger: #ff4444;
+  --bg-main: #0A090C;
+  --bg-elevated: #151115;
+  --bg-elevated-alt: #1A151A;
+  --border-soft: rgba(153, 27, 27, 0.2);
+  --text-primary: #F3F4F6;
+  --text-secondary: #9CA3AF;
+  --accent: #991B1B;
+  --accent-soft: rgba(153, 27, 27, 0.15);
+  --danger: #DC2626;
+  --shadow-soft: 0 12px 36px rgba(153, 27, 27, 0.15);
+  --scrollbar-bg: #0A090C;
+  --scrollbar-thumb: #3F1D1D;
 }
 
-/* 7. 闂備焦鐪归崝灞矫洪妶澶樻晩鐎广儱娲﹂～鏇熴亜閹板墎鐣辨繛?(Royal Gold) */
-[data-theme="royal"] {
-  --bg-main: #120a21;
-  --bg-elevated: #1e1136;
-  --bg-elevated-alt: #2a194a;
-  --border-soft: #442a75;
-  --text-primary: #f0e6ff;
-  --text-secondary: #9d8db5;
-  --accent: #ffd700;
-  --accent-soft: rgba(255, 215, 0, 0.15);
-  --danger: #ff6347;
+[data-theme="forest"] {
+  --bg-main: #0A110D;
+  --bg-elevated: #111C15;
+  --bg-elevated-alt: #16261C;
+  --border-soft: rgba(212, 175, 55, 0.15);
+  --text-primary: #F3F4F6;
+  --text-secondary: #A7F3D0;
+  --accent: #D4AF37;
+  --accent-soft: rgba(212, 175, 55, 0.15);
+  --danger: #F87171;
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.4);
+  --scrollbar-bg: #0A110D;
+  --scrollbar-thumb: #16261C;
 }
 
 /* 闂備胶顭堢换鎺楀储瑜旈、娆撳箛閺夎法鐣遍悷婊冪Х閵囨劖寰勯幇顓犲帓闂婎偄娲﹀纭呫€栭梺?*/
@@ -374,6 +367,8 @@ body.bg-blueprint {
   background: var(--bg-elevated-alt);
   border-color: var(--text-secondary);
   color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--shadow-soft);
 }
 
 .btn-small {
@@ -388,7 +383,7 @@ body.bg-blueprint {
 
 /* --- 闂備焦鎮堕崕鎶藉磻閹剧粯鍋夐柨婵嗩槸缁犳澘顭块懜闈涘閻?(闂備焦妞垮鍧楀礉鐎ｎ剝濮虫い鎺嶇劍缂嶅洭鏌熼幆褍鏆辩€殿喗濞婇弻鈥愁吋閸涱垳顔婇梺? --- */
 .icon-button {
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   background: var(--bg-elevated-alt);
   padding: 2px 6px;
   border-radius: 999px;
@@ -418,7 +413,7 @@ body.bg-blueprint {
 .form-input, .form-select, .form-textarea {
   width: 100%;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   padding: 6px 8px;
   font-size: 13px;
   background: var(--bg-elevated-alt);
@@ -591,7 +586,8 @@ body.bg-blueprint {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.nav-link.active {
+.nav-link.active, .nav-link.router-link-active, .nav-link.router-link-exact-active {
+
   color: var(--text-primary);
   background: var(--accent-soft);
   border-color: rgba(78, 140, 255, 0.3);
@@ -666,11 +662,12 @@ body.bg-blueprint {
 .story-panel, .side-panel, .settings-panel, .left-panel, .right-panel,
 .modal-window, .settings-sidebar, .settings-content-area {
   background: var(--bg-elevated);
-  border: 1px solid var(--border-soft);
+  border: none;
   color: var(--text-primary);
   box-shadow: var(--shadow-soft);
   border-radius: var(--radius-lg);
-  padding: 14px;
+  padding: 24px;
+    -webkit-transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
 }
 
 /* 缂傚倸鍊搁崐鐑芥嚄閸洖绐楃€广儱娲ㄩ崡姘舵煙缂併垹鏋涚紒鐘劦閺屽秷顧侀柛鎾跺枎椤曪綁宕归銏㈢獮闁诲函缍佸褎绂掗崷顓犵＝?闂備浇宕垫慨鏉懨归崟顖涒挃闁告洦鍨扮壕鍧楃叓閸ャ劎鈯曟い銉ョ墦閺屾洝绠涙繝鍌氣拤缂備浇鍩栭悡锟犲蓟閳ユ剚鍚嬮柛娑卞幗浜涚紓?*/
@@ -678,9 +675,9 @@ body.bg-blueprint {
 .node-block, .visual-option, .input-textarea {
   border-radius: var(--radius-xs); /* 闂傚倷绶氬鑽ょ不閹存惊娑橆煥閸剛绋忓┑顔碱煬濞?8px */
   background: var(--bg-elevated-alt);
-  border: 1px solid var(--border-soft);
+  border: none;
   color: var(--text-secondary);
-  padding: 10px 12px; /* 闂傚倷鑳堕、濠囨儗閸ヮ剙绀冮柕濞у啫绠戦梻鍌欑閹碱偊宕愮粙妫垫椽濡舵径瀣槐閻熸粌娴风划娆愬緞鐎ｎ偄鍔呴梺闈涚墕濞层劏銇愰幆褉鏀介柍鈺佸枤濞堟梹淇婇锝団槈闁崇粯鎹囬獮瀣偐閸愯尙锛忔繝鐢靛█濞佳囨偋濠婂牊鍊?10px闂傚倷绀侀幖顐も偓姘卞厴瀹曞綊顢涘鍛暥闂佺鏈粙鎾诲煝閺冨牊鍊甸柨婵嗛楠炴﹢鏌ｅ☉鎺撴珖缂?12px闂傚倷绀侀幖顐も偓姘卞厴瀹曞綊鎮ч崼鈶╂灆闂婎偄娲︾粙鎴︽儗濡ゅ懏鍊甸柛锔诲幖鍟搁梺缁樼▓閺呮繄妲?*/
+  padding: 16px; /* 闂傚倷鑳堕、濠囨儗閸ヮ剙绀冮柕濞у啫绠戦梻鍌欑閹碱偊宕愮粙妫垫椽濡舵径瀣槐閻熸粌娴风划娆愬緞鐎ｎ偄鍔呴梺闈涚墕濞层劏銇愰幆褉鏀介柍鈺佸枤濞堟梹淇婇锝団槈闁崇粯鎹囬獮瀣偐閸愯尙锛忔繝鐢靛█濞佳囨偋濠婂牊鍊?10px闂傚倷绀侀幖顐も偓姘卞厴瀹曞綊顢涘鍛暥闂佺鏈粙鎾诲煝閺冨牊鍊甸柨婵嗛楠炴﹢鏌ｅ☉鎺撴珖缂?12px闂傚倷绀侀幖顐も偓姘卞厴瀹曞綊鎮ч崼鈶╂灆闂婎偄娲︾粙鎴︽儗濡ゅ懏鍊甸柛锔诲幖鍟搁梺缁樼▓閺呮繄妲?*/
 }
 
 .panel-header {
@@ -828,6 +825,7 @@ body[data-page="index"] .story-log .story-block {
   position: relative;
   padding-top: 20px;
   margin-top: 16px;
+  transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
 body[data-page="index"] .story-log .story-block::before {
@@ -908,7 +906,7 @@ body[data-page="index"] .story-log .story-block-assistant .story-text {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   text-align: left;
   line-height: 1.6;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
 }
 
 /* 婵犳鍠楃敮妤冪矙閹烘せ鈧箓宕奸妷顔芥櫍缂備緡鍋嗛悾鐖媟y-block闂傚倷绀侀幖顐ょ矓閹绢喖搴婇柤纰卞墯椤洟鏌ㄩ悢鍝勑ｉ柡鍜佸墴閺屾盯顢曢悩鎻掑婵犳鍠楃划鎾诲蓟閿濆缍栨い鎺嗗亾濠碘€茬矙閺屾盯鍩￠崒婊勫垱閻庤娲︽禍鐐哄焵椤掍胶鈽夋い銏犵Ч濮?*/
@@ -920,6 +918,7 @@ body[data-page="index"] .story-log .story-block {
   padding: 0;
   background: transparent;
   border: none;
+  transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
 body[data-page="index"] .story-log .story-block .story-meta {
@@ -939,7 +938,7 @@ body[data-page="index"] .story-log .story-block .story-text {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   text-align: left;
   line-height: 1.6;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
 }
 
 /* 闂備礁婀遍崢褔鎮洪妸銉綎濠电姵鑹鹃弸渚€鏌曢崼婵囩闁稿鎸搁埥澶娾枎瀹ュ嫭鍕冪紓鍌氬€哥粔鎾敄婢跺﹦鏆﹂柨婵嗘媼濞笺劑鏌嶈閸撶喎鐣烽崘瑁佹椽顢旈崟顓фТ闂備礁鎼ˇ顖炴倶濠靛鐓曢柡鍐ㄧ墛閻撴瑦銇勯弽銊ь暡闁搞倕娲弻鏇㈠幢濡ゅ﹥鈻堝┑鈽嗗亜閸熷瓨鎱ㄩ埀顒勬煟濡搫鏆遍柍褜鍓氶〃濠囧蓟濞戙垹鍐€鐟滃酣骞嗛崼銉︾厽?*/
@@ -1054,14 +1053,14 @@ body[data-page="index"] .input-container {
   max-width: 900px;
 
   /* 婵犳鍠楃敮妤冪矙閹烘せ鈧箓宕奸妷顔芥櫍闁荤姴娲ㄥ鎸庢償閵忥紕绉跺銈嗗姂閸╁嫬螞瀹€鍕拺闁告稑顭▓鏃堟煥閺囥劋閭柛鈹惧亾濡炪倖宸婚崑鎾剁磼缂佹ê鐏ラ崡閬嶆煙鏉堥箖妾柛銈呭閹﹢鎮欓棃娑楀闂?(闂傚倸鍊风欢锟犲磻閸曨垰纾瑰┑鐘宠壘閺嬩線鏌曢崼婵囶棤妞?Dark/Cyberpunk/Forest 缂? */
-  background: rgba(16, 21, 32, 0.95);
-  backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
+  
 
   /* 婵犵數鍋犻幓顏嗙礊閳ь剚绻涙径瀣鐎殿噮鍋婃俊鑸靛緞婵犲嫷妲梻渚€娼ч…鍫ュ磿閸愯鑰块柡澶嬵儥閻斿棝鏌涢銏☆棞闁哥噥鍨辨穱濠囧炊椤掍礁浠?*/
   border-radius: var(--radius-lg);
 
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--border-soft);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   padding: 10px 14px;
   display: flex;
   flex-direction: column;
@@ -1073,7 +1072,7 @@ body[data-page="index"] .input-container {
 [data-theme="light"] body[data-page="index"] .input-container {
   background: linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 98%, white 2%), color-mix(in srgb, var(--bg-elevated-alt) 94%, transparent));
   border-color: color-mix(in srgb, var(--accent) 18%, var(--border-soft));
-  box-shadow: 0 -10px 30px rgba(104, 128, 157, 0.10), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: 0 -10px 30px var(--shadow-soft), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 [data-theme="snow"] body[data-page="index"] .action-suggestions,
@@ -1104,11 +1103,17 @@ body[data-page="index"] .input-container {
 
 /* [婵犵數鍋為崹鍫曞箰婵犳艾绠板Δ锝呭暙閺嬩線鏌曢崼婵囶棤闁崇懓绉甸妵鍕籍閸屾瀚涘┑陇灏欓挅?闂傚倸鍊峰ù鍥涢崟顖涘亱闁糕剝渚楅弫瀣亜閺囨浜鹃梺鎼炲妽閸庢娊鈥﹂妸鈺佸窛妞ゆ牗绮庨幗宀勬⒒娴ｈ銇熼柣鎾崇墦瀹曚即寮借閺?(scroll)闂傚倷鑳堕崑銊╁磿閼碱剚宕查柛宀€鍋涚粻顖毭归崗鍏肩稇闁诲繗娅曠换婵囩節閸屾凹浠鹃梺缁樼缚閸婃繈寮?(light)闂傚倷鑳堕崑銊╁磿閼碱剚宕查柍褜鍓熼幃妤呮濞戞瑦鎷遍梺鎸庣⊕閸旀洝鐏掗梺绋跨箺閸嬫劙寮抽悩缁樷拺缂備焦锕╁▓姗€鏌熼搹顐ｅ暗闁逞屽墮閻忔岸鎮￠垾鎰佸殨闁芥ê顦遍弳瀣煙濞堝灝鏋ゆい?*/
 /* 闂備浇宕甸崰鎰版偡鏉堚晛绶ゅù鐘差儏缁愭鏌涘☉妯兼憼闁搞倕瀚伴幃姗€鎮欓棃娑楀闂佺粯绻嶉崹浼粹€﹂幐搴矗婵犻潧鎳橀崑妤冪磽娓氬洤娅欑紒鐘虫崌楠炲棝宕橀鑲╊槹濡炪倖鐗楅崘鑽ゆ椤忓懍绻?*/
-[data-theme="scroll"] body[data-page="index"] .input-container,
-[data-theme="light"] body[data-page="index"] .input-container {
-    background: rgba(244, 236, 224, 0.95); /* 缂傚倸鍊搁崐绋棵洪妶澶嬫櫇闁挎洍鍋撶悮娆忊攽閻樺弶鎼愮痪顓涘亾闂備胶绮崹褰掓偤閺傝娑㈠箣閿旂晫鍘搁悗骞垮劚閻楀棙绂嶇憴鍕闁割偆鍠庨悘鈺呮煟濮橆剙鈷旈柍褜鍓欏﹢杈ㄦ叏閹绢啟澶庣疀濞戞瑧鍘卞┑掳鍊愰崑鎾绘煥閺囥劋閭柛鈹惧亾濡炪倖宸婚崑鎾剁磼缂佹ê鐏ラ崡?*/
-    border-color: #c2b280;
-    box-shadow: 0 -4px 20px rgba(75, 54, 33, 0.15);
+[data-theme="scroll"] {
+  --bg-main: #e6dcc3;
+  --bg-elevated: #f4ece0;
+  --bg-elevated-alt: #ded3b6;
+  --border-soft: #c2b280;
+  --text-primary: #4b3621;
+  --text-secondary: #8b7355;
+  --accent: #a0522d;
+  --accent-soft: rgba(160, 82, 45, 0.15);
+  --danger: #800000;
+  --shadow-soft: 0 12px 32px rgba(75, 54, 33, 0.08);
 }
 
 /* 闂傚倸鍊峰ù鍥涢崟顖涘亱闁糕剝渚楅弫瀣亜閺囨浜鹃悗娈垮枟閻撯剝淇婇幖浣规櫆闁伙絽鐬奸崢顒€鈹戦悙鏉戠仸闁瑰憡鎮傞垾锕傛倻婵劏鍋撻崒鐐村癄濠㈣埖锚濞堫偄顪冮妶鍡橆梿婵炲娲栭埢?*/
@@ -1186,7 +1191,7 @@ body[data-page="index"] .input-container {
   width: 100%;
   text-align: left;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   background: var(--bg-elevated-alt);
   color: var(--text-secondary);
   padding: 8px 12px;
@@ -1226,7 +1231,7 @@ body[data-page="index"] .input-textarea {
   border-radius: var(--radius-md); /* 婵犵數鍋犻幓顏嗙礊閳ь剚绻涙径瀣鐎殿噮鍋婃俊鍫曞幢濞嗗本鐏冩俊鐐€栭幐楣冨磻濞戞瑧绠鹃柛銉墯閻撴洟鏌ㄩ弴妤€浜惧┑鈽嗗亝缁捇鏁?*/
   resize: none;
   background: var(--bg-elevated-alt);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   font-size: 14px;
   line-height: 1.5;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
@@ -1523,7 +1528,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 
 .char-card {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-sm);
   padding: 14px;
   margin-bottom: 14px;
@@ -1583,7 +1588,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   background: rgba(0, 0, 0, 0.2);
   padding: 8px;
   border-radius: 4px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
 }
 
 .stat-val {
@@ -1601,7 +1606,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 
 .tab-button {
   border-radius: 999px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   padding: 4px 12px;
   font-size: 12px;
   background: var(--bg-elevated-alt);
@@ -1820,7 +1825,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 /* --- 闂備浇顕х换鎺楀磻濞戙垹纾圭紓浣癸供濞?1: World --- */
 .tree-level-1-container {
   margin-bottom: 8px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-sm);
   background: rgba(0,0,0,0.02);
   overflow: hidden;
@@ -1993,7 +1998,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   overflow-y: auto;
   background: var(--bg-elevated);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
 }
 
 /* 闂傚倸鍊烽悞锕€顭垮Ο鑲╃煋闁割偅娲橀崑顏堟煕閳╁啰鈽夋俊顐ｏ耿閺屾盯濡烽鐐搭€嶅銈嗗姃缁瑥顫忓ú顏嶆晝闁靛繆鏅滄晥闂佽瀛╅崫搴ㄥ礉閹存繄鏆?*/
@@ -2002,7 +2007,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   cursor: pointer;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   background: var(--bg-elevated-alt);
   color: var(--text-primary);
   font-size: 13px;
@@ -2080,7 +2085,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-sm);
   padding: 8px;
   background: rgba(0, 0, 0, 0.15);
@@ -2142,7 +2147,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   overflow: hidden;
   background: var(--bg-elevated);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
 }
 
 .node-editor-header {
@@ -2244,7 +2249,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   width: 100%;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   background: var(--bg-elevated-alt);
   color: var(--text-primary);
   font-size: 13px;
@@ -2277,7 +2282,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   width: 28px;
   height: 28px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   background: var(--bg-elevated-alt);
   color: var(--text-secondary);
   cursor: pointer;
@@ -2423,7 +2428,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 
 .btn-secondary {
   background: var(--bg-elevated-alt);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   transition: all 0.2s ease;
 }
 
@@ -2516,7 +2521,7 @@ body[data-page="index"].input-half-screen .input-textarea {
   background: var(--bg-elevated-alt);
   padding: 15px;
   border-radius: 8px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   height: 100%;
   overflow-y: auto;
 }
@@ -2597,7 +2602,7 @@ body[data-page="index"].input-half-screen .input-textarea {
 .status-message.info {
   background: var(--bg-elevated-alt);
   color: var(--text-secondary);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
 }
 
 /* =========================================
@@ -2929,7 +2934,7 @@ input:checked + .slider:before {
   padding: 8px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   transition: all 0.2s ease;
   cursor: pointer;
 }
@@ -3026,7 +3031,7 @@ input:checked + .slider:before {
 .inventory-slot {
   aspect-ratio: 1;
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -3645,7 +3650,7 @@ input:checked + .slider:before {
 .map-container {
   border-radius: var(--radius-sm);
   overflow: hidden;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
 }
 
 .map-placeholder {
@@ -3908,7 +3913,7 @@ input:checked + .slider:before {
   padding: 4px 16px;
   background: var(--bg-elevated-alt);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   cursor: pointer;
   position: relative;
   transition: all 0.3s ease;
@@ -4022,7 +4027,7 @@ input:checked + .slider:before {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--bg-elevated);
@@ -4076,7 +4081,7 @@ input:checked + .slider:before {
   padding: 12px;
   margin-bottom: 8px;
   background: var(--bg-elevated-alt);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -4157,7 +4162,7 @@ input:checked + .slider:before {
   flex: 1;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--bg-elevated);
@@ -4205,7 +4210,7 @@ input:checked + .slider:before {
   background: var(--bg-elevated-alt);
   border-radius: var(--radius-sm);
   padding: 12px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
 }
 
 .save-detail-section-title {
@@ -4248,7 +4253,7 @@ input:checked + .slider:before {
   padding: 10px 12px;
   margin-bottom: 6px;
   background: var(--bg-elevated);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-sm);
   font-size: 12px;
   transition: all 0.2s ease;
@@ -4306,7 +4311,7 @@ input:checked + .slider:before {
 
 .segment-action-btn {
   background: var(--bg-elevated-alt);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-sm);
   padding: 4px 6px;
   cursor: pointer;
@@ -4358,7 +4363,7 @@ input:checked + .slider:before {
   font-size: 13px;
   color: var(--text-primary);
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-sm);
   outline: none;
   transition: border-color 0.2s ease;
@@ -4399,7 +4404,7 @@ input:checked + .slider:before {
   margin-top: 8px;
   min-width: 180px;
   background: var(--bg-elevated);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   opacity: 0;
@@ -4750,7 +4755,7 @@ input:checked + .slider:before {
   font-size: 13px;
   color: var(--text-primary);
   background: var(--bg-elevated-alt);
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 40%, transparent);
   border-radius: var(--radius-sm);
   outline: none;
   transition: border-color 0.2s ease;
@@ -4920,77 +4925,107 @@ input:checked + .slider:before {
   --subtitle-ink: #8d7768;
 }
 
-[data-theme="cyberpunk"] {
-  --bg-main: #07111f;
-  --bg-elevated: #0f1a2d;
-  --bg-elevated-alt: #142845;
-  --border-soft: #234260;
-  --text-primary: #edf6ff;
-  --text-secondary: #9cb3cf;
-  --accent: #44d9e6;
-  --accent-soft: rgba(68, 217, 230, 0.18);
-  --danger: #ff7c87;
-  --shadow-soft: 0 20px 42px rgba(8, 18, 36, 0.42);
-  --button-highlight-strong: #149ab8;
-  --nav-center-glow: rgba(68, 217, 230, 0.28);
-  --title-gradient-start: #f0fbff;
-  --title-gradient-end: #64cfff;
+[data-theme="cyber"] {
+  --bg-main: #05050A;
+  --bg-elevated: rgba(14, 15, 25, 0.8);
+  --bg-elevated-alt: rgba(20, 22, 35, 0.85);
+  --border-soft: rgba(6, 182, 212, 0.15);
+  --text-primary: #E2E8F0;
+  --text-secondary: #64748B;
+  --accent: #06B6D4;
+  --accent-soft: rgba(6, 182, 212, 0.2);
+  --danger: #F43F5E;
+  --shadow-soft: 0 0 12px rgba(6, 182, 212, 0.2);
+  --scrollbar-bg: #05050A;
+  --scrollbar-thumb: rgba(6, 182, 212, 0.3);
 }
 
 [data-theme="scroll"] {
-  --bg-main: #e7decd;
-  --bg-elevated: #f5ecdf;
-  --bg-elevated-alt: #ecdfcd;
-  --border-soft: #c8b18d;
-  --text-primary: #4e3a28;
-  --text-secondary: #826852;
-  --accent: #a36642;
-  --accent-soft: rgba(163, 102, 66, 0.15);
-  --danger: #a44b42;
-  --shadow-soft: 0 16px 32px rgba(91, 65, 38, 0.12);
-  --title-gradient-start: #6b5039;
-  --title-gradient-end: #b37d59;
+  --bg-main: #e6dcc3;
+  --bg-elevated: #f4ece0;
+  --bg-elevated-alt: #ded3b6;
+  --border-soft: #c2b280;
+  --text-primary: #4b3621;
+  --text-secondary: #8b7355;
+  --accent: #a0522d;
+  --accent-soft: rgba(160, 82, 45, 0.15);
+  --danger: #800000;
+  --shadow-soft: 0 12px 32px rgba(75, 54, 33, 0.08);
 }
 
-[data-theme="forest"] {
-  --bg-main: #0f1712;
-  --bg-elevated: #17241d;
-  --bg-elevated-alt: #213328;
-  --border-soft: #324d3e;
-  --text-primary: #edf6ef;
-  --text-secondary: #9db2a3;
-  --accent: #78b98a;
-  --accent-soft: rgba(120, 185, 138, 0.18);
-  --danger: #e57c7c;
-  --nav-center-glow: rgba(120, 185, 138, 0.26);
+[data-theme="ink"] {
+  --bg-main: #0D1117;
+  --bg-elevated: rgba(22, 27, 34, 0.75);
+  --bg-elevated-alt: rgba(31, 41, 55, 0.8);
+  --border-soft: rgba(255, 255, 255, 0.05);
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --accent: #3B82F6;
+  --accent-soft: rgba(59, 130, 246, 0.15);
+  --danger: #EF4444;
+  --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --scrollbar-bg: #0D1117;
+  --scrollbar-thumb: #1F2937;
+}
+
+[data-theme="snow"] {
+  --bg-main: #F8F9FA;
+  --bg-elevated: #FFFFFF;
+  --bg-elevated-alt: #F1F5F9;
+  --border-soft: rgba(15, 23, 42, 0.06);
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --accent: #2563EB;
+  --accent-soft: rgba(37, 99, 235, 0.1);
+  --danger: #DC2626;
+  --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.06);
+  --scrollbar-bg: #F8F9FA;
+  --scrollbar-thumb: #CBD5E1;
+}
+
+[data-theme="mist"] {
+  --bg-main: #1C1F26;
+  --bg-elevated: rgba(40, 44, 52, 0.85);
+  --bg-elevated-alt: rgba(55, 65, 81, 0.85);
+  --border-soft: rgba(255, 255, 255, 0.06);
+  --text-primary: #E2E8F0;
+  --text-secondary: #94A3B8;
+  --accent: #60A5FA;
+  --accent-soft: rgba(96, 165, 250, 0.15);
+  --danger: #F87171;
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.3);
+  --scrollbar-bg: #1C1F26;
+  --scrollbar-thumb: #374151;
 }
 
 [data-theme="abyss"] {
-  --bg-main: #170b10;
-  --bg-elevated: #251019;
-  --bg-elevated-alt: #331522;
-  --border-soft: #5d2638;
-  --text-primary: #f8e8ec;
-  --text-secondary: #b9969d;
-  --accent: #d66a6f;
-  --accent-soft: rgba(214, 106, 111, 0.18);
-  --danger: #ff8f88;
-  --nav-center-glow: rgba(214, 106, 111, 0.28);
+  --bg-main: #0A090C;
+  --bg-elevated: #151115;
+  --bg-elevated-alt: #1A151A;
+  --border-soft: rgba(153, 27, 27, 0.2);
+  --text-primary: #F3F4F6;
+  --text-secondary: #9CA3AF;
+  --accent: #991B1B;
+  --accent-soft: rgba(153, 27, 27, 0.15);
+  --danger: #DC2626;
+  --shadow-soft: 0 12px 36px rgba(153, 27, 27, 0.15);
+  --scrollbar-bg: #0A090C;
+  --scrollbar-thumb: #3F1D1D;
 }
 
-[data-theme="royal"] {
-  --bg-main: #1b1427;
-  --bg-elevated: #241b34;
-  --bg-elevated-alt: #342444;
-  --border-soft: #58416f;
-  --text-primary: #f6efe4;
-  --text-secondary: #b5a6bf;
-  --accent: #c8a86a;
-  --accent-soft: rgba(200, 168, 106, 0.18);
-  --danger: #e07a70;
-  --nav-center-glow: rgba(200, 168, 106, 0.26);
-  --title-gradient-start: #f7efe1;
-  --title-gradient-end: #e4c07a;
+[data-theme="forest"] {
+  --bg-main: #0A110D;
+  --bg-elevated: #111C15;
+  --bg-elevated-alt: #16261C;
+  --border-soft: rgba(212, 175, 55, 0.15);
+  --text-primary: #F3F4F6;
+  --text-secondary: #A7F3D0;
+  --accent: #D4AF37;
+  --accent-soft: rgba(212, 175, 55, 0.15);
+  --danger: #F87171;
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.4);
+  --scrollbar-bg: #0A110D;
+  --scrollbar-thumb: #16261C;
 }
 
 [data-theme="aurora"] {
@@ -5171,7 +5206,8 @@ body.bg-waves {
   border-color: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-.nav-link.active {
+.nav-link.active, .nav-link.router-link-active, .nav-link.router-link-exact-active {
+
   color: var(--nav-pill-active-text);
   background: var(--nav-pill-active-bg);
   border-color: color-mix(in srgb, var(--accent) 64%, white 10%);
@@ -5435,3 +5471,54 @@ body[data-page="settings"] .settings-content-area {
   }
 }
 
+
+
+> body[data-page="index"] .story-log .story-block-assistant .story-text::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    background: var(--accent-soft);
+    border-radius: 3px;
+}
+
+
+.panel-title {
+  font-size: 1.1em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+}
+
+.subsection-title {
+  font-weight: 600;
+  font-size: 0.95em;
+  color: var(--text-primary);
+}
+
+.subsection-header {
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border-soft);
+  margin-bottom: 8px;
+}
+
+body[data-page="index"] .story-log .story-block::before {
+  display: none !important; /* Remove the top border lines between chats completely for a cleaner look */
+}
+
+
+.input-container .input-textarea {
+  border: 1px solid transparent;
+  border-bottom: 2px solid var(--border-soft);
+  border-radius: var(--radius-xs);
+  background: var(--bg-main) !important;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.02);
+  transition: all 0.3s ease;
+}
+.input-container .input-textarea:focus {
+  border-bottom-color: var(--accent);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.04), 0 4px 12px var(--shadow-soft);
+  background: var(--bg-elevated) !important;
+}

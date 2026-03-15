@@ -1,0 +1,142 @@
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-small,
+.btn-small-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  html,
+  body,
+  #app,
+  .shell {
+    min-height: 100dvh;
+  }
+
+  body[data-page="index"],
+  body[data-page="characters"],
+  body[data-page="worldbook"],
+  body[data-page="dungeon"],
+  body[data-page="settings"] {
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 100dvh;
+  }
+
+  .top-nav {
+    height: auto;
+    min-height: 72px;
+    padding: calc(12px + var(--safe-top)) 12px 12px;
+    gap: 12px;
+  }
+
+  .main-layout,
+  .two-column-layout,
+  .settings-container {
+    display: flex !important;
+    flex-direction: column;
+    height: auto !important;
+    min-height: calc(100dvh - 84px);
+    padding: 12px 12px calc(12px + var(--safe-bottom));
+    gap: 12px;
+  }
+
+  .left-panel,
+  .right-panel,
+  .side-panel,
+  .story-panel,
+  .settings-sidebar,
+  .settings-content-area {
+    width: 100%;
+    min-width: 0;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .panel-header,
+  .panel-header-right,
+  .settings-header-actions,
+  .worldbook-top-row,
+  .worldbook-action-row,
+  .toolbar-actions,
+  .button-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .panel-header-right,
+  .settings-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-small,
+  .btn-small-inline,
+  .icon-button {
+    min-height: 40px;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    font-size: 16px;
+  }
+
+  .form-input,
+  .form-select {
+    min-height: 44px;
+  }
+
+  .half-grid,
+  .meta-grid,
+  .api-editor-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-page="settings"] .settings-sidebar {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+
+  body[data-page="settings"] .settings-tab-btn {
+    flex: 0 0 auto;
+  }
+
+  body[data-page="settings"] .settings-content-area {
+    overflow: visible !important;
+  }
+
+  body[data-page="settings"] .api-pane {
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-page="settings"] .theme-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .main-layout,
+  .two-column-layout,
+  .settings-container {
+    padding-inline: 10px;
+  }
+
+  body[data-page="settings"] .theme-card-grid {
+    grid-template-columns: 1fr;
+  }
+}

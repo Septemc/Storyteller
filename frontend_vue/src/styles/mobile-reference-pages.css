@@ -1,0 +1,73 @@
+@media (max-width: 900px) {
+  body[data-page="characters"] .characters-page,
+  body[data-page="worldbook"] .worldbook-page,
+  body[data-page="dungeon"] .two-column-layout,
+  body[data-page="settings"] .settings-page {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  body[data-page="characters"] .characters-sidebar .sidebar-scroll,
+  body[data-page="characters"] .detail-scroll,
+  body[data-page="worldbook"] .worldbook-sidebar,
+  body[data-page="worldbook"] #detail-panel,
+  body[data-page="dungeon"] #detail-panel {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body[data-page="characters"] .list-shell,
+  body[data-page="worldbook"] #tree-root,
+  body[data-page="dungeon"] #tree-root,
+  body[data-page="settings"] .api-list-shell {
+    min-height: 240px;
+    max-height: 40dvh;
+    overflow: auto !important;
+  }
+
+  body[data-page="characters"] .header-actions,
+  body[data-page="characters"] .toggle-group,
+  body[data-page="worldbook"] .worldbook-top-row,
+  body[data-page="worldbook"] .worldbook-action-row,
+  body[data-page="dungeon"] .toolbar-actions {
+    width: 100%;
+  }
+
+  body[data-page="characters"] .template-select-row,
+  body[data-page="worldbook"] .worldbook-search {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-page="characters"] .template-status-chip {
+    max-width: none !important;
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  body[data-page="worldbook"] .worldbook-tree-shell {
+    min-height: 280px !important;
+  }
+
+  body[data-page="worldbook"] .worldbook-select {
+    min-width: 0 !important;
+  }
+
+  body[data-page="settings"] .settings-header-actions > * {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  body[data-page="characters"] .char-card,
+  body[data-page="worldbook"] .settings-section,
+  body[data-page="dungeon"] .settings-section {
+    padding: 14px;
+  }
+
+  body[data-page="characters"] .button-strip > *,
+  body[data-page="worldbook"] .worldbook-action-row > *,
+  body[data-page="dungeon"] .toolbar-actions > * {
+    flex: 1 1 calc(50% - 8px);
+  }
+}

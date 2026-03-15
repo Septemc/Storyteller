@@ -337,6 +337,10 @@ onMounted(async () => {
 .worldbook-select {
   min-width: 260px;
   flex: 1 1 260px;
+  min-height: 44px;
+  max-height: 44px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .worldbook-status-line {

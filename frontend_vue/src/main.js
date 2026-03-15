@@ -4,6 +4,9 @@ import App from './App.vue';
 import router from './router';
 import { useAuthStore } from './stores/auth';
 import './styles/legacy.css';
+import './styles/mobile-shell.css';
+import './styles/mobile-story.css';
+import './styles/mobile-reference-pages.css';
 
 const app = createApp(App);
 const pinia = createPinia();

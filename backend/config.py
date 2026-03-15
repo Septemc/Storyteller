@@ -1,4 +1,5 @@
 from pathlib import Path
+import importlib.util
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -22,6 +23,8 @@ class Settings(BaseSettings):
             sqlite_path = database_url.removeprefix("sqlite:///")
             normalized = Path(sqlite_path).as_posix()
             return f"sqlite:///{normalized}"
+        if database_url.startswith("postgresql://") and importlib.util.find_spec("psycopg") and "+psycopg" not in database_url:
+            return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
         return database_url
 
 

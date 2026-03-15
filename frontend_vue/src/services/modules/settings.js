@@ -49,6 +49,10 @@ export function listLlmConfigs() {
   return request('/api/llm/configs');
 }
 
+export function getLlmConfigModels(configId) {
+  return request(`/api/llm/configs/${encodeURIComponent(configId)}/models`);
+}
+
 export function createLlmConfig(payload) {
   return request('/api/llm/configs', {
     method: 'POST',

@@ -1,7 +1,7 @@
 import { request } from '../http';
 
-export function listTemplates() {
-  return request('/api/templates/list');
+export function listTemplates(sessionId) {
+  return request(`/api/templates/list?session_id=${encodeURIComponent(sessionId)}`);
 }
 
 export function createTemplate(payload) {
@@ -18,8 +18,14 @@ export function updateTemplate(templateId, payload) {
   });
 }
 
-export function deleteTemplate(templateId) {
-  return request(`/api/templates/${encodeURIComponent(templateId)}`, {
+export function activateTemplate(sessionId, templateId) {
+  return request(`/api/templates/${encodeURIComponent(templateId)}/activate?session_id=${encodeURIComponent(sessionId)}`, {
+    method: 'POST',
+  });
+}
+
+export function deleteTemplate(sessionId, templateId) {
+  return request(`/api/templates/${encodeURIComponent(templateId)}?session_id=${encodeURIComponent(sessionId)}`, {
     method: 'DELETE',
   });
 }

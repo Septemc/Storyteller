@@ -87,8 +87,33 @@ export function createSave() {
   return request('/api/story/saves/create', { method: 'POST' });
 }
 
+export function createStory() {
+  return request('/api/story/stories/create', { method: 'POST' });
+}
+
+export function createBranch(payload) {
+  return request('/api/story/branches/create', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function renameSave(payload) {
   return request('/api/story/saves/rename', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function renameStory(payload) {
+  return request('/api/story/stories/rename', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function renameBranch(payload) {
+  return request('/api/story/branches/rename', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

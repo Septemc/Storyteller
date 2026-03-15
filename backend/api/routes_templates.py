@@ -1,32 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
-from sqlalchemy.orm import Session
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
 import json
-from ..db.base import get_db
+from typing import Any, Dict, Optional
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from ..core.auth import User as AuthUser, get_current_user
+from ..core.tenant import current_user_id, owner_only
 from ..db import models
-from ..core.auth import get_current_user, User as AuthUser
-from ..core.tenant import current_user_id, owner_only, owner_or_public, resolve_scoped_id
+from ..db.base import get_db
 
 router = APIRouter(prefix="/api/templates", tags=["templates"])
 
 
 @router.get("/list")
 def list_templates(
+    session_id: str = Query(..., description="session id"),
     db: Session = Depends(get_db),
-    current_user: Optional[AuthUser] = Depends(get_current_user)
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ):
     user_id = current_user_id(current_user)
-    query = owner_or_public(db.query(models.CharacterTemplate), models.CharacterTemplate, user_id)
-
-    tmps = query.all()
+    rows = owner_only(
+        db.query(models.CharacterTemplate).filter(models.CharacterTemplate.session_id == session_id),
+        models.CharacterTemplate,
+        user_id,
+    ).order_by(models.CharacterTemplate.updated_at.desc()).all()
     return {
         "items": [
             {
-                "id": t.id,
-                "name": t.name,
-                "description": t.description,
-                "config": json.loads(t.config_json)
-            } for t in tmps
+                "id": row.template_id,
+                "session_id": row.session_id,
+                "template_id": row.template_id,
+                "name": row.template_name,
+                "template_name": row.template_name,
+                "config": json.loads(row.template_json or "{}"),
+                "template_json": json.loads(row.template_json or "{}"),
+                "is_active": row.is_active,
+            }
+            for row in rows
         ]
     }
 
@@ -35,24 +47,28 @@ def list_templates(
 def create_template(
     payload: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db),
-    current_user: Optional[AuthUser] = Depends(get_current_user)
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ):
     user_id = current_user_id(current_user)
-    requested_id = payload.get("id")
-    if not requested_id:
-        raise HTTPException(400, "Template ID is required")
-    t_id = resolve_scoped_id(db, models.CharacterTemplate, "id", requested_id, user_id)
-
-    new_t = models.CharacterTemplate(
-        id=t_id,
+    session_id = str(payload.get("session_id") or "").strip()
+    template_id = str(payload.get("id") or payload.get("template_id") or "").strip()
+    if not session_id or not template_id:
+        raise HTTPException(400, "session_id and template_id are required")
+    if owner_only(db.query(models.CharacterTemplate).filter(models.CharacterTemplate.session_id == session_id, models.CharacterTemplate.template_id == template_id), models.CharacterTemplate, user_id).first():
+        raise HTTPException(400, "template already exists")
+    row = models.CharacterTemplate(
         user_id=user_id,
-        name=payload.get("name", "未命名"),
-        description=payload.get("description", ""),
-        config_json=json.dumps(payload.get("config", {}), ensure_ascii=False)
+        session_id=session_id,
+        template_id=template_id,
+        template_name=payload.get("name") or payload.get("template_name") or template_id,
+        template_json=json.dumps(payload.get("config") or payload.get("template_json") or {}, ensure_ascii=False),
+        is_active=bool(payload.get("is_active")),
     )
-    db.add(new_t)
+    db.add(row)
+    if row.is_active:
+        owner_only(db.query(models.CharacterTemplate).filter(models.CharacterTemplate.session_id == session_id), models.CharacterTemplate, user_id).update({models.CharacterTemplate.is_active: False})
     db.commit()
-    return {"status": "ok", "id": t_id}
+    return {"status": "ok", "template_id": row.template_id}
 
 
 @router.put("/{template_id}")
@@ -60,46 +76,57 @@ def update_template(
     template_id: str,
     payload: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db),
-    current_user: Optional[AuthUser] = Depends(get_current_user)
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ):
     user_id = current_user_id(current_user)
-    query = owner_only(
-        db.query(models.CharacterTemplate).filter_by(id=template_id),
-        models.CharacterTemplate,
-        user_id,
-    )
-    t = query.first()
-    if not t:
-        raise HTTPException(404, "Template not found or you don't have permission to update it")
-    
-    t.name = payload.get("name", t.name)
-    t.description = payload.get("description", t.description)
-    if "config" in payload:
-        t.config_json = json.dumps(payload["config"], ensure_ascii=False)
+    session_id = str(payload.get("session_id") or "").strip()
+    row = owner_only(db.query(models.CharacterTemplate).filter(models.CharacterTemplate.session_id == session_id, models.CharacterTemplate.template_id == template_id), models.CharacterTemplate, user_id).first()
+    if not row:
+        raise HTTPException(404, "Template not found")
+    row.template_name = payload.get("name") or payload.get("template_name") or row.template_name
+    if "config" in payload or "template_json" in payload:
+        row.template_json = json.dumps(payload.get("config") or payload.get("template_json") or {}, ensure_ascii=False)
+    if "is_active" in payload and payload.get("is_active"):
+        _set_active_template(db, session_id, template_id, user_id)
+        row.is_active = True
     db.commit()
     return {"status": "updated"}
+
+
+@router.post("/{template_id}/activate")
+def activate_template(
+    template_id: str,
+    session_id: str = Query(..., description="session id"),
+    db: Session = Depends(get_db),
+    current_user: Optional[AuthUser] = Depends(get_current_user),
+):
+    user_id = current_user_id(current_user)
+    row = owner_only(db.query(models.CharacterTemplate).filter(models.CharacterTemplate.session_id == session_id, models.CharacterTemplate.template_id == template_id), models.CharacterTemplate, user_id).first()
+    if not row:
+        raise HTTPException(404, "Template not found")
+    _set_active_template(db, session_id, template_id, user_id)
+    db.commit()
+    return {"status": "activated", "template_id": template_id}
 
 
 @router.delete("/{template_id}")
 def delete_template(
     template_id: str,
+    session_id: str = Query(..., description="session id"),
     db: Session = Depends(get_db),
-    current_user: Optional[AuthUser] = Depends(get_current_user)
+    current_user: Optional[AuthUser] = Depends(get_current_user),
 ):
     user_id = current_user_id(current_user)
-    query = owner_only(
-        db.query(models.CharacterTemplate).filter_by(id=template_id),
-        models.CharacterTemplate,
-        user_id,
-    )
-    t = query.first()
-    if not t:
-        raise HTTPException(404, "Template not found or you don't have permission to delete it")
-
-    # 系统级默认模板不允许删除
-    if template_id == "system_default":
-        raise HTTPException(400, "System default template cannot be deleted")
-
-    db.delete(t)
+    row = owner_only(db.query(models.CharacterTemplate).filter(models.CharacterTemplate.session_id == session_id, models.CharacterTemplate.template_id == template_id), models.CharacterTemplate, user_id).first()
+    if not row:
+        raise HTTPException(404, "Template not found")
+    db.delete(row)
     db.commit()
     return {"status": "deleted"}
+
+
+def _set_active_template(db: Session, session_id: str, template_id: str, user_id: Optional[str]) -> None:
+    owner_only(db.query(models.CharacterTemplate).filter(models.CharacterTemplate.session_id == session_id), models.CharacterTemplate, user_id).update({models.CharacterTemplate.is_active: False})
+    row = owner_only(db.query(models.CharacterTemplate).filter(models.CharacterTemplate.session_id == session_id, models.CharacterTemplate.template_id == template_id), models.CharacterTemplate, user_id).first()
+    if row:
+        row.is_active = True

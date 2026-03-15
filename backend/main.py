@@ -21,6 +21,8 @@ from .api import (
 from .db.crud.worldbook import cleanup_orphan_worldbook_embeddings
 from .db.base import Base, engine
 from .db.base import SessionLocal
+from .scripts.rebuild_character_templates_table import rebuild_if_needed as rebuild_character_templates_table
+from .scripts.rebuild_characters_table import rebuild_if_needed as rebuild_characters_table
 from .scripts.migrate_worldbook_ids import run_migration
 
 
@@ -51,6 +53,8 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup() -> None:
     Base.metadata.create_all(bind=engine)
+    rebuild_characters_table()
+    rebuild_character_templates_table()
     run_migration()
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
